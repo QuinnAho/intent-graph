@@ -49,3 +49,9 @@ automation/sessions/
 # approves bash commands during a session; that state is local to one machine
 # and should not be tracked. .claude/settings.json (project-level) IS tracked.
 .claude/settings.local.json
+
+# cc-sdd kiro-* skills are installed per-developer via automation/install.sh.
+# They are tooling, not project content. The project's own intentgraph-* skills
+# under .claude/skills/ and .codex/skills/ ARE tracked.
+.claude/skills/kiro-*
+.codex/skills/kiro-*
