@@ -50,31 +50,17 @@ done
 log()  { printf '[qa] %s\n' "$*"; }
 err()  { printf '[qa] ERROR: %s\n' "$*" >&2; }
 
+# Shared helpers (codex resolver, diff-size, count parser).
+# shellcheck source=./qa-lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/qa-lib.sh"
+
 cd "$REPO_ROOT"
 
 git rev-parse HEAD >/dev/null 2>&1 || { err "not a git repo or HEAD unset"; exit 4; }
 
 # ------------------------------------------------------------ resolve codex binary
 
-resolve_codex() {
-  if [[ -n "${CODEX_BIN:-}" && -x "$CODEX_BIN" ]]; then
-    echo "$CODEX_BIN"; return 0
-  fi
-  if command -v codex >/dev/null 2>&1; then
-    command -v codex; return 0
-  fi
-  # Windows npm shim
-  if [[ -n "${APPDATA:-}" && -x "$APPDATA/npm/codex.cmd" ]]; then
-    echo "$APPDATA/npm/codex.cmd"; return 0
-  fi
-  # Unix npm-global
-  if [[ -x "$HOME/.npm-global/bin/codex" ]]; then
-    echo "$HOME/.npm-global/bin/codex"; return 0
-  fi
-  return 1
-}
-
-CODEX="$(resolve_codex || true)"
+CODEX="$(resolve_codex_binary || true)"
 if [[ -z "$CODEX" ]]; then
   err "codex CLI not found on PATH or known npm shim locations; install with 'npm i -g @openai/codex'"
   exit 4
@@ -89,17 +75,7 @@ fi
 
 # ------------------------------------------------------------ diff size check
 
-# Sum of additions+deletions across tracked files. Untracked files are added
-# whole (counted as additions); use wc -l on each.
-TRACKED_LINES="$(git diff HEAD --numstat | awk '{a+=$1+0; d+=$2+0} END{print (a+d)+0}')"
-UNTRACKED_LINES=0
-while IFS= read -r f; do
-  [[ -z "$f" ]] && continue
-  [[ -f "$f" ]] || continue
-  UNTRACKED_LINES=$((UNTRACKED_LINES + $(wc -l < "$f" 2>/dev/null || echo 0)))
-done < <(git ls-files --others --exclude-standard)
-
-DIFF_LINES=$((TRACKED_LINES + UNTRACKED_LINES))
+DIFF_LINES="$(compute_diff_size "$REPO_ROOT")"
 
 if (( DIFF_LINES > THRESHOLD )); then
   err "diff is ${DIFF_LINES} lines (threshold ${THRESHOLD}). Split into smaller commits and audit each."
@@ -147,6 +123,10 @@ fi
 # at 200_000 chars (well under any frontier-model context window).
 MAX_PAYLOAD_CHARS=200000
 
+# The heredoc below mirrors automation/qa-prompt.template.md verbatim except
+# for the {{PLACEHOLDER}} substitutions which are interpolated by bash's
+# heredoc expansion here (and by the model in interactive /qa). Keep the two
+# in sync — the template file is the source of truth that humans read.
 cat > "$PROMPT_FILE" <<EOF
 You are running as Codex in read-only sandbox mode, invoked from the IntentGraph autonomous loop (automation/ralph.sh) as a per-commit QA audit. The bash loop has no parent agent to produce a self-report, so this is a Pass-2-only audit: verify the diff against the project's hard rules independently. You have no stake in the answer.
 
@@ -244,13 +224,10 @@ fi
 
 # ------------------------------------------------------------ parse counts
 
-COUNTS_LINE="$(grep -E '^COUNT_BLOCKER=[0-9]+ COUNT_MAJOR=[0-9]+ COUNT_MINOR=[0-9]+ COUNT_NIT=[0-9]+' "$CODEX_OUT" | tail -n 1 || true)"
-if [[ -z "$COUNTS_LINE" ]]; then
+if ! read -r COUNT_BLOCKER COUNT_MAJOR COUNT_MINOR COUNT_NIT < <(extract_qa_counts "$CODEX_OUT"); then
   err "codex output did not include the COUNT_* line in the expected format; treating as audit failure"
   exit 4
 fi
-
-eval "$(echo "$COUNTS_LINE" | tr ' ' '\n')"  # sets COUNT_BLOCKER, COUNT_MAJOR, etc.
 
 # ------------------------------------------------------------ write report
 
