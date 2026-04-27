@@ -22,7 +22,14 @@ const FORBIDDEN_AI_EXPORTS = new Set([
 // Allowlist: only files under this prefix may import the forbidden symbols.
 const AGENT_RUNNER_PREFIX = path.join('packages', 'skill', 'src', 'agent-runner');
 
-const agentRunnerOnly = {
+// True path-segment match: rel must equal the prefix or be a child path. A
+// raw `startsWith` would also accept sibling directories like
+// `packages/skill/src/agent-runner-bypass/`, silently bypassing the chokepoint.
+function isUnderAgentRunner(rel) {
+  return rel === AGENT_RUNNER_PREFIX || rel.startsWith(AGENT_RUNNER_PREFIX + path.sep);
+}
+
+export const agentRunnerOnly = {
   meta: {
     type: 'problem',
     docs: {
@@ -38,7 +45,7 @@ const agentRunnerOnly = {
   create(context) {
     const filename = context.filename ?? context.getFilename();
     const rel = path.relative(__dirname, filename);
-    const isAllowed = rel.startsWith(AGENT_RUNNER_PREFIX);
+    const isAllowed = isUnderAgentRunner(rel);
     return {
       ImportDeclaration(node) {
         if (node.source.value !== 'ai') return;
@@ -112,6 +119,23 @@ export default [
     files: ['**/*.config.{ts,js,mjs,cjs}', 'scripts/**/*.ts'],
     rules: {
       'no-console': 'off',
+    },
+  },
+  // Apply the AgentRunner chokepoint rule to JS/MJS/CJS sources too. A build
+  // script written in `.mjs` could otherwise import `generateText` from `ai`
+  // with no warning. Use the default ESLint parser (no @typescript-eslint
+  // here) so plain JS files parse correctly.
+  {
+    files: ['**/*.js', '**/*.mjs', '**/*.cjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+    },
+    plugins: {
+      intentgraph: intentgraphPlugin,
+    },
+    rules: {
+      'intentgraph/agent-runner-only': 'error',
     },
   },
 ];
