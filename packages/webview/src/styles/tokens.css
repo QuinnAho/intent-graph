@@ -1,0 +1,10 @@
+/* IntentGraph CSS variables. Map to VS Code theme tokens at runtime so the
+   webview tracks the editor theme. Tailwind references these via
+   tailwind.config.ts. */
+
+:root {
+  --ig-canvas: var(--vscode-editor-background, #1e1e1e);
+  --ig-node: var(--vscode-editorWidget-background, #252526);
+  --ig-edge: var(--vscode-editorWidget-border, #444);
+  --ig-text: var(--vscode-editor-foreground, #d4d4d4);
+}

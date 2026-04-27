@@ -1,0 +1,39 @@
+{
+  "_banner": "STUB — BLOCKED ON ADRs (multiple). Phase 4 introduces drift detection, AgentRunner, the orchestrator, and the monitor LLM. Three load-bearing surfaces: (1) the 4-tier semantic diff ladder, (2) the AgentRunner trace-event shape, (3) the monitor-LLM verdict schema. All three need ADRs before this phase can be decomposed. The monitor-LLM gate is MANDATORY for every task in this phase per tech-spec §4.",
+  "phase": "phase-4-drift-detection",
+  "status": "blocked-on-decision",
+  "approval": null,
+  "autonomy_level": "medium-low",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": true,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p4-t01",
+      "title": "Stub — drift detection + AgentRunner + monitor LLM design",
+      "depends_on": [],
+      "scope_files": [
+        "docs/adr/ADR-NNNN-diff-ladder.md",
+        "docs/adr/ADR-NNNN-agent-runner-trace-shape.md",
+        "docs/adr/ADR-NNNN-monitor-llm-verdict.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-4--drift-detection--agentrunner--monitor--l2",
+      "completion_signal": "PHASE4_T01_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "tech-spec ADRs required: (1) 4-tier diff ladder hyperparameters per language, (2) AgentRunner trace_event row shape, (3) monitor-LLM JSON verdict schema and the failure modes that map to block / require_human_review / allow.",
+      "notes": "Phase 4 is the faithfulness layer. Mistakes here destroy the architecture's central claim. Monitor-LLM gate mandatory on every task once unblocked."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+node_modules
+dist
+out
+build
+.turbo
+coverage
+*.vsix
+pnpm-lock.yaml
+packages/skill/src/db/migrations/**/*.sql

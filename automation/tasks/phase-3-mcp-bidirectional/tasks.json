@@ -1,0 +1,37 @@
+{
+  "_banner": "STUB — BLOCKED ON ADR. Phase 3 (MCP server + bidirectional markdown sync → L1) introduces the MCP tool surface and the extension's transport layer. The MCP surface is load-bearing for every downstream phase; it must not be designed by a Ralph loop. Write an ADR documenting the tool names, input/output shapes, and error conventions, then decompose this phase into tasks.",
+  "phase": "phase-3-mcp-bidirectional",
+  "status": "blocked-on-decision",
+  "approval": null,
+  "autonomy_level": "medium",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p3-t01",
+      "title": "Stub — MCP tool surface design",
+      "depends_on": [],
+      "scope_files": [
+        "docs/adr/ADR-NNNN-mcp-tool-surface.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-3--mcp-server--bidirectional-markdown-sync--l1",
+      "completion_signal": "PHASE3_T01_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "tech-spec ADR required: MCP tool surface (names, input/output Zod schemas, error envelope, lease/fence semantics on mutating tools). Write the ADR, then decompose Phase 3 into actual tasks.",
+      "notes": "Do not unblock without the ADR. The MCP surface is consumed by the extension, Claude Code, Codex, and every future verifier plugin — getting it wrong cascades."
+    }
+  ]
+}

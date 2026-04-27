@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build artifacts
+dist/
+out/
+build/
+*.vsix
+*.tsbuildinfo
+
+# tooling caches
+.turbo/
+.eslintcache
+coverage/
+.vitest-cache/
+
+# editor
+.vscode-test/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# env
+.env
+.env.local
+.env.*.local
+
+# IntentGraph runtime
+.intentgraph/
+*.db
+*.db-shm
+*.db-wal
+*.db.bak.*
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Ralph loop state — sessions/ holds per-run progress.json, prompts, agent
+# outputs, verification logs, and monitor verdicts. Loop commits go through
+# git; the session directory is loop-internal scratch.
+automation/sessions/

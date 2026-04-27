@@ -1,0 +1,200 @@
+{
+  "_banner": "DRAFT — NEEDS HUMAN APPROVAL. ralph.sh will refuse to execute this file until status is flipped to `approved` per automation/tasks/APPROVAL.md. Read every task before approving; the loop will commit each one. Several tasks here touch the SQLite/Drizzle schema — review those first, schema decisions cascade.",
+  "phase": "phase-2-static-graph",
+  "status": "draft-needs-human-approval",
+  "approval": null,
+  "autonomy_level": "high",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm install --frozen-lockfile",
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test",
+      "pnpm migrate:lint"
+    ],
+    "phase_specific_checks": [
+      "pnpm --filter @intentgraph/skill exec node ./scripts/seed-dev-db.ts --check || true",
+      "pnpm --filter @intentgraph/webview build"
+    ]
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p2-t01",
+      "title": "Implement Drizzle schema for node, edge, obligation, lease, trace_event per tech-spec §4 — schema only, no migrations yet",
+      "depends_on": [],
+      "scope_files": [
+        "packages/skill/src/db/schema.ts",
+        "packages/shared/src/schemas/**",
+        "packages/shared/src/types/**"
+      ],
+      "spec_reference": "tech-spec.md#4-data-and-trace-store",
+      "completion_signal": "PHASE2_T01_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**Architectural surface — flagged human_checkpoint.** Schema decisions cascade through Phases 3-5. The agent drafts; the human reviews column types, FK semantics, and CHECK constraints against tech-spec §4 before approving. After approval, the agent runs `drizzle-kit generate` to produce the first migration."
+    },
+    {
+      "id": "p2-t02",
+      "title": "Generate first Drizzle migration from the approved schema and confirm `atlas migrate lint --latest 1` exits 0",
+      "depends_on": [
+        "p2-t01"
+      ],
+      "scope_files": [
+        "packages/skill/src/db/migrations/**",
+        "packages/skill/drizzle.config.ts"
+      ],
+      "spec_reference": "tech-spec.md#3-component-specifications",
+      "completion_signal": "PHASE2_T02_DONE",
+      "estimated_minutes": 15,
+      "human_checkpoint": false,
+      "blocked_on_decision": null
+    },
+    {
+      "id": "p2-t03",
+      "title": "Implement WAL pragmas + sqlite-vec attach in db/init.ts; backup-before-migrate refuses to start if backup write fails",
+      "depends_on": [
+        "p2-t02"
+      ],
+      "scope_files": [
+        "packages/skill/src/db/init.ts",
+        "packages/skill/src/db/client.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#pillar-2--relational-graph-store-as-substrate",
+      "completion_signal": "PHASE2_T03_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Pragmas: journal_mode=WAL, synchronous=NORMAL, mmap_size=268435456, temp_store=MEMORY, foreign_keys=ON, busy_timeout=5000. Tests: pragma values readable post-init; sqlite-vec virtual table createable; backup write failure causes refuse-to-start."
+    },
+    {
+      "id": "p2-t04",
+      "title": "Implement /spec/*.md frontmatter parser → graph nodes (intents, constraints, decisions)",
+      "depends_on": [
+        "p2-t02"
+      ],
+      "scope_files": [
+        "packages/skill/src/parser/spec-md/**",
+        "packages/skill/tests/**",
+        "spec/intents/example-*.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T04_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Use the YAML frontmatter schemas already documented in /spec/*/README.md. Add 1-2 example intents under spec/intents/ so the parser has fixtures and the team can see the dogfood loop."
+    },
+    {
+      "id": "p2-t05",
+      "title": "Implement tree-sitter native walk of packages/*/src/** producing code-symbol nodes with stable IDs",
+      "depends_on": [
+        "p2-t02"
+      ],
+      "scope_files": [
+        "packages/skill/src/parser/tree-sitter.ts",
+        "packages/skill/src/parser/grammar-registry.ts",
+        "packages/skill/src/parser/cache.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#32-parsing--analysis",
+      "completion_signal": "PHASE2_T05_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**Symbol identity is load-bearing — flagged human_checkpoint.** Use SCIP-first when available; composite-heuristic fallback (sig 0.30 + body 0.35 + outgoing-call 0.20 + name 0.15) with thresholds 0.85/0.65 per tech-spec §3.2. Human reviews the heuristic implementation before approving."
+    },
+    {
+      "id": "p2-t06",
+      "title": "Implement build-graph.ts that emits graph.json + seeds the SQLite DB from /spec parser + tree-sitter walk",
+      "depends_on": [
+        "p2-t03",
+        "p2-t04",
+        "p2-t05"
+      ],
+      "scope_files": [
+        "packages/skill/src/build-graph.ts",
+        "scripts/seed-dev-db.ts"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T06_DONE",
+      "estimated_minutes": 25,
+      "human_checkpoint": false,
+      "blocked_on_decision": null
+    },
+    {
+      "id": "p2-t07",
+      "title": "Implement Coverage Verifier: every Intent has ≥1 `realizes` edge and every Constraint has a `verified_by` link",
+      "depends_on": [
+        "p2-t06"
+      ],
+      "scope_files": [
+        "packages/skill/src/verifiers/builtin/coverage.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T07_DONE",
+      "estimated_minutes": 25,
+      "human_checkpoint": false,
+      "blocked_on_decision": null
+    },
+    {
+      "id": "p2-t08",
+      "title": "Wire the webview to read graph.json (still file-based for L0); add Contextual Zoom LOD and ELK-in-worker integration",
+      "depends_on": [
+        "p2-t06"
+      ],
+      "scope_files": [
+        "packages/webview/src/graph/**",
+        "packages/webview/src/store/**",
+        "packages/webview/src/transport/**"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T08_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "L0 reads the file directly; the MCP path is Phase 3. Implement Contextual Zoom LOD (3 tiers tied to useViewport()) and onlyRenderVisibleElements per tech-spec §3.3."
+    },
+    {
+      "id": "p2-t09",
+      "title": "Sub-flows for concept boundaries (extent: 'parent') with example concept node grouping intents/constraints",
+      "depends_on": [
+        "p2-t08"
+      ],
+      "scope_files": [
+        "packages/webview/src/graph/nodes/ConceptNode.tsx",
+        "packages/webview/src/graph/GraphCanvas.tsx"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T09_DONE",
+      "estimated_minutes": 20,
+      "human_checkpoint": false,
+      "blocked_on_decision": null
+    },
+    {
+      "id": "p2-t10",
+      "title": "L0 acceptance: produce CHECKLIST showing IntentGraph's own intents and code modules visible in `pnpm build && open app/dist/index.html`; new team member finds an intent in <60s",
+      "depends_on": [
+        "p2-t07",
+        "p2-t09"
+      ],
+      "scope_files": [
+        "automation/staging/PHASE2_L0_CHECKLIST.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T10_DONE",
+      "estimated_minutes": 15,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "L0 gate is the dogfooding gate. Agent produces the checklist; human runs it and signs off. Without this signoff, Phase 3 cannot start."
+    }
+  ]
+}

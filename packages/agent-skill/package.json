@@ -1,0 +1,25 @@
+{
+  "name": "@intentgraph/agent-skill",
+  "version": "0.0.0",
+  "description": "Agent Skills package for IntentGraph. Consumed identically by Claude Code (.claude/skills/) and Codex (.codex/skills/).",
+  "license": "MIT",
+  "type": "module",
+  "files": ["SKILL.md", "agents", "bin", "README.md"],
+  "bin": {
+    "intentgraph-skill": "./bin/intentgraph-skill.js"
+  },
+  "scripts": {
+    "build": "node ./scripts/copy-skill.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests for agent-skill package'"
+  },
+  "dependencies": {
+    "@intentgraph/skill": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

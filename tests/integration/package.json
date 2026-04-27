@@ -1,0 +1,19 @@
+{
+  "name": "@intentgraph/integration-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-package integration tests. Spawns a real skill subprocess and exercises end-to-end flows over MCP.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --project integration",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@intentgraph/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

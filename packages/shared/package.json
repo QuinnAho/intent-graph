@@ -1,0 +1,29 @@
+{
+  "name": "@intentgraph/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Zod schemas, derived types, and protocol constants shared across the extension, webview, and skill.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./types": "./src/types/index.ts",
+    "./protocol": "./src/protocol/index.ts",
+    "./ids": "./src/ids/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project shared"
+  },
+  "dependencies": {
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

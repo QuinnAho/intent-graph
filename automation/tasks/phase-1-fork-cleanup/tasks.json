@@ -1,0 +1,127 @@
+{
+  "_banner": "DRAFT — NEEDS HUMAN APPROVAL. ralph.sh will refuse to execute this file until status is flipped to `approved` per automation/tasks/APPROVAL.md. Read every task before approving; the loop will commit each one.",
+  "phase": "phase-1-fork-cleanup",
+  "status": "draft-needs-human-approval",
+  "approval": null,
+  "autonomy_level": "high",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm install --frozen-lockfile",
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": [
+      "pnpm --filter @intentgraph/extension exec tsc --noEmit",
+      "pnpm --filter @intentgraph/skill exec tsup --no-config --dry-run || true"
+    ]
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p1-t01",
+      "title": "Confirm scaffolding pins match Phase 1 stack decisions (xyflow v12+, elkjs, zustand, vite, tsup, vitest, fast-check, drizzle)",
+      "depends_on": [],
+      "scope_files": [
+        "package.json",
+        "packages/*/package.json",
+        "pnpm-workspace.yaml"
+      ],
+      "spec_reference": "tech-spec.md#phase-1--fork--cleanup",
+      "completion_signal": "PHASE1_T01_DONE",
+      "estimated_minutes": 15,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Verify each pin matches the tech-spec call. If a version is missing or wrong, update package.json and re-run pnpm install. Do not bump majors without an ADR."
+    },
+    {
+      "id": "p1-t02",
+      "title": "Read claudemap/ contracts/, skill/SKILL.md frontmatter, and agents/ — produce a one-page LIFT_AUDIT.md flagging anything that contradicts tech-spec.md",
+      "depends_on": [],
+      "scope_files": [
+        "LIFT_AUDIT.md",
+        "claudemap/**"
+      ],
+      "spec_reference": "tech-spec.md#7-identified-gaps-risks-and-unresolved-questions",
+      "completion_signal": "PHASE1_T02_DONE",
+      "estimated_minutes": 25,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Read-only against claudemap/. Output is a Markdown audit, not code. Specifically check claim that ClaudeMap has no MCP server today (research brief F.A in §7)."
+    },
+    {
+      "id": "p1-t03",
+      "title": "Audit packages/skill/src/agent-runner/ to confirm the AgentRunner-only ESLint rule fires correctly on a fixture import",
+      "depends_on": [
+        "p1-t01"
+      ],
+      "scope_files": [
+        "eslint.config.mjs",
+        "packages/skill/src/agent-runner/**",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#pillar-4--agent-orchestration-is-first-class",
+      "completion_signal": "PHASE1_T03_DONE",
+      "estimated_minutes": 20,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Add a fixture test file that intentionally imports `generateText` from `ai` outside agent-runner/. Expect lint to fail. Then move the fixture inside agent-runner/ and expect lint to pass. Do not commit the failing fixture; commit the passing one and a Vitest case that asserts the lint rule's existence by name."
+    },
+    {
+      "id": "p1-t04",
+      "title": "Wire fast-check into the verifier package with a single passing trivial property (assoc of Number.parseInt round-trip on safe ints)",
+      "depends_on": [
+        "p1-t01"
+      ],
+      "scope_files": [
+        "packages/skill/src/verifiers/builtin/fast-check.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#phase-1--fork--cleanup",
+      "completion_signal": "PHASE1_T04_DONE",
+      "estimated_minutes": 20,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "The Phase 1 gate explicitly mentions 'CI runs lint + Vitest + fast-check (against an empty ObligationProposal pipeline)'. This task lights up the path; the real ObligationProposal pipeline lands in Phase 4."
+    },
+    {
+      "id": "p1-t05",
+      "title": "Confirm `pnpm dev` opens the React Flow shell in the webview (manual step — produce a CHECKLIST.md the human runs)",
+      "depends_on": [
+        "p1-t01"
+      ],
+      "scope_files": [
+        "packages/webview/**",
+        "automation/staging/PHASE1_DEV_CHECKLIST.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-1--fork--cleanup",
+      "completion_signal": "PHASE1_T05_DONE",
+      "estimated_minutes": 25,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "The Phase 1 gate is partly visual (`pnpm dev` opens the shell). The agent cannot verify a browser opens correctly. It produces a checklist; a human runs it. Marked human_checkpoint."
+    },
+    {
+      "id": "p1-t06",
+      "title": "Add CI step `atlas migrate lint` against an empty migrations dir and assert it exits 0",
+      "depends_on": [
+        "p1-t01"
+      ],
+      "scope_files": [
+        ".github/workflows/ci.yml",
+        "packages/skill/src/db/migrations/**"
+      ],
+      "spec_reference": "tech-spec.md#3-component-specifications",
+      "completion_signal": "PHASE1_T06_DONE",
+      "estimated_minutes": 15,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "ci.yml already has the migrate-lint job stubbed; this task confirms it exits 0 against the empty-migrations branch and stays in the green state."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Glossary
+
+Definitions of the terms that appear throughout the codebase. If a term is used in code without appearing here, add it.
+
+- **intent** — A node describing what the system should do. Carries a description, optional owner, target kinds, and priority. The user-authored truth that code is a projection of.
+- **constraint** — A node attached to an intent that narrows the space of valid implementations. Predicate kinds: `property`, `type`, `logical`, `example`. Carries an `expr` and a `scope_node`.
+- **concept** — A node that defines a domain term or abstraction referenced by intents and constraints. Provides shared vocabulary; `parent_id` on other nodes points here for boundary grouping.
+- **obligation** — A verifiable claim derived from an intent or constraint. Owned by a verifier and resolved as `pending`, `verified`, `failed`, or `rejected`. Counterexamples become first-class graph nodes.
+- **lease** — Advisory `(node_id, scope)` reservation with TTL that gives one task exclusive write rights to a region of the graph. Coordinated, not enforced — the fence token is what makes it safe.
+- **fence token** — Monotonically increasing integer issued at lease acquisition. Every write carries the holder's token; the database rejects writes whose token is older than the most recent observed token for the row. Closes the Kleppmann gap; lost-update is impossible even on lease bugs.
+- **trace event** — A row in `trace_event` recording a single agent action: tool calls made, retrieved node IDs, model and version, prompt hash, separately-stored low-trust reasoning text, verifier outcomes, downstream mutations, monitor verdict, usage, latency, cost. The concrete artifact is the source of truth, not the natural-language rationale.
+- **task** — A node with `kind='task'` representing a unit of agent work. The orchestrator's task graph IS this subgraph of the IntentGraph; we refuse a second graph model.
+- **drift** — Divergence between an intent and the code that projects from it, surfaced by the backward-sync pipeline (tree-sitter reparse → AST diff → drift events on affected intent nodes).
+- **proposed_patch** — A node holding a generated diff produced by an agent in a shadow `git worktree` under `.intentgraph/shadow/<task-id>`. Previewed via `vscode.diff`, applied via `WorkspaceEdit`, undoable through the editor's native history.
+- **monitor verdict** — Output of the cheap monitor LLM that runs on every commit-phase action plus a 5% sample of model calls plus all `safety_critical` mutations. JSON-shaped: `{flagged, score, categories[], evidence, recommended_action}`. Becomes a graph node edged from the trace and the task.
+- **AgentRunner** — The single chokepoint in `packages/skill/src/agent-runner` through which all model calls pass. Enforced by the `intentgraph/agent-runner-only` ESLint rule. Trace recording happens here; there is no other path.

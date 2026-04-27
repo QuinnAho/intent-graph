@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: lint • typecheck • test • build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Check agent configuration
+        run: pnpm check:agent-config
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  migrate-lint:
+    name: atlas migrate lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Atlas
+        uses: ariga/setup-atlas@v0
+        with:
+          version: latest
+
+      - name: Lint migrations
+        run: |
+          if [ -d packages/skill/src/db/migrations ] && [ -n "$(ls -A packages/skill/src/db/migrations 2>/dev/null)" ]; then
+            atlas migrate lint \
+              --dev-url "sqlite://dev?mode=memory" \
+              --dir "file://packages/skill/src/db/migrations" \
+              --latest 1
+          else
+            echo "No migrations yet — skipping atlas migrate lint."
+          fi

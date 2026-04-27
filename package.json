@@ -1,0 +1,38 @@
+{
+  "name": "intentgraph",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spec-driven IDE plugin where developers work in a living graph of intent, constraints, decisions, and rationale.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "pnpm -r run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "migrate:lint": "atlas migrate lint --dev-url 'sqlite://dev?mode=memory' --latest 1 --dir 'file://packages/skill/src/db/migrations'",
+    "check:agent-config": "tsx scripts/check-agent-config.ts",
+    "clean": "pnpm -r exec rimraf dist .turbo node_modules/.cache"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.4.2",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

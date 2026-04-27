@@ -1,0 +1,54 @@
+{
+  "name": "@intentgraph/extension",
+  "version": "0.0.0",
+  "private": true,
+  "displayName": "IntentGraph",
+  "description": "Spec-driven IDE: edit, verify, and navigate a living graph of intent, constraints, and decisions.",
+  "publisher": "intentgraph",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0",
+    "node": ">=20.11.0"
+  },
+  "categories": ["Other", "Visualization", "Programming Languages"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onCommand:intentgraph.openGraph"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "intentgraph.openGraph",
+        "title": "IntentGraph: Open Graph",
+        "category": "IntentGraph"
+      }
+    ],
+    "configuration": {
+      "title": "IntentGraph",
+      "properties": {
+        "intentgraph.skill.path": {
+          "type": "string",
+          "default": "",
+          "description": "Override path to the @intentgraph/skill executable. Leave empty to use the bundled skill."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "dev": "tsc -b -w",
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project extension",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@intentgraph/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "vscode-messenger": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "_banner": "STUB — BLOCKED ON ADR. Phase 5 wires sqlite-vec, embeddings (voyage / qwen), HippoRAG-style PPR, and the eval harness. The embedding choice and the PPR weights are decided once and pin everything downstream. Write the ADR, then decompose. Once unblocked, autonomy is `high` because the work is mechanical wiring against a frozen design.",
+  "phase": "phase-5-retrieval-eval",
+  "status": "blocked-on-decision",
+  "approval": null,
+  "autonomy_level": "high",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p5-t01",
+      "title": "Stub — retrieval and eval harness design",
+      "depends_on": [],
+      "scope_files": [
+        "docs/adr/ADR-NNNN-retrieval-stack.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-5--retrieval-evaluation-and-self-refactor--l3",
+      "completion_signal": "PHASE5_T01_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "tech-spec ADR required: embedding stack (voyage-code-3 / voyage-3-large / Qwen3-Embedding-0.6B), PPR weights (vec-similarity → seed weights, iteration count, alpha), and eval-harness regression thresholds (CoIR-CSN-CCR NDCG@10, Loc-Bench Acc@5, dogfood multi-hop, masked Recall@10, agent pass rate)."
+    }
+  ]
+}

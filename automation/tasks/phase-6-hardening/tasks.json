@@ -1,0 +1,36 @@
+{
+  "_banner": "STUB — autonomy_level=low; ralph.sh REFUSES to execute any task here without per-task explicit human approval recorded in approvals.json. Phase 6 covers external pilot users, marketplace publishing, multi-workspace, and privacy controls. All non-mechanical, all need human review. The monitor-LLM gate is MANDATORY for any task once approved.",
+  "phase": "phase-6-hardening",
+  "status": "blocked-on-decision",
+  "approval": null,
+  "autonomy_level": "low",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": true,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "tasks": [
+    {
+      "id": "p6-t01",
+      "title": "Stub — Phase 6 task list",
+      "depends_on": [],
+      "scope_files": [
+        "docs/adr/ADR-NNNN-publishing-and-multiworkspace.md"
+      ],
+      "spec_reference": "tech-spec.md#phase-6--hardening-packaging-first-external-users",
+      "completion_signal": "PHASE6_T01_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "tech-spec ADRs required: marketplace publishing flow, multi-workspace concurrency policy, privacy controls for prompt + reasoning_text storage, secrets-scrub policy on tool-call args."
+    }
+  ]
+}

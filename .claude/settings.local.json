@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api *)",
+      "WebFetch(domain:github.com)",
+      "Bash(git *)",
+      "Bash(mv Tech-Spec.md tech-spec.tmp)",
+      "Bash(mv tech-spec.tmp tech-spec.md)",
+      "Bash(mv /tmp/tech-spec-backup.md tech-spec.md)",
+      "Bash(rm /tmp/tech-spec-backup.md)",
+      "Read(//tmp/**)",
+      "Bash(ls -la .codex/)",
+      "Bash(ls -la .claude/commands/)",
+      "Bash(cp -r D:/ahoqp1/Repositories/intent-graph/.claude/skills D:/ahoqp1/Repositories/intent-graph/.codex/skills)",
+      "Bash(cp -r D:/ahoqp1/Repositories/intent-graph/.claude/agents D:/ahoqp1/Repositories/intent-graph/.codex/subagents)",
+      "Bash(cp -r D:/ahoqp1/Repositories/intent-graph/.claude/commands D:/ahoqp1/Repositories/intent-graph/.codex/commands)",
+      "Bash(node --experimental-strip-types scripts/check-agent-config.ts)",
+      "Bash(where pnpm *)",
+      "Bash(where node *)",
+      "Read(//c/Users/ahoqp1/AppData/Roaming/npm//**)",
+      "Bash(corepack --version)",
+      "Bash(corepack enable *)",
+      "Bash(npx --yes pnpm@9.12.0 --version)",
+      "Bash(npx --yes pnpm@9.12.0 install --frozen-lockfile)",
+      "Bash(npx --yes pnpm@9.12.0 install)",
+      "Bash(npx --yes pnpm@9.12.0 typecheck)",
+      "Bash(npx --yes pnpm@9.12.0 lint)",
+      "Bash(npx --yes pnpm@9.12.0 test)"
+    ]
+  }
+}

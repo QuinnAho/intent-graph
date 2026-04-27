@@ -1,0 +1,24 @@
+# Codex-compatible skill manifest. Mirrors SKILL.md frontmatter so the same
+# directory works under both .claude/skills/intentgraph/ and .codex/skills/intentgraph/.
+
+name: intentgraph
+description: Spec-driven graph of intent, constraints, decisions, and rationale. Provides MCP tools for querying, mutating, and verifying the IntentGraph for the current workspace.
+entry: bin/intentgraph-skill.js
+transport: stdio
+allowed_tools:
+  - graph.query
+  - graph.get_node
+  - graph.upsert_node
+  - graph.upsert_edge
+  - graph.delete
+  - graph.diff_against_code
+  - retrieval.search
+  - task.create
+  - task.lease
+  - task.heartbeat
+  - task.release
+  - task.propose_patch
+  - task.accept_patch
+  - task.reject_patch
+  - verify.run
+  - trace.query

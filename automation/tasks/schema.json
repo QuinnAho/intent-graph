@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intentgraph.dev/automation/tasks.schema.json",
+  "title": "IntentGraph Ralph task list",
+  "description": "Schema for automation/tasks/<phase>/tasks.json. ralph.sh validates every task list against this before any iteration runs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["phase", "status", "autonomy_level", "max_iterations_per_task", "max_total_cost_usd", "verification", "tasks"],
+  "properties": {
+    "phase": {
+      "type": "string",
+      "pattern": "^phase-[1-9][0-9]?-[a-z0-9-]+$",
+      "description": "Slug matching the directory name. Must align with tech-spec.md §6 phase headings."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft-needs-human-approval", "approved", "blocked-on-decision", "executing", "completed", "aborted"],
+      "description": "Lifecycle. ralph.sh refuses to execute anything but `approved` or `executing`."
+    },
+    "approval": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["approved_by", "approved_at", "git_commit_hash"],
+      "properties": {
+        "approved_by": { "type": "string", "description": "Output of `git config user.name` at approval time." },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "git_commit_hash": { "type": "string", "description": "Hash of the commit that flipped status to approved." }
+      },
+      "description": "Required when status is `approved`. See APPROVAL.md for the flow."
+    },
+    "autonomy_level": {
+      "type": "string",
+      "enum": ["high", "medium", "medium-low", "low"]
+    },
+    "max_iterations_per_task": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "max_total_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 200,
+      "description": "Hard cap is 200; ralph.sh enforces this regardless of the value here. Raise above the default only with a justification in the docstring."
+    },
+    "max_total_cost_usd_justification": {
+      "type": "string",
+      "description": "Required if max_total_cost_usd > 100. Explains why this phase needs more budget."
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_commands"],
+      "properties": {
+        "required_commands": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Shell commands that must all exit 0 before a task is considered complete."
+        },
+        "phase_specific_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional shell commands run after required_commands, scoped to this phase."
+        }
+      }
+    },
+    "monitor_llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, the monitor-llm gate runs after every task and a `block`/`require_human_review` verdict halts the loop. Mandatory for phases 4 and 6."
+        },
+        "model": {
+          "type": "string",
+          "default": "llama-3.3-70b-versatile",
+          "description": "Groq model id. Default per tech-spec.md §4."
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "depends_on", "scope_files", "spec_reference", "completion_signal", "human_checkpoint"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^p[1-9][0-9]?-t[0-9]{2,3}$",
+            "description": "Phase + task index, e.g. `p1-t01`."
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^p[1-9][0-9]?-t[0-9]{2,3}$" },
+            "default": []
+          },
+          "scope_files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1,
+            "description": "Glob patterns the task is allowed to touch. ralph.sh does not enforce this directly but logs violations for human review."
+          },
+          "spec_reference": {
+            "type": "string",
+            "description": "Pointer into tech-spec.md or an ADR. Format: `tech-spec.md#section-N` or `docs/adr/NNNN-slug.md`."
+          },
+          "completion_signal": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]+$",
+            "description": "Token the agent must emit verbatim in its final output to signal task complete."
+          },
+          "estimated_minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60,
+            "description": "Sanity check. Tasks expected to take >30 minutes should be split."
+          },
+          "human_checkpoint": {
+            "type": "boolean",
+            "description": "When true, the loop refuses to execute this task without an entry in the sibling approvals.json."
+          },
+          "blocked_on_decision": {
+            "type": ["string", "null"],
+            "description": "When non-null, the task is blocked pending the named decision (typically an ADR). ralph.sh skips and reports."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Free-form context for the human reviewer."
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "approved" } }, "required": ["status"] },
+      "then": { "required": ["approval"] }
+    },
+    {
+      "if": { "properties": { "max_total_cost_usd": { "exclusiveMinimum": 100 } } },
+      "then": { "required": ["max_total_cost_usd_justification"] }
+    }
+  ]
+}

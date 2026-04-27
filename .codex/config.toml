@@ -1,0 +1,97 @@
+# Codex CLI configuration for IntentGraph.
+# Mirrors .claude/settings.json. The skills/, subagents/, and commands/
+# directories are picked up by Codex by convention. The MCP servers below
+# are the same set Claude Code registers in .claude/settings.json.
+#
+# When IntentGraph's own MCP server ships in Phase 3, register it here
+# under [mcp.intentgraph] with command = "node" and args pointing at
+# packages/skill/dist/index.js (stdio).
+
+[sandbox]
+enabled = true
+
+[permissions]
+default_mode = "default"
+
+# Allowlist: commands the agent may run without per-call confirmation.
+allow = [
+  "pnpm install",
+  "pnpm install --frozen-lockfile",
+  "pnpm typecheck",
+  "pnpm lint",
+  "pnpm lint:fix",
+  "pnpm test",
+  "pnpm test:watch",
+  "pnpm build",
+  "pnpm format",
+  "pnpm format:check",
+  "pnpm migrate:lint",
+  "pnpm tsx scripts/check-agent-config.ts",
+  "git status",
+  "git status --short",
+  "git diff",
+  "git diff --staged",
+  "git log",
+  "git log --oneline",
+  "git add",
+  "git commit -m",
+  "git commit -F",
+  "git branch --show-current",
+  "git switch",
+  "git checkout -b",
+  "node --version",
+  "pnpm --version",
+]
+
+# Denylist: hard-blocked even in unsupervised mode.
+deny = [
+  "rm -rf",
+  "rm -fr",
+  "npm publish",
+  "pnpm publish",
+  "yarn publish",
+  "git push --force",
+  "git push -f",
+  "git push --force-with-lease",
+  "git reset --hard",
+  "git clean -f",
+  "git clean -fd",
+  "git branch -D",
+  "git checkout .",
+  "git restore .",
+  "curl | sh",
+  "curl | bash",
+  "wget | sh",
+  "wget | bash",
+]
+
+# Read/write blocks for sensitive paths.
+[permissions.paths]
+deny_read = [".env", ".env.*", "**/.env", "**/.env.*", "node_modules/**"]
+deny_write = [".env", ".env.*", "**/.env", "**/.env.*", "node_modules/**"]
+
+# MCP servers — same set as .claude/settings.json.
+[mcp.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "."]
+description = "Local filesystem access scoped to the workspace."
+
+[mcp.git]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
+description = "Git operations beyond bash: parsed log, structured diff."
+
+[mcp.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+description = "Issue tracking and PR operations. Load-bearing in Phase 6."
+env = { GITHUB_PERSONAL_ACCESS_TOKEN = "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
+
+# Notes — also surfaced in AGENTS.md.
+#  * AgentRunner is the only path to model providers. ESLint enforces this in
+#    eslint.config.mjs; the rule blocks `import { generateText | ... } from "ai"`
+#    outside packages/skill/src/agent-runner/.
+#  * Subagents live under .codex/subagents/ (Codex convention) where Claude Code
+#    uses .claude/agents/. Frontmatter is identical.
+#  * Skills under .codex/skills/ follow the same SKILL.md format as
+#    .claude/skills/ (Agent Skills became an open standard Dec 2025).

@@ -1,0 +1,115 @@
+name: Automation check
+
+on:
+  pull_request:
+    paths:
+      - 'automation/**'
+      - '.github/workflows/automation-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'automation/**'
+      - '.github/workflows/automation-check.yml'
+
+concurrency:
+  group: automation-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate task lists + scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli@5
+
+      - name: Validate task lists against schema
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          fail=0
+          for tasks in automation/tasks/*/tasks.json; do
+            echo "::group::$tasks"
+            ajv validate -s automation/tasks/schema.json -d "$tasks" --strict=false || fail=1
+            echo "::endgroup::"
+          done
+          if [[ $fail -ne 0 ]]; then
+            echo "::error::one or more task lists failed schema validation"
+            exit 1
+          fi
+
+      - name: Enforce ADR-on-record for phases 3+ with autonomous tasks
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          fail=0
+          for tasks in automation/tasks/phase-{3,4,5,6}*/tasks.json; do
+            phase=$(jq -r '.phase' "$tasks")
+            status=$(jq -r '.status' "$tasks")
+            # Phase 3-6 task lists must either be blocked-on-decision OR have
+            # every autonomous task referencing an existing ADR.
+            if [[ "$status" == "blocked-on-decision" ]]; then
+              echo "$phase: blocked-on-decision (ok)"
+              continue
+            fi
+            if [[ "$status" == "draft-needs-human-approval" ]]; then
+              echo "$phase: draft (ok at PR time)"
+              continue
+            fi
+            # Approved phase 3+: every non-checkpoint task must point at a real ADR file.
+            offenders=$(jq -r --arg phase "$phase" '
+              .tasks[]
+              | select(.human_checkpoint == false and .blocked_on_decision == null)
+              | select(.spec_reference | startswith("docs/adr/") | not)
+              | .id
+            ' "$tasks")
+            if [[ -n "$offenders" ]]; then
+              echo "::error file=$tasks::$phase has autonomous tasks without an ADR spec_reference: $offenders"
+              fail=1
+            fi
+            # Each docs/adr/* spec_reference must resolve to a file on disk.
+            missing=$(jq -r '
+              .tasks[].spec_reference
+              | select(startswith("docs/adr/"))
+            ' "$tasks" | while read -r ref; do
+              path="${ref%%#*}"
+              [[ -f "$path" ]] || echo "$ref"
+            done)
+            if [[ -n "$missing" ]]; then
+              echo "::error file=$tasks::$phase references missing ADR(s): $missing"
+              fail=1
+            fi
+          done
+          if [[ $fail -ne 0 ]]; then exit 1; fi
+
+      - name: Lint shell scripts
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck
+          shellcheck automation/install.sh automation/ralph.sh automation/verify.sh automation/monitor-llm.sh
+
+      - name: Bash syntax check
+        run: |
+          bash -n automation/install.sh
+          bash -n automation/ralph.sh
+          bash -n automation/verify.sh
+          bash -n automation/monitor-llm.sh
+
+      - name: install.sh --check (no network)
+        run: |
+          # We don't run the network install in CI (would write into a sandbox
+          # .claude/skills/ that no one consumes). We only confirm --check works
+          # and reports a missing install correctly.
+          if bash automation/install.sh --check; then
+            echo "::warning::--check unexpectedly passed in a clean CI checkout"
+          else
+            echo "--check correctly reported missing skills (expected in CI)"
+          fi

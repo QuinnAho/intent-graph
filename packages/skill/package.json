@@ -1,0 +1,44 @@
+{
+  "name": "@intentgraph/skill",
+  "version": "0.0.0",
+  "private": true,
+  "description": "IntentGraph skill subprocess: MCP server, SQLite + Drizzle graph store, tree-sitter, orchestrator, AgentRunner chokepoint, verifiers, retrieval, trace.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "intentgraph-skill": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project skill",
+    "drizzle:generate": "drizzle-kit generate",
+    "drizzle:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@intentgraph/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "ai": "^4.0.0",
+    "better-sqlite3": "^11.7.0",
+    "chokidar": "^4.0.1",
+    "drizzle-orm": "^0.36.4",
+    "graphology": "^0.26.0",
+    "graphology-metrics": "^2.4.0",
+    "inngest": "^3.27.0",
+    "sqlite-vec": "^0.1.6",
+    "tree-sitter": "^0.21.1",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.14.0",
+    "drizzle-kit": "^0.28.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

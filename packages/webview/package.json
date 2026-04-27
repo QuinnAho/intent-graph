@@ -1,0 +1,39 @@
+{
+  "name": "@intentgraph/webview",
+  "version": "0.0.0",
+  "private": true,
+  "description": "React Flow v12 + ELK + Zustand + TipTap webview for the IntentGraph VS Code panel.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project webview"
+  },
+  "dependencies": {
+    "@intentgraph/shared": "workspace:*",
+    "@tiptap/core": "^2.10.3",
+    "@tiptap/extension-mention": "^2.10.3",
+    "@tiptap/react": "^2.10.3",
+    "@tiptap/starter-kit": "^2.10.3",
+    "@xyflow/react": "^12.3.6",
+    "elkjs": "^0.9.3",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vscode-messenger-webview": "^0.5.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.13",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "tailwindcss": "^3.4.16",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}
