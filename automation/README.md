@@ -7,7 +7,7 @@ The IntentGraph autonomous workflow runs **mechanical implementation work** unat
 
 The bash-loop pattern is non-negotiable. Single-session loops (e.g. the `ralph-wiggum` Claude Code plugin, which uses a Stop hook to re-feed the same prompt inside one session) accumulate context bloat that defeats the point — by iteration 10 the agent is reasoning over 9 prior iterations of its own output. A bash loop guarantees *every iteration is a fresh context window*, with state passed only through git, the file system, and `progress.json`.
 
-See [`/docs/adr/ADR-002-autonomous-workflow.md`](../docs/adr/ADR-002-autonomous-workflow.md) for the full decision record.
+See [`/docs/adr/0007-autonomous-workflow.md`](../docs/adr/0007-autonomous-workflow.md) for the full decision record.
 
 ## When to use this
 
