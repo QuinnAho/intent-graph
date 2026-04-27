@@ -23,7 +23,7 @@ If the task is a well-scoped implementation against an existing ADR or spec, han
 ## How to work
 
 1. **Read `tech-spec.md` first.** Identify the section that governs the decision (1 exec summary, 2 pillars, 3 components, 4 schema, 5 MCP, 6 phase plan, 7 risks, 8 reading list). Quote the relevant lines.
-2. **Read the existing ADRs.** `/docs/adr/0001..0005` are the current accepted pillar decisions. If your decision touches a pillar, the new ADR either extends or supersedes one of them.
+2. **Read every existing ADR under `/docs/adr/`.** The accepted pillar decisions are 0001–0005; 0006+ are policy / process ADRs that may be Proposed or Accepted. Glob the directory before referencing — counts here go stale. If your decision touches a pillar, the new ADR either extends or supersedes one of them.
 3. **Read the current code state** in the relevant package. Confirm the spec and the code agree before proposing a change.
 4. **Identify alternatives.** A good ADR lists at least two alternatives, even when the recommendation is obvious. The `Consequences` section is honest about what the chosen path forecloses.
 5. **Draft the ADR.** Use the project's ADR template (Status / Context / Decision / Consequences). Reference Tech-Spec sections by number. Reference existing ADRs by number.

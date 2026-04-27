@@ -83,7 +83,7 @@ The discipline ships as skills, subagents, and slash commands under `.claude/` (
 
 - **Five skills** — `intentgraph-architect` (read-only ADR drafter), `intentgraph-implementer`, `intentgraph-claudemap-lifter`, `intentgraph-spec-writer`, `intentgraph-verifier-author`.
 - **Five subagents** — `intent-extractor`, `drift-reconciler`, `code-generator`, `monitor`, `adr-writer`.
-- **Seven slash commands** — `/intentgraph-init`, `/intentgraph-status`, `/intentgraph-lift`, `/intentgraph-spec`, `/intentgraph-adr`, `/intentgraph-verify`, `/intentgraph-ralph`.
+- **Twelve slash commands** — `/intentgraph-init`, `/intentgraph-status`, `/intentgraph-lift`, `/intentgraph-spec`, `/intentgraph-adr`, `/intentgraph-verify`, `/intentgraph-ralph`, `/intentgraph-ralph-run`, `/intentgraph-ralph-resume`, `/intentgraph-ralph-status`, `/intentgraph-ralph-cancel`, `/codex`. Authoritative list lives under `.claude/commands/` — count from there if this paragraph drifts.
 
 ### What to do when uncertain
 

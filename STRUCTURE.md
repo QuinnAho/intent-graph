@@ -131,6 +131,11 @@ This section documents the `CLAUDE.md`, `AGENTS.md`, `.claude/`, and `.codex/` l
     intentgraph-adr.md            # spawn adr-writer for a new ADR
     intentgraph-verify.md         # typecheck + lint + test gate
     intentgraph-ralph.md          # Ralph-loop / cc-sdd task-list executor
+    intentgraph-ralph-run.md      # multi-task Ralph session start
+    intentgraph-ralph-resume.md   # resume an interrupted Ralph session
+    intentgraph-ralph-status.md   # active session progress report
+    intentgraph-ralph-cancel.md   # halt the active session and write a final report
+    codex.md                      # /codex bridge to Codex CLI; explicit-only, sandbox read-only
 ```
 
 ### `.codex/` directory
@@ -141,7 +146,7 @@ This section documents the `CLAUDE.md`, `AGENTS.md`, `.claude/`, and `.codex/` l
 - `.codex/subagents/` instead of `.claude/agents/` (Codex's subagent convention). Frontmatter is identical.
 - `.codex/skills/` and `.codex/commands/` use the same SKILL.md and command frontmatter formats — Agent Skills became an open standard in Dec 2025.
 
-The five skills and seven slash commands appear in both directories with identical content.
+The five skills and twelve slash commands appear in both directories with identical content. Authoritative count lives under `.claude/commands/` — count from there if this paragraph drifts.
 
 ### Skill, subagent, and command roles
 
