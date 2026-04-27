@@ -1,6 +1,7 @@
-// Derived TS type for a graph edge.
+// Derived TS types for edges, inferred from ../schemas/edge.ts. Tech-spec §4.2.
 
-import type { z } from 'zod';
-import type { EdgeSchemaPlaceholder } from '../schemas/edge.js';
+export type { EdgeKind, EdgeRow } from '../schemas/edge.js';
 
-export type Edge = z.infer<typeof EdgeSchemaPlaceholder>;
+import type { EdgeRow } from '../schemas/edge.js';
+
+export type Edge = EdgeRow;

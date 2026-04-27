@@ -1,8 +1,16 @@
-// Zod schema for the materialized task view (`node` rows where kind='task').
-// Used by the orchestrator and surfaced to the UI as the drift inbox / task list.
+// Zod schema for the materialized `task_active` view (tech-spec §4.5). Tasks
+// are stored in `node` rows where `kind='task'`; the view is a deterministic
+// projection of the JSON body filtered to schedulable statuses.
 
 import { z } from 'zod';
 
-export const TaskSchemaPlaceholder = z
-  .object({})
-  .describe('task view — schema TBD in Phase 0');
+import { TaskActiveStatusSchema } from './node.js';
+
+export const TaskActiveRowSchema = z.object({
+  id: z.string(),
+  status: TaskActiveStatusSchema,
+  capability_id: z.string(),
+  parent_task_id: z.string().nullable(),
+  updated_at: z.number().int(),
+});
+export type TaskActiveRow = z.infer<typeof TaskActiveRowSchema>;

@@ -1,6 +1,13 @@
-// Derived TS type for an obligation.
+// Derived TS types for obligations, inferred from ../schemas/obligation.ts.
+// Tech-spec §4.3; ADR-0016 pins the kind enum.
 
-import type { z } from 'zod';
-import type { ObligationSchemaPlaceholder } from '../schemas/obligation.js';
+export type {
+  ObligationKind,
+  ObligationSource,
+  ObligationStatus,
+  ObligationRow,
+} from '../schemas/obligation.js';
 
-export type Obligation = z.infer<typeof ObligationSchemaPlaceholder>;
+import type { ObligationRow } from '../schemas/obligation.js';
+
+export type Obligation = ObligationRow;
