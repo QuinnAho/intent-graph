@@ -58,10 +58,13 @@ function listFiles(dir: string, predicate: (name: string) => boolean): string[] 
 }
 
 function extractFrontmatter(text: string): Record<string, string> | null {
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  // Normalize mixed CRLF/LF before matching so files saved through editors
+  // that flip line endings (Windows ↔ Linux) parse identically.
+  const normalized = text.replace(/\r\n/g, '\n');
+  const m = normalized.match(/^---\n([\s\S]*?)\n---/);
   if (!m || !m[1]) return null;
   const out: Record<string, string> = {};
-  for (const rawLine of m[1].split(/\r?\n/)) {
+  for (const rawLine of m[1].split('\n')) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
     const idx = line.indexOf(':');
