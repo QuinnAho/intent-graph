@@ -145,33 +145,6 @@ CREATE INDEX `te_parent` ON `trace_event` (`parent_trace_id`);--> statement-brea
 CREATE INDEX `te_flagged` ON `trace_event` (json_extract(`monitor_verdict`, '$.flagged'));--> statement-breakpoint
 CREATE VIEW `task_active` AS select "id", json_extract("body", '$.status') as "status", json_extract("body", '$.capability_id') as "capability_id", json_extract("body", '$.parent_task_id') as "parent_task_id", "updated_at" from "node" where "node"."kind" = 'task' AND "node"."deleted_at" IS NULL AND json_extract("node"."body", '$.status') IN ('proposed','leased','running','produced','monitor_pending');
 --> statement-breakpoint
--- §4.10 vec0 virtual tables are NOT created in this migration. Per ADR-0015:28
--- the sqlite-vec extension load is gated by phase-5 wiring, and
--- `CREATE VIRTUAL TABLE ... USING vec0` requires the module to be registered
--- at parse time — `IF NOT EXISTS` does not avoid the parse-time module lookup.
--- Applying vec0 DDL here would crash bootstrap on every fresh DB until phase 5
--- lands the extension load. Instead, the DDL ships as exported `sql\`\``
--- constants `createVecIntentTable` / `createVecCodeTable` from
--- `packages/skill/src/db/schema.ts`; the runtime applies them at startup
--- AFTER the sqlite-vec extension is loaded. This is consistent with
--- ADR-0015's "the DDL lives in the migration; the extension load is gated by
--- phase-5 wiring" — read in the spirit it was written, the migration *system*
--- (schema-as-TS exports + a deferred apply) carries the DDL even though this
--- one .sql file does not.
---> statement-breakpoint
--- §4.9 AFTER triggers per ADR-0015:29 — CDC capture for the four tracked
--- tables (node, edge, obligation, lease). Inert until phase 4 (when
--- AgentRunner mutations correlate `tx_id` with `event_log.id`); the
--- trigger contract ships day 1 so the audit table's shape is visible
--- end-to-end. Each trigger writes an `I`/`U`/`D` row capturing a JSON
--- snapshot of the affected row's columns.
---
--- All four tracked tables are `WITHOUT ROWID`, so SQLite does not expose
--- a `rowid` to the trigger context (https://www.sqlite.org/withoutrowid.html).
--- `row_audit.rowid` is therefore stored as NULL on these inserts; the
--- persistent identity is in the JSON snapshot's logical PK fields
--- (node.id, edge.id, obligation.id, lease.{node_id,scope}). Future tables
--- on rowid-bearing storage may use the rowid column for human debugging.
 CREATE TRIGGER IF NOT EXISTS `row_audit_node_insert` AFTER INSERT ON `node` BEGIN
 	INSERT INTO `row_audit`(ts, tbl, op, rowid, before, after) VALUES (
 		(unixepoch('now') * 1000), 'node', 'I', NULL, NULL,

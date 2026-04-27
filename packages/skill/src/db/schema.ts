@@ -331,29 +331,18 @@ export const rowAudit = sqliteTable('row_audit', {
 
 // ---------------------------------------------------------------------------
 // §4.10 — vec0 virtual tables (sqlite-vec). One per embedding-bearing kind,
-// joined to `node.rowid`. Drizzle has no first-class VIRTUAL-table builder;
-// per ADR-0015:28 the DDL lives in the initial migration but the
-// `sqlite-vec` extension load is gated by phase-5 wiring. p2-t02 picks up
-// the SQL statements below from this file; nothing else loads them at
-// runtime in phase 2.
+// joined to `node.rowid`. Drizzle has no first-class VIRTUAL-table builder.
+// Per ADR-0015:28 the sqlite-vec extension load is gated by phase-5 wiring;
+// the DDL is therefore NOT in the SQL migration file (SQLite parses the
+// USING clause at parse time and would crash bootstrap on a fresh DB until
+// the extension is loaded). The runtime applies these CREATE VIRTUAL TABLE
+// statements in `db/init.ts` AFTER `sqlite-vec.load()` succeeds; `init.ts`
+// builds the SQL from the constants below so the dimension and table names
+// stay in lockstep with the schema's intent.
 
 export const VEC_INTENT_TABLE = 'vec_intent' as const;
 export const VEC_CODE_TABLE = 'vec_code' as const;
 export const VEC_EMBEDDING_DIM = 1024 as const;
-
-export const createVecIntentTable = sql`
-  CREATE VIRTUAL TABLE IF NOT EXISTS vec_intent USING vec0(
-    node_rowid INTEGER PRIMARY KEY,
-    embedding  FLOAT[1024] DISTANCE_METRIC=cosine
-  )
-`;
-
-export const createVecCodeTable = sql`
-  CREATE VIRTUAL TABLE IF NOT EXISTS vec_code USING vec0(
-    node_rowid INTEGER PRIMARY KEY,
-    embedding  FLOAT[1024] DISTANCE_METRIC=cosine
-  )
-`;
 
 // ---------------------------------------------------------------------------
 // §4.9 AFTER triggers — CDC capture for the four tracked tables. Per
