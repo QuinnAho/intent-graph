@@ -275,7 +275,22 @@ $(cat "${SESSION_DIR}/HARD_RULES.txt")
 # Maximum iterations inside this single task
 ${max_iters}
 
-Read tech-spec.md, CLAUDE.md, and the spec_reference above before editing.
+# Turn-budget guidance (turns are scarce; do not exhaust them)
+- Each tool call is one turn. The cap above is a hard wall — if you hit it you
+  fail this task and the loop blocks on you.
+- Read only what you actually need. tech-spec.md and CLAUDE.md are large; if a
+  scoped audit (e.g. comparing a list of pins to package.json files) does not
+  require the full tech-spec, do NOT read it cover-to-cover.
+- If the task is read-only / an audit and the audit conclusion is "everything
+  already matches, no changes needed," emit the completion signal IMMEDIATELY
+  in your next response. Do not write a report file unless the task notes
+  explicitly require one. Do not "double-check by re-reading."
+- Batch related reads in parallel tool calls when possible; do not serialize
+  Reads that have no dependency on each other.
+
+Read the spec_reference above and the in-scope files. Only read tech-spec.md
+or CLAUDE.md if the spec_reference points at them or if the in-scope files are
+ambiguous without that context.
 EOF
 
   log "agent prompt: $prompt_file"
@@ -288,7 +303,13 @@ EOF
 
   # The agent CLI invocation deliberately uses --print / non-interactive mode.
   # Fresh process per task = fresh context.
-  local agent_output_file="${SESSION_DIR}/output-${id}.txt"
+  # Each attempt's output is preserved with a UTC timestamp so retries do not
+  # erase diagnostic evidence; output-${id}.txt is also kept as the latest copy
+  # for downstream gates that look for a stable filename.
+  local attempt_ts
+  attempt_ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  local agent_output_file="${SESSION_DIR}/output-${id}-${attempt_ts}.txt"
+  local agent_output_latest="${SESSION_DIR}/output-${id}.txt"
   local agent_exit=0
   case "$CLI" in
     claude)
@@ -300,12 +321,13 @@ EOF
         || agent_exit=$?
       ;;
   esac
+  cp -f "$agent_output_file" "$agent_output_latest" 2>/dev/null || true
 
   if grep -qF "$signal" "$agent_output_file"; then
-    log "task ${id}: completion signal present"
+    log "task ${id}: completion signal present (attempt ${attempt_ts})"
     return 0
   fi
-  log "task ${id}: completion signal NOT present (agent exit=${agent_exit})"
+  log "task ${id}: completion signal NOT present (agent exit=${agent_exit}, attempt ${attempt_ts})"
   return 1
 }
 
