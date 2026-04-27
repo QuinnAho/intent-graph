@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted 2026-04-27. Partially supersedes ADR-0013's "composes /codex" clause (§"Why this shape" point 3 and §"Pass 2 — independent Codex audit").
 
 ## Context
 
