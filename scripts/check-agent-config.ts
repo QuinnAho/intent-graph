@@ -4,8 +4,12 @@
 // and uses only Node built-ins.
 //
 // Checks:
-//   1. Every Markdown link in CLAUDE.md and AGENTS.md resolves to an existing
-//      file (anchors not validated).
+//   1. Every Markdown link in the repo's load-bearing prose docs resolves to
+//      an existing file (anchors not validated). Scanned files: CLAUDE.md,
+//      AGENTS.md, STRUCTURE.md, docs/architecture.md, automation/README.md,
+//      LIFT_LOG.md, and every file under docs/adr/. Adding a new file to this
+//      list catches case-sensitivity hazards that Linux CI would otherwise
+//      surface only on the first contributor pull.
 //   2. Every SKILL.md under .claude/skills/ and .codex/skills/ has a YAML
 //      frontmatter block with `name` and `description` fields.
 //   3. Every subagent file under .claude/agents/ and .codex/subagents/ has
@@ -54,7 +58,7 @@ function listFiles(dir: string, predicate: (name: string) => boolean): string[] 
 
 function extractFrontmatter(text: string): Record<string, string> | null {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!m) return null;
+  if (!m || !m[1]) return null;
   const out: Record<string, string> = {};
   for (const rawLine of m[1].split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -74,18 +78,31 @@ function extractFrontmatter(text: string): Record<string, string> | null {
   return out;
 }
 
-function checkMarkdownLinks(file: string) {
+// Pure: returns the list of broken relative-link targets in `file`. Exposed
+// so tests can exercise the scan against a temp fixture without spawning the
+// CLI. Anchors and absolute (http/mailto/#) links are skipped.
+export function findBrokenMarkdownLinks(file: string): string[] {
   const text = readText(file);
   const dir = dirname(file);
   const linkRe = /\[[^\]]*\]\((?!https?:|mailto:|#)([^)]+)\)/g;
+  const broken: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = linkRe.exec(text)) !== null) {
-    const target = match[1].split('#')[0];
+    const captured = match[1];
+    if (!captured) continue;
+    const target = captured.split('#')[0];
     if (!target) continue;
     const resolved = resolve(dir, target);
     if (!existsSync(resolved)) {
-      fail(file, `broken link: ${match[1]}`);
+      broken.push(captured);
     }
+  }
+  return broken;
+}
+
+function checkMarkdownLinks(file: string) {
+  for (const target of findBrokenMarkdownLinks(file)) {
+    fail(file, `broken link: ${target}`);
   }
 }
 
@@ -164,10 +181,27 @@ function checkCodexConfigCoherence() {
 }
 
 function main() {
-  for (const f of ['CLAUDE.md', 'AGENTS.md']) {
+  // Required prose docs at the repo root.
+  for (const f of ['CLAUDE.md', 'AGENTS.md', 'STRUCTURE.md', 'LIFT_LOG.md']) {
     const p = join(repoRoot, f);
     if (existsSync(p)) checkMarkdownLinks(p);
     else fail(p, `${f} missing at repo root`);
+  }
+
+  // Other prose docs whose absence is also a defect.
+  for (const rel of ['docs/architecture.md', 'automation/README.md']) {
+    const p = join(repoRoot, rel);
+    if (existsSync(p)) checkMarkdownLinks(p);
+    else fail(p, `${rel} missing`);
+  }
+
+  // Every ADR file. Sweeping the directory keeps coverage current as new ADRs
+  // land — no need to update this script per ADR.
+  const adrDir = join(repoRoot, 'docs', 'adr');
+  if (existsSync(adrDir)) {
+    for (const f of listFiles(adrDir, (n) => n.endsWith('.md'))) {
+      checkMarkdownLinks(f);
+    }
   }
 
   for (const skillsDir of ['.claude/skills', '.codex/skills']) {
@@ -231,12 +265,22 @@ function main() {
   process.exit(1);
 }
 
-try {
-  const stat = statSync(repoRoot);
-  if (!stat.isDirectory()) throw new Error('repoRoot is not a directory');
-} catch (e) {
-  console.error(`check-agent-config: cannot access repo root ${repoRoot}: ${(e as Error).message}`);
-  process.exit(2);
-}
+// Only run main() when invoked directly (`tsx scripts/check-agent-config.ts`).
+// When the file is imported (e.g. by Vitest pulling in `findBrokenMarkdownLinks`)
+// we skip the side-effects.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
-main();
+if (invokedDirectly) {
+  try {
+    const stat = statSync(repoRoot);
+    if (!stat.isDirectory()) throw new Error('repoRoot is not a directory');
+  } catch (e) {
+    console.error(
+      `check-agent-config: cannot access repo root ${repoRoot}: ${(e as Error).message}`,
+    );
+    process.exit(2);
+  }
+
+  main();
+}
