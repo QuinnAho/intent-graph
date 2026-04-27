@@ -1,4 +1,18 @@
-// Top-level App component. Composes the GraphCanvas with surrounding chrome
-// (toolbar, breadcrumb, drift inbox toggle). No routing in v1 — single panel.
+import type { CSSProperties } from 'react';
 
-export const APP_PLACEHOLDER = 'app';
+import { GraphCanvas } from '../graph/GraphCanvas.js';
+
+const SHELL_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100vw',
+  height: '100vh',
+};
+
+export function App(): JSX.Element {
+  return (
+    <div style={SHELL_STYLE}>
+      <GraphCanvas nodes={[]} edges={[]} graphLoaded={true} layoutReady={true} />
+    </div>
+  );
+}
