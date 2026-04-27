@@ -1,8 +1,12 @@
 {
-  "_banner": "DRAFT — NEEDS HUMAN APPROVAL. ralph.sh will refuse to execute this file until status is flipped to `approved` per automation/tasks/APPROVAL.md. Read every task before approving; the loop will commit each one. Several tasks here touch the SQLite/Drizzle schema — review those first, schema decisions cascade.",
+  "_banner": "APPROVED 2026-04-27 by Quinn Aho. ralph.sh will execute this list against the loop's gates (verify → monitor (skipped, required:false) → qa → commit). ADR-0015 (schema scope: monolithic) and ADR-0016 (Verifier interface) accepted; both blocked_on_decision references cleared by commit d5a9e63. Five human-checkpoint tasks (p2-t01, p2-t05, p2-t07, p2-t10, p2-t11, p2-t13) require approvals.json entries. Read APPROVAL.md before re-editing.",
   "phase": "phase-2-static-graph",
-  "status": "draft-needs-human-approval",
-  "approval": null,
+  "status": "approved",
+  "approval": {
+    "approved_by": "Quinn Aho",
+    "approved_at": "2026-04-27T00:00:00Z",
+    "git_commit_hash": "d5a9e63ee3633278b57273427f3cf298f03fcd33"
+  },
   "autonomy_level": "high",
   "max_iterations_per_task": 15,
   "max_total_cost_usd": 100,
@@ -26,19 +30,19 @@
   "tasks": [
     {
       "id": "p2-t01",
-      "title": "Implement Drizzle schema for node, edge, obligation, lease, trace_event per tech-spec §4 — schema only, no migrations yet",
+      "title": "Implement Drizzle schema for all ten tech-spec §4 tables (node, edge, obligation, lease+fence_seq, task_active view, event_log, trace_event, retrieval, row_audit, vec0 virtuals) per the scope decided in ADR-0015 — schema only, no migrations yet",
       "depends_on": [],
       "scope_files": [
         "packages/skill/src/db/schema.ts",
         "packages/shared/src/schemas/**",
         "packages/shared/src/types/**"
       ],
-      "spec_reference": "tech-spec.md#4-data-and-trace-store",
+      "spec_reference": "tech-spec.md#4-schema-specifications-sqlite-ddl",
       "completion_signal": "PHASE2_T01_DONE",
-      "estimated_minutes": 30,
+      "estimated_minutes": 45,
       "human_checkpoint": true,
       "blocked_on_decision": null,
-      "notes": "**Architectural surface — flagged human_checkpoint.** Schema decisions cascade through Phases 3-5. The agent drafts; the human reviews column types, FK semantics, and CHECK constraints against tech-spec §4 before approving. After approval, the agent runs `drizzle-kit generate` to produce the first migration."
+      "notes": "**Architectural surface — flagged human_checkpoint.** Schema decisions cascade through Phases 3-5. ADR-0015 (Accepted 2026-04-27) decided monolithic — ten tables now, empty for the phase-4/5 ones. The agent drafts the schema following ADR-0015; the human reviews column types, FK semantics, CHECK constraints, and STRICT/WITHOUT ROWID conventions against tech-spec §4 before approving. After approval, p2-t02 runs `drizzle-kit generate` for the first migration."
     },
     {
       "id": "p2-t02",
@@ -76,21 +80,22 @@
     },
     {
       "id": "p2-t04",
-      "title": "Implement /spec/*.md frontmatter parser → graph nodes (intents, constraints, decisions)",
+      "title": "Implement /spec/*.md frontmatter parser → graph nodes (intents, constraints, decisions, concepts)",
       "depends_on": [
         "p2-t02"
       ],
       "scope_files": [
         "packages/skill/src/parser/spec-md/**",
         "packages/skill/tests/**",
-        "spec/intents/example-*.md"
+        "spec/intents/example-*.md",
+        "spec/concepts/example-*.md"
       ],
       "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
       "completion_signal": "PHASE2_T04_DONE",
       "estimated_minutes": 30,
       "human_checkpoint": false,
       "blocked_on_decision": null,
-      "notes": "Use the YAML frontmatter schemas already documented in /spec/*/README.md. Add 1-2 example intents under spec/intents/ so the parser has fixtures and the team can see the dogfood loop."
+      "notes": "Use the YAML frontmatter schemas already documented in /spec/*/README.md and ADR-0009. Parse all four kinds present under /spec/: intent, constraint, decision, AND concept (the Daniel Jackson concept boundaries from tech-spec §3.5 line 141 and §4.1's 'concept' node kind — the original draft missed this). Add 1-2 example intents and 1 example concept under spec/ so the parser has fixtures and the team can see the dogfood loop. The 'realizes' edge connecting intents to concepts is parsed from frontmatter `parent` per ADR-0009. Real intents (the L0 dogfood payload) are authored in p2-t11."
     },
     {
       "id": "p2-t05",
@@ -131,19 +136,24 @@
     },
     {
       "id": "p2-t07",
-      "title": "Implement Coverage Verifier: every Intent has ≥1 `realizes` edge and every Constraint has a `verified_by` link",
+      "title": "Implement Coverage Verifier: every Intent has ≥1 `realizes` edge and every Constraint has a `verified_by` link — first concrete verifier against the Verifier interface",
       "depends_on": [
         "p2-t06"
       ],
       "scope_files": [
+        "packages/shared/src/verifier/**",
+        "packages/skill/src/verifiers/Verifier.ts",
+        "packages/skill/src/verifiers/registry.ts",
+        "packages/skill/src/verifiers/scheduler.ts",
         "packages/skill/src/verifiers/builtin/coverage.ts",
         "packages/skill/tests/**"
       ],
-      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "spec_reference": "tech-spec.md#34-verification-backplane",
       "completion_signal": "PHASE2_T07_DONE",
-      "estimated_minutes": 25,
-      "human_checkpoint": false,
-      "blocked_on_decision": null
+      "estimated_minutes": 35,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**Architectural surface — flagged human_checkpoint.** This task lands the Coverage Verifier AND the Verifier interface contract that all later verifiers inherit. ADR-0016 (Accepted 2026-04-27) decided: interface in @intentgraph/shared/verifier/ so MCP plugins can import it without dragging skill internals; builtins under packages/skill/src/verifiers/builtin/; scheduler.ts free function for sub-ms/ms + Inngest wrap for s/minutes; registry.ts is the module-load barrel for builtins; third-party plugins go through the verify.run MCP tool, no separate verifier.register. The scope_files in this task reflect that decision.\n\n**L0-completion semantics — bootstrap problem resolved as: Coverage Verifier failures SURFACE AS WARNINGS in phase 2, NOT BLOCKERS for L0.** Reasoning: the L0 gate (tech-spec line 445) is 'IntentGraph's own intents and code modules are visible' + '60s findability', not 'every intent has a realizes edge'. A green Coverage run on an empty / partially-authored intent set is meaningless; a red Coverage run on the in-progress dogfood payload (p2-t11) is expected and useful as triage. Phase 3 (L1) raises Coverage to a CI gate once bidirectional sync makes intent-edge authoring cheap. Implementation: Coverage Verifier writes findings to obligation table with status='failed' (not 'rejected') and the L0 checklist (p2-t10) reads them as informational. The CI escalation lands in phase-3 task list, not here."
     },
     {
       "id": "p2-t08",
@@ -184,7 +194,8 @@
       "title": "L0 acceptance: produce CHECKLIST showing IntentGraph's own intents and code modules visible in `pnpm build && open app/dist/index.html`; new team member finds an intent in <60s",
       "depends_on": [
         "p2-t07",
-        "p2-t09"
+        "p2-t09",
+        "p2-t11"
       ],
       "scope_files": [
         "automation/staging/PHASE2_L0_CHECKLIST.md"
@@ -194,7 +205,77 @@
       "estimated_minutes": 15,
       "human_checkpoint": true,
       "blocked_on_decision": null,
-      "notes": "L0 gate is the dogfooding gate. Agent produces the checklist; human runs it and signs off. Without this signoff, Phase 3 cannot start."
+      "notes": "L0 gate is the dogfooding gate (tech-spec line 445). Agent produces the checklist; human runs it and signs off. Without this signoff, Phase 3 cannot start. The checklist's 'find an intent in 60s' criterion only makes sense once p2-t11 has authored real intents under /spec/intents/ (the L0 dogfood payload), which is why p2-t10 depends on p2-t11. Coverage Verifier output (p2-t07) appears as informational warnings per the bootstrap-resolution note in p2-t07; the checklist surfaces those without treating them as gate failures."
+    },
+    {
+      "id": "p2-t11",
+      "title": "Author IntentGraph's own intents under /spec/intents/ — the L0 dogfood payload (~10 intents covering the five pillars)",
+      "depends_on": [
+        "p2-t04"
+      ],
+      "scope_files": [
+        "spec/intents/**",
+        "spec/concepts/**",
+        "spec/constraints/**"
+      ],
+      "spec_reference": "tech-spec.md#phase-2--static-graph-build--l0",
+      "completion_signal": "PHASE2_T11_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**The L0 gate is meaningless without real intents.** tech-spec line 445 says the L0 acceptance is 'IntentGraph's own intents and code modules are visible' and 'a new team member finds an intent visually within 60s' — both presuppose the team's actual intents exist as authored markdown. Author ~10 intents covering the five architectural pillars (CLAUDE.md), with realizes-edges to /spec/concepts/ entries and verified_by links from /spec/constraints/ entries. Use the frontmatter schema from ADR-0009 and the parser fixtures from p2-t04 as templates. **Human_checkpoint** because this is product authorship — the agent can draft, but the human must edit for accuracy + own the content. The architect skill should review whether each intent is outcome-focused (per intentgraph-spec-writer's discipline). p2-t10 cannot start until this lands."
+    },
+    {
+      "id": "p2-t12",
+      "title": "Risk-C spike step 1: synthesize 5k-node graph generator script + run through ELK worker harness",
+      "depends_on": [
+        "p2-t08"
+      ],
+      "scope_files": [
+        "scripts/spike-elk-5k.ts",
+        "scripts/spike-elk-5k-runner.ts"
+      ],
+      "spec_reference": "tech-spec.md#7-identified-gaps-risks-and-unresolved-questions",
+      "completion_signal": "PHASE2_T12_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "First half of the Risk-C spike (tech-spec §7-C). Synthesize a 5k-node graph (use ULIDs + the 9 node kinds + realistic edge density, ~3 edges/node) and a runner that invokes the ELK worker from p2-t08 against it. Output is the script + harness only — no measurements yet. Splitting the spike into generator (this task) + measurement+recommendation (p2-t12b) keeps each task within the schema's 60-min cap and lets the human review the synthetic graph's realism before measurement results bias the discussion."
+    },
+    {
+      "id": "p2-t13",
+      "title": "Risk-C spike step 2: measure ELK timing on the 5k-node harness + write findings + recommend incremental-vs-server-side strategy",
+      "depends_on": [
+        "p2-t12"
+      ],
+      "scope_files": [
+        "docs/spikes/elk-5k-results.md"
+      ],
+      "spec_reference": "tech-spec.md#7-identified-gaps-risks-and-unresolved-questions",
+      "completion_signal": "PHASE2_T13_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "Second half of the Risk-C spike. Run the p2-t12a harness, record p50/p95/p99 layout time on a typical dev machine. Write findings to docs/spikes/elk-5k-results.md with a recommendation: keep the incremental local placement strategy (§3.5 line 142), OR escalate to server-side ELK for >3k-node graphs (§6 phase 6 already foreshadows this), OR add the Sigma.js overview escape hatch sooner. **Human_checkpoint** because if the recommendation is 'change the strategy,' an ADR must open before phase 3 — that decision is too load-bearing for the loop to commit autonomously. If the recommendation is 'keep the existing strategy,' the human can sign off and the loop proceeds."
+    },
+    {
+      "id": "p2-t14",
+      "title": "Tree-sitter grammar pinning + ERROR/MISSING-node handling per tech-spec §7-J",
+      "depends_on": [
+        "p2-t05"
+      ],
+      "scope_files": [
+        "packages/skill/package.json",
+        "packages/skill/src/parser/grammar-registry.ts",
+        "packages/skill/src/parser/error-nodes.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "tech-spec.md#7-identified-gaps-risks-and-unresolved-questions",
+      "completion_signal": "PHASE2_T14_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "tech-spec §7-J: 'A TS 5.x feature may not parse on an older grammar. Pin grammar versions and treat ERROR/MISSING nodes as first-class \"unknown skeleton\" nodes rather than failing.' Pin tree-sitter and tree-sitter-typescript to exact versions in packages/skill/package.json (no caret), document the pinned versions in grammar-registry.ts with a one-line provenance comment, and implement an error-nodes.ts module that converts ERROR / MISSING tree-sitter nodes into 'unknown_skeleton' code-symbol nodes (kind='code_symbol', confidence='extracted', body includes the raw range so future drift detection can reason about the skeleton). Tests: a TS file with intentional syntax errors parses to an unknown_skeleton node rather than throwing."
     }
   ]
 }

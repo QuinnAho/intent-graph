@@ -1,0 +1,20 @@
+{
+  "approved": [
+    "p2-t01",
+    "p2-t07"
+  ],
+  "_metadata": {
+    "approved_by": "Quinn Aho",
+    "approved_at": "2026-04-27T00:00:00Z",
+    "notes": {
+      "p2-t01": "Pre-approved on the basis of ADR-0015 (Accepted 2026-04-27, commit d5a9e63), which decided monolithic schema scope — ten tables in one Drizzle file. The architect-skill audit + ADR draft + acceptance constitute the architectural review the human_checkpoint flag exists to gate. The agent implements §4 verbatim; if it deviates from the DDL in the spec (column types, CHECK enums, FK semantics, STRICT/WITHOUT ROWID), the qa.sh gate will catch it as a major.",
+      "p2-t07": "Pre-approved on the basis of ADR-0016 (Accepted 2026-04-27, commit d5a9e63), which decided the Verifier interface shape, scheduler hookup, and registration semantics. The agent implements ADR-0016 verbatim. The bootstrap-clarification note in the task notes (Coverage Verifier failures surface as warnings, not blockers, for L0) is part of the pre-approval; if the agent escalates Coverage findings to obligation.status='rejected' instead of 'failed', the qa.sh gate should catch it."
+    },
+    "_not_pre_approved": {
+      "p2-t05": "Tree-sitter symbol identity weights/thresholds are empirically tuned per tech-spec §3.2 line 118 and Risk-B (open call: 3 months of telemetry). The agent can land the composite-heuristic implementation, but the 0.30/0.35/0.20/0.15 weights and 0.85/0.65 thresholds are load-bearing enough that I want to sign off after seeing the implementation — pre-approval would skip the review the human_checkpoint flag exists for.",
+      "p2-t10": "L0 dogfood checklist sign-off is the gate itself. I have to actually run the checklist on a real checkout; pre-approval is the wrong shape for a manual visual gate.",
+      "p2-t11": "Intent authorship is product content. The agent can draft, but I edit for accuracy and own the final text. Pre-approval would silently commit the agent's draft as the team's authoritative intents.",
+      "p2-t13": "ELK 5k spike recommendation. If the spike says 'change the layout strategy,' that's a new ADR before phase 3, not a loop-commit. I want to read the findings before any commit lands."
+    }
+  }
+}
