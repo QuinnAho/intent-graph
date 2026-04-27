@@ -243,6 +243,38 @@ run_agent_for_task() {
   max_iters="$(jq -r '.max_iterations_per_task' "$task_list")"
   scope_files="$(jq -r --arg id "$id" '.tasks[] | select(.id==$id) | .scope_files | join(", ")' "$task_list")"
 
+  # Auto-surface project conventions the agent must consult when its scope
+  # touches certain conventions-bearing areas. The fresh-context loop has no
+  # memory of prior decisions, so a task auditing claudemap/ that does not
+  # see LIFT_LOG.md will redundantly re-derive (or worse, contradict) the
+  # already-recorded "Deliberately not lifted" rows. Add similar augmentations
+  # here when other auditing conventions surface elsewhere.
+  local context_augmentation=""
+  if printf '%s' "$scope_files" | grep -qE 'claudemap|LIFT_'; then
+    context_augmentation="$(cat <<'AUG'
+
+# Project context the agent must consult before auditing claudemap/
+
+The IntentGraph project already maintains a running record of every claudemap
+lift in [LIFT_LOG.md](./LIFT_LOG.md), with a "Deliberately not lifted" section
+covering files we already decided against. The lift gate is implemented in the
+[intentgraph-claudemap-lifter](./.claude/skills/intentgraph-claudemap-lifter/SKILL.md)
+skill. Read both before producing any new audit memo or LIFT_AUDIT.md content:
+
+- LIFT_LOG.md — verify your conclusions match the existing log; cite specific
+  rows (LIFT_LOG.md:NN) when re-confirming a "Deliberately not lifted" entry.
+  Where your scope overlaps an entry already in the log, state "re-confirms
+  LIFT_LOG.md:NN" rather than re-deriving the conclusion from scratch.
+- intentgraph-claudemap-lifter/SKILL.md — the do-not-lift list and provenance
+  rules. Your audit should reflect these rules verbatim, not paraphrase them.
+
+If your audit's conclusion contradicts an existing LIFT_LOG.md entry, that is
+a finding worth surfacing (one of the two records is wrong); do not silently
+override the log.
+AUG
+)"
+  fi
+
   local prompt_file="${SESSION_DIR}/prompt-${id}.txt"
   cat > "$prompt_file" <<EOF
 You are an IntentGraph implementation agent operating inside automation/ralph.sh.
@@ -290,7 +322,7 @@ ${max_iters}
 
 Read the spec_reference above and the in-scope files. Only read tech-spec.md
 or CLAUDE.md if the spec_reference points at them or if the in-scope files are
-ambiguous without that context.
+ambiguous without that context.${context_augmentation}
 EOF
 
   log "agent prompt: $prompt_file"
