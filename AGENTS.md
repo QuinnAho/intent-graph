@@ -170,6 +170,10 @@ Hard rules (also enforced in `ralph.sh`):
 - Hard cap of \$200 per loop session.
 - The monitor-LLM gate is mandatory in phases 4 and 6; never train any model against its verdicts (Baker et al. 2503.11926).
 
+## Parallel agents and branch state
+
+If a parallel Codex run, Ralph iteration, or Claude Code session is active in this repo, **branching the working tree mid-session can desynchronise its progress.** The other agent may commit on top of the branch you just created, or its `progress.json` may reference a HEAD you've moved off. Before creating a side branch, check `git log --oneline -5` and `automation/sessions/progress.json` for in-flight work, and prefer committing on `main` (or fast-forwarding back) when no isolation is actually required. When isolation *is* required, tell the user so they can pause the parallel agent first.
+
 ## What to do when uncertain
 
 - **Read the relevant `tech-spec.md` section.** It's the source of truth. Sections are numbered (1 exec summary, 2 pillars, 3 components, 4 schema, 5 MCP, 6 phase plan, 7 risks, 8 reading list).
