@@ -23,6 +23,21 @@ log() { [[ -z "$QUIET" ]] && printf '[verify] %s\n' "$*"; }
 
 cd "$REPO_ROOT"
 
+# On Windows + Git Bash, npm-installed CLIs live under %APPDATA%\npm but that
+# path is not on the bash login PATH by default. Prepend it so `pnpm`, `codex`,
+# etc. resolve in the subshells spawned below. cygpath is required because
+# bash's PATH lookup needs Unix-style paths (/c/Users/...), not Windows-style.
+if [[ -n "${APPDATA:-}" ]] && command -v cygpath >/dev/null 2>&1; then
+  npm_global_unix="$(cygpath -u "$APPDATA/npm" 2>/dev/null)"
+  if [[ -n "$npm_global_unix" && -d "$npm_global_unix" ]]; then
+    case ":$PATH:" in
+      *":$npm_global_unix:"*) ;;
+      *) PATH="$npm_global_unix:$PATH" ;;
+    esac
+    export PATH
+  fi
+fi
+
 # Required commands first; phase-specific second.
 mapfile -t REQUIRED < <(jq -r '.verification.required_commands[]'        "$TASK_LIST")
 mapfile -t PHASE    < <(jq -r '.verification.phase_specific_checks[]?'   "$TASK_LIST")
