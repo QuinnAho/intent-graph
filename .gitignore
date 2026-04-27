@@ -44,3 +44,8 @@ pnpm-debug.log*
 # outputs, verification logs, and monitor verdicts. Loop commits go through
 # git; the session directory is loop-internal scratch.
 automation/sessions/
+
+# Per-machine Claude Code permission state. Allowlist accumulates as the user
+# approves bash commands during a session; that state is local to one machine
+# and should not be tracked. .claude/settings.json (project-level) IS tracked.
+.claude/settings.local.json
