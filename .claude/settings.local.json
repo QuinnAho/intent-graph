@@ -53,7 +53,15 @@
       "Bash(cp .claude/commands/intentgraph-ralph-run.md .codex/commands/intentgraph-ralph-run.md)",
       "Bash(cp .claude/commands/intentgraph-ralph-resume.md .codex/commands/intentgraph-ralph-resume.md)",
       "Bash(cp .claude/commands/intentgraph-ralph-status.md .codex/commands/intentgraph-ralph-status.md)",
-      "Bash(cp .claude/commands/intentgraph-ralph-cancel.md .codex/commands/intentgraph-ralph-cancel.md)"
+      "Bash(cp .claude/commands/intentgraph-ralph-cancel.md .codex/commands/intentgraph-ralph-cancel.md)",
+      "Bash(npm view *)",
+      "Bash(awk '/\"tasks\"/,/^      }$/' automation/tasks/schema.json)",
+      "Bash(npx --yes ajv-cli@5 validate -s automation/tasks/schema.json -d 'automation/tasks/phase-*/tasks.json' --strict=false)",
+      "Bash(npx --yes ajv-cli@5 validate --spec=draft2020 -s automation/tasks/schema.json -d 'automation/tasks/phase-*/tasks.json' --strict=false)",
+      "Bash(npx --yes ajv-cli@5 validate -s automation/tasks/schema.json -d automation/tasks/phase-4-drift-detection/tasks.json --strict=false)",
+      "Bash(chmod +x automation/qa.sh)",
+      "Bash(bash -n automation/qa.sh)",
+      "Bash(bash -n automation/ralph.sh)"
     ]
   }
 }

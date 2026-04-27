@@ -67,6 +67,9 @@ automation/
 ├── ralph.sh                   ← bash-loop Ralph; fresh context per iteration
 ├── verify.sh                  ← gating verification commands
 ├── monitor-llm.sh             ← Groq Llama 3.3 70B verdict per tech-spec §4
+├── qa.sh                      ← Pass-2-only QA audit (codex-vs-diff) per ADR-0013
+├── codex-log.jsonl            ← /codex invocation audit trail per ADR-0008 (created on first run)
+├── qa-reports/                ← /qa and qa.sh report files (created on first run)
 ├── tasks/
 │   ├── schema.json            ← JSON Schema all task lists validate against
 │   ├── APPROVAL.md            ← human approval flow for draft task lists
@@ -136,6 +139,7 @@ This section documents the `CLAUDE.md`, `AGENTS.md`, `.claude/`, and `.codex/` l
     intentgraph-ralph-status.md   # active session progress report
     intentgraph-ralph-cancel.md   # halt the active session and write a final report
     codex.md                      # /codex bridge to Codex CLI; explicit-only, sandbox read-only
+    qa.md                         # /qa per-commit audit (self-report + Codex audit) per ADR-0013
 ```
 
 ### `.codex/` directory
@@ -146,7 +150,7 @@ This section documents the `CLAUDE.md`, `AGENTS.md`, `.claude/`, and `.codex/` l
 - `.codex/subagents/` instead of `.claude/agents/` (Codex's subagent convention). Frontmatter is identical.
 - `.codex/skills/` and `.codex/commands/` use the same SKILL.md and command frontmatter formats — Agent Skills became an open standard in Dec 2025.
 
-The five skills and twelve slash commands appear in both directories with identical content. Authoritative count lives under `.claude/commands/` — count from there if this paragraph drifts.
+The five skills and thirteen slash commands appear in both directories with identical content. Authoritative count lives under `.claude/commands/` — count from there if this paragraph drifts.
 
 ### Skill, subagent, and command roles
 

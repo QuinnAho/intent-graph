@@ -122,6 +122,23 @@ These are mirrored to `.codex/` and `.claude/` so both tools see the same discip
 - `/intentgraph-init`, `/intentgraph-status`, `/intentgraph-lift <file>`, `/intentgraph-spec <intent-id>`, `/intentgraph-adr <title>`, `/intentgraph-verify`, `/intentgraph-ralph <task-list>`.
 - `/intentgraph-ralph-run <phase>`, `/intentgraph-ralph-resume`, `/intentgraph-ralph-status`, `/intentgraph-ralph-cancel` — multi-task autonomous loop. Mirrored from `.claude/commands/`.
 - `/codex <task>` — mirrored slash command for symmetry with `.claude/commands/codex.md`. See *Delegating to Codex* below.
+- `/qa [--max-lines N]` — mirrored. Audits uncommitted changes via parent self-report plus independent Codex review. See *Auditing your own work* below.
+
+## Auditing your own work
+
+`/qa` is the per-commit gate (rationale in [`docs/adr/0013-qa-self-audit-pattern.md`](./docs/adr/0013-qa-self-audit-pattern.md)). Two passes: parent self-reports what it believes it changed, then a second agent independently audits the diff. The auditor must not be the agent that produced the work — Baker et al. 2503.11926.
+
+In the Claude-Code-driven workflow (the primary use case), the parent is Claude Code and the auditor is Codex via `/codex`. In a Codex-driven session, invoking `/qa` would run Codex under itself, which defeats the design's point. From a Codex session: commit the work, then run `/qa` from a fresh Claude Code session against the prior HEAD, OR (in the autonomous loop) rely on the bash entrypoint `automation/qa.sh` that the Ralph loop calls automatically.
+
+When to use it:
+
+- **Before any commit on phase 3+ work — mandatory.** Phases 3/4/6 have mandatory human checkpoints per ADR-0007. `/qa` is the substrate-level check that a goodwill-compliant agent did not slip a load-bearing decision past review.
+- **Before any commit on phase 1–2 work — recommended.** Catches the failure mode where the agent believes a rule was followed but the diff does not show it.
+- **After every Ralph task verification gate — mandatory and automatic.** `automation/ralph.sh` calls `automation/qa.sh` between the monitor-LLM gate and the commit step. Severity → action: blockers mark the task blocked, majors halt the loop, minors and nits proceed to commit.
+
+`/qa` is **not** a substitute for the project-wide QA pass that audits committed state at phase boundaries. That pass sweeps the whole repo against the architecture; `/qa` is per-commit. Both should exist.
+
+`/qa` is read-only by design. Writes one file: a Markdown report under `automation/qa-reports/qa-report-<UTC>.md`. No auto-fix, no auto-commit, no source modification.
 
 ## Delegating to Codex
 

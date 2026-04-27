@@ -28,7 +28,7 @@ The command does not write code. The Codex run is `--sandbox read-only`, full st
 1. **Verify codex is on PATH.** `codex --version`; fall back to the npm shim path if needed.
 2. **Verify current flags.** Run `codex exec --help` and re-confirm the flags below.
 3. **Gather minimal project context.** Package, 1–5 reference files, relevant `tech-spec.md` section number. Keep this under ~30s.
-4. **Build the prompt** (same shape as `.claude/commands/codex.md`).
+4. **Build the prompt** (same shape as `.claude/commands/codex.md`). When `$ARGUMENTS` contains its own `Required output format:` block, follow the caller's schema instead of the default Findings/Answer/Open-questions output (the structured-input path used by `/qa` per ADR-0013).
 5. **Execute Codex** via stdin:
    ```bash
    printf '%s' "<prompt>" | codex exec \

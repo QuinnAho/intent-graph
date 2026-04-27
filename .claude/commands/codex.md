@@ -54,6 +54,8 @@ When refusing, state the specific rule and suggest the right tool.
    - Open questions: anything you couldn't resolve from read-only inspection.
    ```
 
+   **Structured-input mode.** When `$ARGUMENTS` itself contains a block labeled `Required output format:` or `Required output schema:`, prefer the caller's schema over the default Findings/Answer/Open-questions shape above. Compose the prompt with the same project-context preamble but replace the trailing "Output format:" block with the caller's spec verbatim. This is how `/qa` passes its self-report-plus-diff audit payload through `/codex` without the parent template forcing Codex's reply into a 200-word answer (see ADR-0013).
+
 5. **Execute Codex.** Run, with the prompt passed via stdin to avoid shell-quoting issues:
    ```bash
    printf '%s' "<prompt>" | codex exec \

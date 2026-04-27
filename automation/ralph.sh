@@ -3,8 +3,14 @@
 #
 # Each iteration spawns a fresh agent process with a clean context, hands it
 # one task plus the spec excerpt and verification commands, and waits for it
-# to finish. Verification + monitor-LLM gate run after the agent exits;
-# success → commit + advance; failure → mark blocked, continue.
+# to finish. Per task:
+#   1. agent runs (claude or codex, fresh context)
+#   2. verify.sh gate (typecheck + lint + test, etc.)
+#   3. monitor-llm.sh gate (Pillar 5; required in phases 4 and 6)
+#   4. qa.sh gate (ADR-0013; codex audits the diff against project rules)
+#   5. commit_task → mark_completed
+# Any gate failure marks the task blocked and either halts or continues per
+# the gate's severity contract. See ADR-0013 for the qa gate's mapping.
 #
 # State persists ONLY through git history, the file system, and progress.json.
 # No conversation memory crosses iterations. This is non-negotiable.
@@ -354,6 +360,39 @@ run_monitor_gate() {
   esac
 }
 
+# ------------------------------------------------------------ qa audit gate
+#
+# After verify+monitor pass, run automation/qa.sh against the uncommitted diff
+# for this task. The gate's whole purpose is to catch the failure mode where
+# the agent thinks it followed the rules but didn't. See ADR-0013.
+#
+# qa.sh exit codes:
+#   0  — clean OR only minors/nits → proceed to commit
+#   2  — blockers > 0 → mark task blocked, continue with next task
+#   3  — majors > 0 → halt loop for human review (return rc=2 so the caller
+#                     halts the way it does for monitor 'require_human_review')
+#   4  — qa.sh refused (codex unavailable, diff over threshold, parse failure)
+#        → mark task blocked; do not commit
+
+run_qa_gate() {
+  local task_list="$1" id="$2"
+  if [[ -n "$DRY_RUN" ]]; then
+    log "[dry-run] would run qa gate"
+    return 0
+  fi
+  local gate_log="${SESSION_DIR}/qa-${id}.log"
+  bash "${AUTOMATION_DIR}/qa.sh" --task "$id" --task-list "$task_list" \
+    > "$gate_log" 2>&1
+  local rc=$?
+  case $rc in
+    0) log "qa gate: clean or only minors/nits"; return 0 ;;
+    2) err "qa gate: blockers found for task ${id}; see $gate_log"; return 1 ;;
+    3) err "qa gate: majors found for task ${id} — halting loop"; return 2 ;;
+    4) err "qa gate: refused (codex unavailable, oversize diff, or parse failure); see $gate_log"; return 1 ;;
+    *) err "qa gate: unexpected rc=$rc; see $gate_log"; return 2 ;;
+  esac
+}
+
 # ------------------------------------------------------------ commit on success
 
 commit_task() {
@@ -476,6 +515,20 @@ run_loop() {
       return 5
     elif [[ $mrc -ne 0 ]]; then
       mark_blocked "$id" "monitor gate error rc=$mrc"
+      consecutive="$(jq -r '.consecutive_failures' "$PROGRESS_FILE")"
+      [[ "$consecutive" -ge "$MAX_CONSECUTIVE_FAILURES" ]] \
+        && { err "$MAX_CONSECUTIVE_FAILURES consecutive failures; aborting"; return 4; }
+      continue
+    fi
+
+    # qa audit gate (ADR-0013) — runs after monitor, before commit.
+    local qrc=0
+    run_qa_gate "$task_list" "$id" || qrc=$?
+    if [[ $qrc -eq 2 ]]; then
+      mark_blocked "$id" "qa gate: majors found — halting loop for human review"
+      return 6
+    elif [[ $qrc -ne 0 ]]; then
+      mark_blocked "$id" "qa gate: blockers found or audit refused"
       consecutive="$(jq -r '.consecutive_failures' "$PROGRESS_FILE")"
       [[ "$consecutive" -ge "$MAX_CONSECUTIVE_FAILURES" ]] \
         && { err "$MAX_CONSECUTIVE_FAILURES consecutive failures; aborting"; return 4; }

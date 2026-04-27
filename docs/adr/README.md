@@ -16,3 +16,4 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0010 | [TOML parsing in the agent-config validator](./0010-toml-parsing-in-validator.md) | Proposed |
 | 0011 | [Test infrastructure layout](./0011-test-infrastructure-layout.md) | Proposed |
 | 0012 | [Defer the monitor-training CI check until the first fine-tune script lands](./0012-defer-monitor-training-ci-check.md) | Proposed |
+| 0013 | [QA self-audit pattern: self-report plus independent Codex audit, per commit](./0013-qa-self-audit-pattern.md) | Proposed |

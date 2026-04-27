@@ -112,6 +112,21 @@ These live under `.claude/`. Use them — they encode the project's discipline.
 - `/intentgraph-ralph-status` — report the active session's progress (completed, blocked, cost, time).
 - `/intentgraph-ralph-cancel` — gracefully halt the active session and write a final report.
 - `/codex <task>` — delegate a bounded read-only task to the Codex CLI; output comes back as a quoted block. See *Delegating to Codex* below.
+- `/qa [--max-lines N]` — audit uncommitted changes via self-report plus independent Codex review. See *Auditing your own work* below.
+
+## Auditing your own work
+
+`/qa` is the per-commit gate. It runs in two passes: Claude self-reports what it believes it changed and which hard rules apply, then `/codex` independently audits those claims against the actual diff. The auditor must not be the agent that produced the work — that is the principle from Baker et al. 2503.11926 (a weaker monitor detects reward hacking on a stronger reasoner) carried over into the dev-time loop. Design rationale: [`docs/adr/0013-qa-self-audit-pattern.md`](./docs/adr/0013-qa-self-audit-pattern.md).
+
+When to use it:
+
+- **Before any commit on phase 3+ work — mandatory.** Phases 3, 4, and 6 carry mandatory human checkpoints per ADR-0007; `/qa` is the substrate-level safety net so a Claude session with goodwill compliance does not slip a load-bearing decision past the human review.
+- **Before any commit on phase 1–2 work — recommended.** The cost is a short Codex run; the benefit is catching the failure mode where Claude believes a rule was followed but didn't actually follow it.
+- **After every Ralph task completes verification — mandatory and automatic.** `automation/ralph.sh` invokes [`automation/qa.sh`](./automation/qa.sh) (the bash entrypoint) after every successful `verify.sh` + `monitor-llm.sh` gate. Severity → action: blockers mark the task blocked, majors halt the loop, minors and nits proceed to commit.
+
+`/qa` is **not** a substitute for the project-wide QA pass that audits committed state at phase boundaries (the kind that produced [`docs/qa/qa-report-001.md`](./docs/qa/qa-report-001.md)). That pass sweeps the whole repo against the architecture; `/qa` is per-commit and per-task. Both should exist; neither replaces the other.
+
+`/qa` is read-only by design. It writes one file: a Markdown report under `automation/qa-reports/qa-report-<UTC>.md`. It does not auto-commit, does not auto-fix, and does not modify any source file.
 
 ## Delegating to Codex
 
