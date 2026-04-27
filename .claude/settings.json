@@ -107,8 +107,26 @@
       }
     }
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash automation/hooks/guard-eslint-config.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash automation/hooks/guard-agent-runner-chokepoint.sh"
+          }
+        ]
+      }
+    ]
+  },
   "_intentgraph_notes": {
     "future_mcp_servers": "When IntentGraph's own MCP server ships in Phase 3, register it here as `intentgraph` with command pointing at packages/skill/dist/index.js over stdio.",
-    "agent_runner_chokepoint": "ESLint enforces packages/skill/src/agent-runner as the only path to model calls. See eslint.config.mjs."
+    "agent_runner_chokepoint": "ESLint enforces packages/skill/src/agent-runner as the only path to model calls. See eslint.config.mjs. PreToolUse hooks at automation/hooks/ enforce the same chokepoint earlier — at edit time — so violating diffs are never written.",
+    "pretool_hooks": "guard-eslint-config.sh blocks edits to eslint.config.* without an ADR reference. guard-agent-runner-chokepoint.sh blocks edits outside packages/skill/src/agent-runner/ that introduce model-call imports from `ai`. Phase 1 may extend this list before merge to main."
   }
 }
