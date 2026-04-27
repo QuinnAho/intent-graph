@@ -187,3 +187,25 @@ When IntentGraph's own MCP server ships in Phase 3 (per Tech-Spec §6), register
 [`scripts/check-agent-config.ts`](./scripts/check-agent-config.ts) validates that every reference in `CLAUDE.md` / `AGENTS.md` resolves, every skill / subagent / command file has the expected frontmatter, `.claude/settings.json` is valid JSON with no allow/deny contradictions, `.codex/config.toml` registers the same MCP servers as `.claude/settings.json`, and every `/spec/` markdown file has the required frontmatter fields.
 
 Run locally with `pnpm check:agent-config`. CI runs it after typecheck, before test (see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+
+## Repo-wide scripts (`scripts/`)
+
+| Script | Role |
+|--------|------|
+| [`check-agent-config.ts`](./scripts/check-agent-config.ts) | Agent-config validator (run via `pnpm check:agent-config`). |
+| [`check-contracts.ts`](./scripts/check-contracts.ts) | Structural check that the shared schemas barrel and the Drizzle schema layout are present. Lifted+retargeted from claudemap; see [`LIFT_LOG.md`](./LIFT_LOG.md). |
+| [`eval-retrieval.ts`](./scripts/eval-retrieval.ts) | Retrieval eval harness for the L3 dogfooding gate. Stub today; lights up in Phase 5. |
+| [`install-agent-skill.ts`](./scripts/install-agent-skill.ts) | Copy the packaged `@intentgraph/agent-skill` artifact into a target repo's `.claude/skills/intentgraph/` or `.codex/skills/intentgraph/`. |
+| [`package-agent-skill.ts`](./scripts/package-agent-skill.ts) | Build the `@intentgraph/agent-skill` distribution artifacts under `artifacts/agent-skill/`. |
+| [`package-skill.ts`](./scripts/package-skill.ts) | Older skill-only packager; predecessor to `package-agent-skill.ts`. |
+| [`seed-dev-db.ts`](./scripts/seed-dev-db.ts) | Seed a development SQLite database for L0/L1 dogfooding. |
+| [`smoke-test-agent-skill.ts`](./scripts/smoke-test-agent-skill.ts) | Assert the agent-skill artifact shape for Claude / Codex flavors. |
+
+## Dev-hygiene dotfiles at the repo root
+
+| File | Role |
+|------|------|
+| [`.editorconfig`](./.editorconfig) | Cross-editor whitespace + line-ending defaults. |
+| [`.prettierrc`](./.prettierrc) | Prettier formatting config. |
+| [`.prettierignore`](./.prettierignore) | Paths Prettier skips. |
+| [`.gitignore`](./.gitignore) | Standard ignore set; `node_modules`, `dist`, `.turbo`, lockfile-adjacent caches, env files. |
