@@ -60,12 +60,25 @@ jobs:
           version: latest
 
       - name: Lint migrations
+        shell: bash
         run: |
-          if [ -d packages/skill/src/db/migrations ] && [ -n "$(ls -A packages/skill/src/db/migrations 2>/dev/null)" ]; then
+          set -euo pipefail
+          MIGRATIONS_DIR="packages/skill/src/db/migrations"
+          # Count actual migration files (.sql); .gitkeep and other non-migration files are ignored.
+          sql_count=$(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | wc -l | tr -d ' ')
+          if [ "$sql_count" -eq 0 ]; then
+            echo "No SQL migrations present — asserting atlas migrate lint exits 0 against empty set."
+            # With no migrations, --latest 0 lints the last zero migrations; this is a no-op
+            # that exits 0 as long as the directory is reachable. We invoke atlas to prove the
+            # tool is wired correctly, then explicitly check the exit code.
             atlas migrate lint \
               --dev-url "sqlite://dev?mode=memory" \
-              --dir "file://packages/skill/src/db/migrations" \
-              --latest 1
+              --dir "file://$MIGRATIONS_DIR" \
+              --latest 0
+            echo "atlas migrate lint exited 0 (empty migrations dir)."
           else
-            echo "No migrations yet — skipping atlas migrate lint."
+            atlas migrate lint \
+              --dev-url "sqlite://dev?mode=memory" \
+              --dir "file://$MIGRATIONS_DIR" \
+              --latest 1
           fi
