@@ -47,7 +47,13 @@
       "Bash(grep -E '\\\\.\\(mjs|js|cjs\\)$')",
       "Bash(npm list *)",
       "Bash(npx --no-install pnpm --version)",
-      "Bash(corepack pnpm *)"
+      "Bash(corepack pnpm *)",
+      "Bash(codex --version)",
+      "Bash(\"/c/Users/ahoqp1/AppData/Roaming/npm/codex.cmd\" --version)",
+      "Bash(cp .claude/commands/intentgraph-ralph-run.md .codex/commands/intentgraph-ralph-run.md)",
+      "Bash(cp .claude/commands/intentgraph-ralph-resume.md .codex/commands/intentgraph-ralph-resume.md)",
+      "Bash(cp .claude/commands/intentgraph-ralph-status.md .codex/commands/intentgraph-ralph-status.md)",
+      "Bash(cp .claude/commands/intentgraph-ralph-cancel.md .codex/commands/intentgraph-ralph-cancel.md)"
     ]
   }
 }

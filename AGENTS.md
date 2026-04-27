@@ -120,7 +120,7 @@ These are mirrored to `.codex/` and `.claude/` so both tools see the same discip
 
 **Slash commands** — `.codex/commands/`:
 - `/intentgraph-init`, `/intentgraph-status`, `/intentgraph-lift <file>`, `/intentgraph-spec <intent-id>`, `/intentgraph-adr <title>`, `/intentgraph-verify`, `/intentgraph-ralph <task-list>`.
-- `/intentgraph-ralph-run <phase>`, `/intentgraph-ralph-resume`, `/intentgraph-ralph-status`, `/intentgraph-ralph-cancel` — multi-task autonomous loop. (Codex equivalents land alongside the agent-config pass; the Claude Code versions exist today under `.claude/commands/`.)
+- `/intentgraph-ralph-run <phase>`, `/intentgraph-ralph-resume`, `/intentgraph-ralph-status`, `/intentgraph-ralph-cancel` — multi-task autonomous loop. Mirrored from `.claude/commands/`.
 - `/codex <task>` — mirrored slash command for symmetry with `.claude/commands/codex.md`. See *Delegating to Codex* below.
 
 ## Delegating to Codex
