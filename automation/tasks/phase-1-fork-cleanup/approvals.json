@@ -1,0 +1,14 @@
+{
+  "approved": [
+    "p1-t00",
+    "p1-t05"
+  ],
+  "_metadata": {
+    "approved_by": "Quinn Aho",
+    "approved_at": "2026-04-27T02:50:00Z",
+    "notes": {
+      "p1-t00": "/qa wiring smoke-tested in qa-report-2026-04-27T061800Z.md (one real audit, two findings, severity → action mapping confirmed working). Pre-approved here so the loop's first iteration can proceed without re-running the audit against an empty tree.",
+      "p1-t05": "Pre-approved with the understanding that the `pnpm dev` visual checklist still requires human execution before the task is marked complete; ralph.sh will produce automation/staging/PHASE1_DEV_CHECKLIST.md for me to run, then I confirm before committing."
+    }
+  }
+}
