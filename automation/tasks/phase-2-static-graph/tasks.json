@@ -8,7 +8,7 @@
     "git_commit_hash": "d5a9e63ee3633278b57273427f3cf298f03fcd33"
   },
   "autonomy_level": "high",
-  "max_iterations_per_task": 15,
+  "max_iterations_per_task": 30,
   "max_total_cost_usd": 100,
   "verification": {
     "required_commands": [
