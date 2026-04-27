@@ -59,18 +59,17 @@ When refusing, state the specific rule and suggest the right tool.
    printf '%s' "<prompt>" | codex exec \
      -C "<project-root>" \
      -s read-only \
-     -a never \
      --color never \
      --skip-git-repo-check \
      -
    ```
 
-   Flag rationale (verified against `codex exec --help` at the time of writing — re-verify per step 2):
+   Flag rationale (verified against `codex exec --help` on codex-cli 0.121.0 — re-verify per step 2):
    - `-C <project-root>` — pin the working root so Codex sees the monorepo, not whatever `cwd` happens to be.
    - `-s read-only` — sandbox policy: no writes, no network mutations.
-   - `-a never` — approval policy: never escalate to a human; non-interactive run.
    - `--color never` — clean stdout for the parent to parse.
    - `--skip-git-repo-check` — defensive; we are in a git repo, but this guards against edge cases.
+   - **No approval flag.** `codex exec` is non-interactive by default — there is no human prompt to escalate to, so there is no `-a never` flag on `exec` (it exists only on the interactive `codex` entrypoint). An earlier draft of this command included `-a never`; that errored as `unexpected argument '-a'` and has been removed.
    - **Not used:** `--full-auto` (it implies `--sandbox workspace-write`, which contradicts read-only — see ADR-0008). Never write `--full-auto`, `--sandbox workspace-write`, `--sandbox danger-full-access`, or `--dangerously-bypass-approvals-and-sandbox` in this command, even commented out.
    - **Not used:** `--search` — it exists on `codex` (interactive) but is not accepted by `codex exec` in current versions. The paddo.dev post showed it; the current CLI does not. If the task genuinely needs web search, refuse and tell the user to run Codex interactively.
 

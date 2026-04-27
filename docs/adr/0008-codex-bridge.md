@@ -34,14 +34,15 @@ Concrete shape:
 
 ## Flag verification — discrepancy with the paddo.dev template
 
-The paddo.dev post showed `codex exec --search -C <project>...` as the canonical invocation. Verifying against `codex --version 0.121.0` (`@openai/codex` from npm), two things changed:
+The paddo.dev post showed `codex exec --search -C <project>...` as the canonical invocation. Verifying against `codex --version 0.121.0` (`@openai/codex` from npm), three things changed:
 
 1. **`--search` is not a flag on `codex exec`.** It exists only on the interactive `codex` entrypoint. `codex exec --help` does not list it. The `/codex` command therefore omits `--search`. If a task genuinely needs web search, the right move is interactive Codex; the read-only delegation pattern does not cover it.
-2. **`--full-auto` and `-s read-only` are contradictory.** `codex exec --help` documents `--full-auto` as "Convenience alias for low-friction sandboxed automatic execution (--sandbox workspace-write)" — it overrides the sandbox to `workspace-write`. The user's original spec asked for both `-s read-only` and `--full-auto`; using both would silently grant write access. The command uses `-s read-only -a never` instead (read-only sandbox, never escalate to a human, non-interactive). `-a never` plus a piped stdin prompt achieves the same "no human in the loop" property `--full-auto` was meant to convey, without the sandbox escalation.
+2. **`--full-auto` and `-s read-only` are contradictory.** `codex exec --help` documents `--full-auto` as "Convenience alias for low-friction sandboxed automatic execution (--sandbox workspace-write)" — it overrides the sandbox to `workspace-write`. The user's original spec asked for both `-s read-only` and `--full-auto`; using both would silently grant write access. The command uses `-s read-only` instead.
+3. **`-a never` is not accepted by `codex exec`.** An earlier draft of this ADR and of `.claude/commands/codex.md` / `.codex/commands/codex.md` documented `codex exec ... -s read-only -a never ...`. Running that against codex-cli 0.121.0 errors with `unexpected argument '-a' found`. The `-a / --approval-policy` option exists only on the interactive `codex` entrypoint where there is a human to escalate to. `codex exec` is non-interactive by default, so no approval flag is needed and none is accepted. The command files have been updated to drop `-a never`; this section records the correction (per QA report 001, finding F-CODEX-CMD-FLAG, 2026-04-27).
 
-The command's body documents both discrepancies inline so future maintainers re-checking `codex exec --help` can confirm the choice.
+The command's body documents these discrepancies inline so future maintainers re-checking `codex exec --help` can confirm the choice.
 
-The actual flag set used: `codex exec -C <project-root> -s read-only -a never --color never --skip-git-repo-check -` (with the prompt piped on stdin).
+The actual flag set used: `codex exec -C <project-root> -s read-only --color never --skip-git-repo-check -` (with the prompt piped on stdin).
 
 ## What this decision rejects
 

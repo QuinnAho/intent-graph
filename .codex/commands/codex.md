@@ -34,12 +34,11 @@ The command does not write code. The Codex run is `--sandbox read-only`, full st
    printf '%s' "<prompt>" | codex exec \
      -C "<project-root>" \
      -s read-only \
-     -a never \
      --color never \
      --skip-git-repo-check \
      -
    ```
-   Never write `--full-auto`, `--sandbox workspace-write`, `--sandbox danger-full-access`, `--dangerously-bypass-approvals-and-sandbox`, or `--search` (the last is not accepted by `codex exec` in current versions). Bound the run to 5 minutes.
+   `codex exec` is non-interactive by default; there is no `-a never` flag on `exec` (it exists only on the interactive `codex` entrypoint). Never write `--full-auto`, `--sandbox workspace-write`, `--sandbox danger-full-access`, `--dangerously-bypass-approvals-and-sandbox`, or `--search` (the last is not accepted by `codex exec` in current versions). Bound the run to 5 minutes.
 6. **Filter the output** into a `> [codex]:` fenced block — Findings, Answer, Open questions only.
 7. **Log the invocation** to `automation/codex-log.jsonl`:
    ```json
