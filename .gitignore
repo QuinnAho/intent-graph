@@ -50,8 +50,13 @@ automation/sessions/
 # and should not be tracked. .claude/settings.json (project-level) IS tracked.
 .claude/settings.local.json
 
-# cc-sdd kiro-* skills are installed per-developer via automation/install.sh.
-# They are tooling, not project content. The project's own intentgraph-* skills
-# under .claude/skills/ and .codex/skills/ ARE tracked.
+# cc-sdd kiro-* skills and related artifacts are installed per-developer via
+# automation/install.sh. They are tooling, not project content. The project's
+# own intentgraph-* skills under .claude/skills/ and .codex/skills/ ARE tracked.
+# cc-sdd v3.0.2 writes Codex skills to .agents/ at the repo root (drift from
+# older versions); it also drops a spec-reviewer agent under .codex/agents/
+# and a settings-templates tree under .kiro/.
 .claude/skills/kiro-*
-.codex/skills/kiro-*
+.agents/
+.codex/agents/
+.kiro/

@@ -14,7 +14,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLAUDE_SKILLS_DIR="${REPO_ROOT}/.claude/skills"
-CODEX_SKILLS_DIR="${REPO_ROOT}/.codex/skills"
+# cc-sdd v3.0.2 writes Codex skills under .agents/skills/, not .codex/skills/.
+# The project's own intentgraph-* skills still live under .codex/skills/.
+CODEX_SKILLS_DIR="${REPO_ROOT}/.agents/skills"
 
 # The kiro skills cc-sdd installs. If any are missing, install is incomplete.
 KIRO_SKILLS=(
