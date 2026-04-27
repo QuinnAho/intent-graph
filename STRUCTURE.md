@@ -69,7 +69,7 @@ automation/
 ├── monitor-llm.sh             ← Groq Llama 3.3 70B verdict per tech-spec §4
 ├── qa.sh                      ← Pass-2-only QA audit (codex-vs-diff) per ADR-0013
 ├── codex-log.jsonl            ← /codex invocation audit trail per ADR-0008 (created on first run)
-├── qa-reports/                ← /qa and qa.sh report files (created on first run)
+├── qa-reports/                ← /qa and qa.sh report files
 ├── tasks/
 │   ├── schema.json            ← JSON Schema all task lists validate against
 │   ├── APPROVAL.md            ← human approval flow for draft task lists
