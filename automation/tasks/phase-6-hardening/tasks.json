@@ -30,7 +30,8 @@
       "completion_signal": "PHASE6_T01_DONE",
       "estimated_minutes": 30,
       "human_checkpoint": true,
-      "blocked_on_decision": "tech-spec ADRs required: marketplace publishing flow, multi-workspace concurrency policy, privacy controls for prompt + reasoning_text storage, secrets-scrub policy on tool-call args."
+      "blocked_on_decision": "tech-spec ADRs required: marketplace publishing flow, multi-workspace concurrency policy, privacy controls for prompt + reasoning_text storage, secrets-scrub policy on tool-call args.",
+      "notes": "QA-001: F-MONITOR-TRAINING-CHECK-MISSING — Phase 6 hardening should land the CI check guarding fine-tune scripts against monitor-*.json consumption (per ADR-0012) if it has not landed earlier."
     }
   ]
 }

@@ -30,7 +30,8 @@
       "completion_signal": "PHASE5_T01_DONE",
       "estimated_minutes": 30,
       "human_checkpoint": true,
-      "blocked_on_decision": "tech-spec ADR required: embedding stack (voyage-code-3 / voyage-3-large / Qwen3-Embedding-0.6B), PPR weights (vec-similarity → seed weights, iteration count, alpha), and eval-harness regression thresholds (CoIR-CSN-CCR NDCG@10, Loc-Bench Acc@5, dogfood multi-hop, masked Recall@10, agent pass rate)."
+      "blocked_on_decision": "tech-spec ADR required: embedding stack (voyage-code-3 / voyage-3-large / Qwen3-Embedding-0.6B), PPR weights (vec-similarity → seed weights, iteration count, alpha), and eval-harness regression thresholds (CoIR-CSN-CCR NDCG@10, Loc-Bench Acc@5, dogfood multi-hop, masked Recall@10, agent pass rate).",
+      "notes": "QA-001: F-MONITOR-TRAINING-CHECK-MISSING — if any retrieval-eval task introduces a fine-tune or embedding-fine-tune script, implement the CI check guarding against monitor-*.json consumption per ADR-0012 before merging."
     }
   ]
 }

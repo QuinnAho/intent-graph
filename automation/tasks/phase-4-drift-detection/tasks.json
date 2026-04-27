@@ -33,7 +33,7 @@
       "estimated_minutes": 30,
       "human_checkpoint": true,
       "blocked_on_decision": "tech-spec ADRs required: (1) 4-tier diff ladder hyperparameters per language, (2) AgentRunner trace_event row shape, (3) monitor-LLM JSON verdict schema and the failure modes that map to block / require_human_review / allow.",
-      "notes": "Phase 4 is the faithfulness layer. Mistakes here destroy the architecture's central claim. Monitor-LLM gate mandatory on every task once unblocked."
+      "notes": "Phase 4 is the faithfulness layer. Mistakes here destroy the architecture's central claim. Monitor-LLM gate mandatory on every task once unblocked. QA-001: F-MONITOR-TRAINING-CHECK-MISSING — implement the CI check that no fine-tune script consumes monitor-*.json when the first such script lands (per ADR-0012)."
     }
   ]
 }
