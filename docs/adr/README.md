@@ -18,3 +18,5 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0012 | [Defer the monitor-training CI check until the first fine-tune script lands](./0012-defer-monitor-training-ci-check.md) | Accepted |
 | 0013 | [QA self-audit pattern: self-report plus independent Codex audit, per commit](./0013-qa-self-audit-pattern.md) | Accepted (composes-/codex clause partially superseded by 0014) |
 | 0014 | [Interactive /qa shells out to codex exec directly; supersede ADR-0013's composes-/codex clause](./0014-qa-pass-2-shells-out-to-codex-exec-directly.md) | Accepted (partially supersedes 0013) |
+| 0015 | [Schema scope: monolithic Drizzle schema in phase 2 vs staged per-phase migration](./0015-schema-scope-staged-vs-monolithic.md) | Accepted |
+| 0016 | [Verifier interface: location, scheduling, and registration](./0016-verifier-interface.md) | Accepted |
