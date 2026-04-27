@@ -13,3 +13,4 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0007 | [Autonomous workflow: cc-sdd + bash-loop Ralph](./0007-autonomous-workflow.md) | Proposed |
 | 0008 | [Codex bridge: slash command, not auto-invoking skill](./0008-codex-bridge.md) | Proposed |
 | 0009 | [Spec frontmatter schema](./0009-spec-frontmatter-schema.md) | Proposed |
+| 0010 | [TOML parsing in the agent-config validator](./0010-toml-parsing-in-validator.md) | Proposed |

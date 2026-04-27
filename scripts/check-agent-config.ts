@@ -28,6 +28,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import TOML from '@iarna/toml';
 
 type Issue = { file: string; message: string };
 const issues: Issue[] = [];
@@ -165,17 +166,32 @@ function checkCodexConfigCoherence() {
   const claude = join(repoRoot, '.claude', 'settings.json');
   if (!existsSync(codex)) return fail(codex, '.codex/config.toml missing');
   if (!existsSync(claude)) return;
-  const codexText = readText(codex);
+
   let claudeJson: { mcpServers?: Record<string, unknown> } = {};
   try {
     claudeJson = JSON.parse(readText(claude));
   } catch {
     return; // already reported by checkClaudeSettings
   }
+
+  // ADR-0006:32 used a substring match (`codexText.includes('[mcp.<name>]')`)
+  // which incorrectly accepts a commented `# [mcp.foo]` line and would miss
+  // the inline-table form. ADR-0010 supersedes that decision; we now parse
+  // the TOML with @iarna/toml (zero transitive deps).
+  let codexParsed: Record<string, unknown>;
+  try {
+    codexParsed = TOML.parse(readText(codex)) as Record<string, unknown>;
+  } catch (e) {
+    return fail(codex, `not valid TOML: ${(e as Error).message}`);
+  }
+  const mcpTable = (codexParsed.mcp ?? {}) as Record<string, unknown>;
+
   for (const name of Object.keys(claudeJson.mcpServers ?? {})) {
-    const header = `[mcp.${name}]`;
-    if (!codexText.includes(header)) {
-      fail(codex, `MCP server "${name}" registered in .claude/settings.json but ${header} missing`);
+    if (!(name in mcpTable)) {
+      fail(
+        codex,
+        `MCP server "${name}" registered in .claude/settings.json but missing from .codex/config.toml [mcp] table`,
+      );
     }
   }
 }
