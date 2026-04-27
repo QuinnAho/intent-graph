@@ -5,7 +5,7 @@
   "approval": {
     "approved_by": "Quinn Aho",
     "approved_at": "2026-04-27T00:00:00Z",
-    "git_commit_hash": "pending"
+    "git_commit_hash": "7699882cc4d6bd18aa380cc887629333cdf469f5"
   },
   "autonomy_level": "high",
   "max_iterations_per_task": 15,
