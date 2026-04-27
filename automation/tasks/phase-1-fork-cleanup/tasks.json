@@ -24,9 +24,25 @@
   },
   "tasks": [
     {
+      "id": "p1-t00",
+      "title": "Human-driven /qa smoke test: invoke /qa once against a small real change to validate the audit wiring before Ralph runs autonomously",
+      "depends_on": [],
+      "scope_files": [
+        "automation/qa-reports/**"
+      ],
+      "spec_reference": "docs/adr/0013-qa-self-audit-pattern.md",
+      "completion_signal": "PHASE1_T00_DONE",
+      "estimated_minutes": 10,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "First /qa run against the project. The human stages a small real change (e.g. a CHANGELOG note or a docs fix), runs `/qa` interactively in Claude Code, and confirms: (a) the report file lands in automation/qa-reports/, (b) Codex returns a parseable COUNT_BLOCKER/MAJOR/MINOR/NIT trailer, (c) the report's Pass 3 section is well-formed. Do not approve the rest of the phase-1 list until this passes. If the wiring is broken, fix /qa or qa.sh first; the rest of the loop depends on this gate."
+    },
+    {
       "id": "p1-t01",
       "title": "Confirm scaffolding pins match Phase 1 stack decisions (xyflow v12+, elkjs, zustand, vite, tsup, vitest, fast-check, drizzle)",
-      "depends_on": [],
+      "depends_on": [
+        "p1-t00"
+      ],
       "scope_files": [
         "package.json",
         "packages/*/package.json",
@@ -42,7 +58,9 @@
     {
       "id": "p1-t02",
       "title": "Read claudemap/ contracts/, skill/SKILL.md frontmatter, and agents/ — produce a one-page LIFT_AUDIT.md flagging anything that contradicts tech-spec.md",
-      "depends_on": [],
+      "depends_on": [
+        "p1-t00"
+      ],
       "scope_files": [
         "LIFT_AUDIT.md",
         "claudemap/**"
@@ -56,21 +74,21 @@
     },
     {
       "id": "p1-t03",
-      "title": "Audit packages/skill/src/agent-runner/ to confirm the AgentRunner-only ESLint rule fires correctly on a fixture import",
+      "title": "Confirm the AgentRunner-only ESLint rule regression test is wired into CI and verify-rules guard the chokepoint",
       "depends_on": [
         "p1-t01"
       ],
       "scope_files": [
         "eslint.config.mjs",
-        "packages/skill/src/agent-runner/**",
-        "packages/skill/tests/**"
+        "packages/skill/tests/lint-rule.test.ts",
+        ".github/workflows/ci.yml"
       ],
       "spec_reference": "tech-spec.md#pillar-4--agent-orchestration-is-first-class",
       "completion_signal": "PHASE1_T03_DONE",
-      "estimated_minutes": 20,
+      "estimated_minutes": 15,
       "human_checkpoint": false,
       "blocked_on_decision": null,
-      "notes": "Add a fixture test file that intentionally imports `generateText` from `ai` outside agent-runner/. Expect lint to fail. Then move the fixture inside agent-runner/ and expect lint to pass. Do not commit the failing fixture; commit the passing one and a Vitest case that asserts the lint rule's existence by name."
+      "notes": "The AgentRunner-only rule and its three-case Vitest regression already shipped in commit 5d5205a (qa-001 F-LINT-PREFIX). This task is the audit step: confirm `pnpm test` runs `packages/skill/tests/lint-rule.test.ts` in CI (it does, via the workspace project), confirm the path-segment match in eslint.config.mjs is intact, and produce a one-paragraph note in PHASE1_T03_NOTES.md citing the commit hash and CI workflow line that runs the test. If anything regressed, restore from 5d5205a; do not write a new fixture-based test from scratch."
     },
     {
       "id": "p1-t04",
