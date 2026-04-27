@@ -50,6 +50,9 @@ automation/sessions/
 # and should not be tracked. .claude/settings.json (project-level) IS tracked.
 .claude/settings.local.json
 
+# Per-machine Claude Code scheduler lock; runtime state, never project content.
+.claude/scheduled_tasks.lock
+
 # cc-sdd kiro-* skills and related artifacts are installed per-developer via
 # automation/install.sh. They are tooling, not project content. The project's
 # own intentgraph-* skills under .claude/skills/ and .codex/skills/ ARE tracked.
