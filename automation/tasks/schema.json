@@ -7,6 +7,10 @@
   "additionalProperties": false,
   "required": ["phase", "status", "autonomy_level", "max_iterations_per_task", "max_total_cost_usd", "verification", "tasks"],
   "properties": {
+    "_banner": {
+      "type": "string",
+      "description": "Free-form banner / status note for human readers. Optional. Underscore-prefixed by convention; not consumed by ralph.sh."
+    },
     "phase": {
       "type": "string",
       "pattern": "^phase-[1-9][0-9]?-[a-z0-9-]+$",

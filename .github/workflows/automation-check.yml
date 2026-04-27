@@ -38,7 +38,7 @@ jobs:
           fail=0
           for tasks in automation/tasks/*/tasks.json; do
             echo "::group::$tasks"
-            ajv validate -s automation/tasks/schema.json -d "$tasks" --strict=false || fail=1
+            ajv validate --spec=draft2020 -s automation/tasks/schema.json -d "$tasks" --strict=false || fail=1
             echo "::endgroup::"
           done
           if [[ $fail -ne 0 ]]; then

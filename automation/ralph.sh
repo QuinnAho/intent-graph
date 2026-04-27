@@ -88,11 +88,14 @@ validate_task_list() {
   # Lightweight validation: jq required keys + status enum. A stricter
   # JSON Schema validator (ajv-cli) is preferred when available; fall back
   # to the jq path so the script works in CI without npx.
+  # ajv-cli@5 needs --spec=draft2020 to load the meta-schema declared by
+  # tasks/schema.json ("$schema": "https://json-schema.org/draft/2020-12/schema").
+  # Without it ajv errors with: 'no schema with key or ref ...'.
   if command -v ajv >/dev/null 2>&1; then
-    ajv validate -s "$SCHEMA_FILE" -d "$file" --strict=false \
+    ajv validate --spec=draft2020 -s "$SCHEMA_FILE" -d "$file" --strict=false \
       || fatal "task list failed JSON Schema validation"
   elif command -v npx >/dev/null 2>&1; then
-    npx --yes -p ajv-cli@5 ajv validate -s "$SCHEMA_FILE" -d "$file" --strict=false \
+    npx --yes -p ajv-cli@5 ajv validate --spec=draft2020 -s "$SCHEMA_FILE" -d "$file" --strict=false \
       || fatal "task list failed JSON Schema validation (ajv-cli via npx)"
   else
     log "WARN: no ajv-cli found; running degraded jq-only validation"
