@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted 2026-04-27. Retrospective ratification of the layout already shipped via vitest.workspace.ts.
 
 ## Context
 

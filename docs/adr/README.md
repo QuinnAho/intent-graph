@@ -9,11 +9,11 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0003 | [Spec-driven loop is the backbone](./0003-spec-driven-loop.md) | Accepted |
 | 0004 | [Agent orchestration is first-class](./0004-agent-orchestration.md) | Accepted |
 | 0005 | [Faithfulness via architecture, not training](./0005-faithfulness-by-architecture.md) | Accepted |
-| 0006 | [Agent configuration setup](./0006-agent-configuration-setup.md) | Proposed |
-| 0007 | [Autonomous workflow: cc-sdd + bash-loop Ralph](./0007-autonomous-workflow.md) | Proposed |
-| 0008 | [Codex bridge: slash command, not auto-invoking skill](./0008-codex-bridge.md) | Proposed |
-| 0009 | [Spec frontmatter schema](./0009-spec-frontmatter-schema.md) | Proposed |
-| 0010 | [TOML parsing in the agent-config validator](./0010-toml-parsing-in-validator.md) | Proposed |
-| 0011 | [Test infrastructure layout](./0011-test-infrastructure-layout.md) | Proposed |
-| 0012 | [Defer the monitor-training CI check until the first fine-tune script lands](./0012-defer-monitor-training-ci-check.md) | Proposed |
-| 0013 | [QA self-audit pattern: self-report plus independent Codex audit, per commit](./0013-qa-self-audit-pattern.md) | Proposed |
+| 0006 | [Agent configuration setup](./0006-agent-configuration-setup.md) | Accepted (#3, #4 superseded by 0010) |
+| 0007 | [Autonomous workflow: cc-sdd + bash-loop Ralph](./0007-autonomous-workflow.md) | Accepted (monitor-training CI clause superseded by 0012) |
+| 0008 | [Codex bridge: slash command, not auto-invoking skill](./0008-codex-bridge.md) | Accepted |
+| 0009 | [Spec frontmatter schema](./0009-spec-frontmatter-schema.md) | Accepted |
+| 0010 | [TOML parsing in the agent-config validator](./0010-toml-parsing-in-validator.md) | Accepted |
+| 0011 | [Test infrastructure layout](./0011-test-infrastructure-layout.md) | Accepted |
+| 0012 | [Defer the monitor-training CI check until the first fine-tune script lands](./0012-defer-monitor-training-ci-check.md) | Accepted |
+| 0013 | [QA self-audit pattern: self-report plus independent Codex audit, per commit](./0013-qa-self-audit-pattern.md) | Accepted |

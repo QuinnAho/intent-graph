@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted 2026-04-27. The "future model-fine-tune CI check" clause is partially superseded by ADR-0012 (deferral until first fine-tune script lands).
 
 ## Context
 

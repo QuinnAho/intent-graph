@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Partially supersedes one clause of ADR-0007.
+Accepted 2026-04-27. Partially supersedes one clause of ADR-0007.
 
 ## Context
 

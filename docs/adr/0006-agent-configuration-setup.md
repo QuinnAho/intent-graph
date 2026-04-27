@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted 2026-04-27. Decisions #3 (in scope) and #4 partially superseded by ADR-0010.
 
 ## Context
 

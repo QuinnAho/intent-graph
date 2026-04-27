@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted 2026-04-27. Partially supersedes decisions #3 and #4 of ADR-0006.
 
 ## Context
 
