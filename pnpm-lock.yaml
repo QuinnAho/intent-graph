@@ -125,6 +125,9 @@ importers:
       inngest:
         specifier: ^3.27.0
         version: 3.54.0(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(express@5.2.1)(hono@4.12.15)(typescript@5.9.3)(zod@3.25.76)
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       sqlite-vec:
         specifier: ^0.1.6
         version: 0.1.9
@@ -141,6 +144,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^20.14.0
         version: 20.19.39
@@ -2208,6 +2214,9 @@ packages:
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -7404,6 +7413,8 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
+  '@types/js-yaml@4.0.9': {}
+
   '@types/json-schema@7.0.15': {}
 
   '@types/json5@0.0.29': {}
@@ -7597,6 +7608,14 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.39)
+
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.19.17))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@22.19.17)
 
   '@vitest/pretty-format@2.1.9':
     dependencies:
@@ -10906,7 +10925,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.17)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.39))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.19.17))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

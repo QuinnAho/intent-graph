@@ -9,7 +9,10 @@
   "bin": {
     "intentgraph-skill": "./dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
@@ -28,6 +31,7 @@
     "graphology": "^0.26.0",
     "graphology-metrics": "^2.4.0",
     "inngest": "^3.27.0",
+    "js-yaml": "^4.1.1",
     "sqlite-vec": "^0.1.6",
     "tree-sitter": "^0.21.1",
     "ulid": "^2.3.0",
@@ -35,6 +39,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.14.0",
     "drizzle-kit": "^0.28.1",
     "fast-check": "^3.23.0",
