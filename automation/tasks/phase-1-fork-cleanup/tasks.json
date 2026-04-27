@@ -1,8 +1,12 @@
 {
-  "_banner": "DRAFT — NEEDS HUMAN APPROVAL. ralph.sh will refuse to execute this file until status is flipped to `approved` per automation/tasks/APPROVAL.md. Read every task before approving; the loop will commit each one.",
+  "_banner": "APPROVED 2026-04-27 by Quinn Aho. ralph.sh will execute this list against the loop's gates (verify → monitor (skipped, required:false) → qa → commit). Read APPROVAL.md before re-editing.",
   "phase": "phase-1-fork-cleanup",
-  "status": "draft-needs-human-approval",
-  "approval": null,
+  "status": "approved",
+  "approval": {
+    "approved_by": "Quinn Aho",
+    "approved_at": "2026-04-27T00:00:00Z",
+    "git_commit_hash": "pending"
+  },
   "autonomy_level": "high",
   "max_iterations_per_task": 15,
   "max_total_cost_usd": 100,
