@@ -11,7 +11,7 @@ Steps:
 
 2. **Confirm the question being decided.** If the user only gave a title, ask one clarifying question: "What is the question this ADR answers? What alternatives are on the table?" Do not invent a decision.
 
-3. **Identify the relevant Tech-Spec section.** Read `Tech-Spec.md` and quote the section the decision touches.
+3. **Identify the relevant Tech-Spec section.** Read `tech-spec.md` and quote the section the decision touches.
 
 4. **Identify related ADRs.** Glob `/docs/adr/*.md` and find ADRs that touch the same area. Decide whether the new ADR extends, supersedes, or is independent.
 

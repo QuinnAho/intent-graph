@@ -50,7 +50,7 @@ The vendored snapshot under `claudemap/` was lifted from with no separate git-tr
 | `claudemap/scripts/generate-seed-map.js` and `scripts/lib/seed-map-builder.js` | The ClaudeMap seed-map JSON contract is on the do-not-lift list. IntentGraph's `scripts/seed-dev-db.ts` writes through Drizzle into SQLite. |
 | `claudemap/scripts/lib/agent-converter.js`, `scripts/lib/codex-skill-generator.js` | The Codex agent / SKILL conversion logic is ClaudeMap-specific (renames "claudemap-runtime" to "codexmap-runtime", embeds slash commands inside SKILL.md, etc.). IntentGraph ships the same SKILL.md to both flavors with no rename. |
 | `claudemap/skill/lib/active-map.js`, `map-manifest.js`, `runtime-paths.js`, `manifest/io.js`, `command-harness/*` | All wired to the ClaudeMap maps-manifest model and slash-command harness. IntentGraph has neither. |
-| `claudemap/README.md`, `claudemap/CHANGELOG.md`, `claudemap/PUBLISHING.md` | The ClaudeMap project READMEs are about the ClaudeMap product. IntentGraph has its own [`README.md`](./README.md) and [`Tech-Spec.md`](./Tech-Spec.md). |
+| `claudemap/README.md`, `claudemap/CHANGELOG.md`, `claudemap/PUBLISHING.md` | The ClaudeMap project READMEs are about the ClaudeMap product. IntentGraph has its own [`README.md`](./README.md) and [`tech-spec.md`](./tech-spec.md). |
 | `claudemap/docs/`, `claudemap/stitch-base.js`, `claudemap/claudemap-maps.json`, `claudemap/resources/` | Demo site assets, stitch artifacts, the JSON-as-storage map manifest, brand resources — none of these belong in IntentGraph. |
 
 ## Architectural decisions made during the lift that were not in the original instructions

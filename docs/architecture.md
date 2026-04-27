@@ -1,6 +1,6 @@
 # Architecture
 
-This document is the entry point for newcomers. It links to the ADRs that record each pillar decision and points at the code that implements them. The full technical specification lives in `Tech-Spec.md` at the repository root.
+This document is the entry point for newcomers. It links to the ADRs that record each pillar decision and points at the code that implements them. The full technical specification lives in `tech-spec.md` at the repository root.
 
 ## The five pillars
 
@@ -75,7 +75,7 @@ Phases gate on dogfooding maturity, not feature count.
 | **L2** | end of Phase 4 | In one week of normal team coding, ≥80% of symbol-vs-intent drift is auto-detected and ≥50% of suggestions are accepted as-is. |
 | **L3** | end of Phase 5 | CI fails when `verify.run --strict` shows any drift on the team's repo. Tool writes new intent stubs from PR commits and asks the author to confirm. For 4 consecutive weeks, no merged PR contains an undocumented exported symbol. |
 
-Beyond L3: Phase 6 hardening + first external pilot users; Phase 7 Python (v1.1); Phase 8 Go *or* Rust (v2). See `Tech-Spec.md` §6 for the full effort table.
+Beyond L3: Phase 6 hardening + first external pilot users; Phase 7 Python (v1.1); Phase 8 Go *or* Rust (v2). See `tech-spec.md` §6 for the full effort table.
 
 ### Available agent surfaces
 
@@ -87,7 +87,7 @@ The discipline ships as skills, subagents, and slash commands under `.claude/` (
 
 ### What to do when uncertain
 
-- Read the relevant `Tech-Spec.md` section. It's the source of truth.
+- Read the relevant `tech-spec.md` section. It's the source of truth.
 - If a decision is being made: write an ADR via `/intentgraph-adr <title>`.
 - If the decision is load-bearing and the spec is silent: ask the human. Don't guess.
 - Before lifting from `claudemap/`: invoke the lifter skill via `/intentgraph-lift <file>`.

@@ -5,7 +5,7 @@ description: Bootstrap a new IntentGraph development session. Reads CLAUDE.md, l
 You are starting a new development session on IntentGraph. Bootstrap by doing the following, in order, and then summarize for the user.
 
 1. Read `CLAUDE.md` at the repo root in full. Note the five hard rules and the dogfooding ladder.
-2. Read `Tech-Spec.md` §6 (phase-by-phase build plan) — at least the table at the bottom.
+2. Read `tech-spec.md` §6 (phase-by-phase build plan) — at least the table at the bottom.
 3. Use Glob to list `/docs/adr/`. Read the README, then any ADR whose status is not `Accepted` (grep for `Status` fields).
 4. Use Glob to list `/spec/intents/`, `/spec/constraints/`, `/spec/decisions/`. Note the count in each folder.
 5. Run `git status --short` and `git log --oneline -5` to surface in-flight work.

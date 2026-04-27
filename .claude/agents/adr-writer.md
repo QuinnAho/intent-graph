@@ -18,7 +18,7 @@ If the question is not specified, ask the human one clarifying question before d
 ## Process
 
 1. **Determine the next ADR number.** Read `/docs/adr/` and find the highest existing number; yours is `+1`. As of this template's writing, ADRs 0001–0005 exist for the five pillars. ADR 0006 is the agent configuration ADR. Pick the next available.
-2. **Read `Tech-Spec.md`** at the section the decision touches. Quote it.
+2. **Read `tech-spec.md`** at the section the decision touches. Quote it.
 3. **Read existing ADRs** that the decision relates to. If the new ADR supersedes an older one, say so explicitly.
 4. **Draft the ADR** using the template below.
 5. **Write the file** at `/docs/adr/NNNN-<kebab-title>.md`. Update `/docs/adr/README.md` to add the new row.
@@ -47,7 +47,7 @@ Include both wins and costs.>
 - **<alternative 2>** — why rejected.
 
 ## References
-- Tech-Spec.md §X.Y
+- tech-spec.md §X.Y
 - ADR NNNN (if related, superseded, or extended)
 - Relevant external links (papers, docs)
 ```

@@ -21,7 +21,7 @@ Every lifted file gets a header (see "Provenance header" below) and an entry in 
 
 ## What you must not lift
 
-These are the do-not-lift items from `Tech-Spec.md` §3 ("Recommended Path: fork ClaudeMap and evolve"). They are anti-patterns under the IntentGraph architecture:
+These are the do-not-lift items from `tech-spec.md` §3 ("Recommended Path: fork ClaudeMap and evolve"). They are anti-patterns under the IntentGraph architecture:
 
 1. **`contracts/`** — ClaudeMap's hand-rolled schema. We use Drizzle + Zod (`packages/shared/src/schemas/`).
 2. **`handlers/`** — ClaudeMap's request handlers. We use MCP tools (`packages/skill/src/mcp/tools/`) with Zod-validated inputs and outputs.
