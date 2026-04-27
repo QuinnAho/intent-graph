@@ -11,3 +11,4 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0005 | [Faithfulness via architecture, not training](./0005-faithfulness-by-architecture.md) | Accepted |
 | 0006 | [Agent configuration setup](./0006-agent-configuration-setup.md) | Proposed |
 | 0007 | [Autonomous workflow: cc-sdd + bash-loop Ralph](./0007-autonomous-workflow.md) | Proposed |
+| 0008 | [Codex bridge: slash command, not auto-invoking skill](./0008-codex-bridge.md) | Proposed |

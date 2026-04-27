@@ -121,6 +121,23 @@ These are mirrored to `.codex/` and `.claude/` so both tools see the same discip
 **Slash commands** — `.codex/commands/`:
 - `/intentgraph-init`, `/intentgraph-status`, `/intentgraph-lift <file>`, `/intentgraph-spec <intent-id>`, `/intentgraph-adr <title>`, `/intentgraph-verify`, `/intentgraph-ralph <task-list>`.
 - `/intentgraph-ralph-run <phase>`, `/intentgraph-ralph-resume`, `/intentgraph-ralph-status`, `/intentgraph-ralph-cancel` — multi-task autonomous loop. (Codex equivalents land alongside the agent-config pass; the Claude Code versions exist today under `.claude/commands/`.)
+- `/codex <task>` — mirrored slash command for symmetry with `.claude/commands/codex.md`. See *Delegating to Codex* below.
+
+## Delegating to Codex
+
+`/codex` lives at [`.codex/commands/codex.md`](./.codex/commands/codex.md) (mirrored from `.claude/commands/codex.md`) and wraps `codex exec` in a sandboxed read-only run. The design rationale is in [`docs/adr/0008-codex-bridge.md`](./docs/adr/0008-codex-bridge.md). It is **explicit-only**, never auto-invoked. In practice the parent of a `/codex` run is a Claude Code session — Codex does not invoke itself — but the file lives in `.codex/` for parity so a human reading the Codex config sees the same discipline.
+
+**Use it for:**
+- Well-scoped read-only analysis where the package, files, and specific question are already known.
+- Second-opinion architecture review when an ADR draft is on the table.
+- Parallel investigation while the main thread continues elsewhere.
+
+**Do not use it for:**
+- Write work. The wrapper is `--sandbox read-only`; write tasks go through `/intentgraph-ralph` with the human checkpoint.
+- Anything in tech-spec phases 3, 4, or 6. Mandatory human checkpoints per ADR-0007; architectural decisions per ADR-0008.
+- Anything you want to land in IntentGraph's monitor-LLM trace store later. Codex runs are outside the trace store at this stage; ADR-0008 defers the MCP-registered version to Phase 3.
+
+Every `/codex` invocation logs to `automation/codex-log.jsonl`.
 
 ## Autonomous workflow
 

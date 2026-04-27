@@ -75,6 +75,12 @@ Or invoke `/intentgraph-verify` to run the sequence and refuse to continue on fa
 
 For DB-touching work add `pnpm migrate:lint` (Atlas migration linter). For configuration-only changes (this file, `.claude/`, `.codex/`, ADRs, `/spec/` markdown) instead run `pnpm tsx scripts/check-agent-config.ts`.
 
+## Commit style
+
+- Subject line is **all lowercase**, **one sentence**, no trailing period.
+- No `Co-Authored-By: Claude` trailer. No assistant signature anywhere in the message.
+- Body, if needed, cites file:line that changed and the relevant qa-report or ADR ID so future audits can grep for it.
+
 ## Skills, subagents, and commands available
 
 These live under `.claude/`. Use them — they encode the project's discipline.
@@ -105,6 +111,23 @@ These live under `.claude/`. Use them — they encode the project's discipline.
 - `/intentgraph-ralph-resume` — resume the most recently interrupted Ralph session from `automation/sessions/progress.json`.
 - `/intentgraph-ralph-status` — report the active session's progress (completed, blocked, cost, time).
 - `/intentgraph-ralph-cancel` — gracefully halt the active session and write a final report.
+- `/codex <task>` — delegate a bounded read-only task to the Codex CLI; output comes back as a quoted block. See *Delegating to Codex* below.
+
+## Delegating to Codex
+
+`/codex` wraps `codex exec` in a sandboxed read-only run for cases where Codex's perspective is useful inside a Claude Code session. The wrapper is documented in [`.claude/commands/codex.md`](./.claude/commands/codex.md) and the design rationale is in [`docs/adr/0008-codex-bridge.md`](./docs/adr/0008-codex-bridge.md). It is **explicit-only** — never auto-invoked from context matching.
+
+**Use it for:**
+- Well-scoped read-only analysis where the package, files, and specific question are already known.
+- Second-opinion architecture review when an ADR draft is on the table and the human wants a perspective trained on a different distribution.
+- Parallel investigation while you continue the main thread in Claude Code (e.g., "while I keep editing the schema, ask Codex to audit `packages/skill/src/db/` for missing indices").
+
+**Do not use it for:**
+- Write work. The wrapper is `--sandbox read-only`; write tasks go through `/intentgraph-ralph` or a manual implementer pass with the human checkpoint.
+- Anything in tech-spec phases 3, 4, or 6 (MCP server, drift+monitor, hardening). Those phases have mandatory human checkpoints per ADR-0007 and architectural decisions per ADR-0008. The command refuses these.
+- Anything you want to land in IntentGraph's own monitor-LLM trace store later. Codex runs are outside the trace store at this stage; ADR-0008 defers the MCP-registered version to Phase 3. If faithfulness-tracking matters, run the work through AgentRunner instead.
+
+Every `/codex` invocation logs to `automation/codex-log.jsonl` (timestamp, task summary, exit code, duration, tokens when reported).
 
 ## Autonomous workflow
 
