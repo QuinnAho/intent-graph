@@ -22,8 +22,12 @@
 //      .claude/settings.json mcpServers (light coherence check, not full TOML
 //      parsing — we just look for the section header).
 //   7. Every spec file under /spec/intents/, /spec/constraints/,
-//      /spec/decisions/ that is not a README has YAML frontmatter with the
-//      required fields (id, title, parent, confidence).
+//      /spec/decisions/, /spec/concepts/ that is not a README has YAML
+//      frontmatter with the required fields (id, title, parent, confidence).
+//      The concepts/ directory is the Daniel Jackson-style boundary kind
+//      (tech-spec §3.5, §4.1) added in p2-t04; the parser at
+//      packages/skill/src/parser/spec-md/ treats it as a first-class kind,
+//      so the validator must too.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -265,7 +269,7 @@ function main() {
   checkClaudeSettings();
   checkCodexConfigCoherence();
 
-  for (const specDir of ['spec/intents', 'spec/constraints', 'spec/decisions']) {
+  for (const specDir of ['spec/intents', 'spec/constraints', 'spec/decisions', 'spec/concepts']) {
     const dir = join(repoRoot, specDir);
     if (!existsSync(dir)) continue;
     for (const f of listFiles(dir, (n) => n.endsWith('.md') && n.toLowerCase() !== 'readme.md')) {
