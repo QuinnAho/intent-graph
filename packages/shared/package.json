@@ -11,7 +11,8 @@
     "./schemas": "./src/schemas/index.ts",
     "./types": "./src/types/index.ts",
     "./protocol": "./src/protocol/index.ts",
-    "./ids": "./src/ids/index.ts"
+    "./ids": "./src/ids/index.ts",
+    "./verifier": "./src/verifier/index.ts"
   },
   "scripts": {
     "build": "tsc -b",
