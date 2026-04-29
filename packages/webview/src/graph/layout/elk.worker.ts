@@ -3,6 +3,16 @@
 // ran ELK on the main thread). Single message protocol: { id, nodes, edges, options }
 // in, { id, positions } or { id, error } out. License: MIT (see /claudemap/LICENSE).
 // See LIFT_LOG.md for the full lift record.
+//
+// Worker scope: this file is a Vite-bundled ESM worker — `import.meta.url`
+// resolves under the worker URL, and `self` is the DedicatedWorkerGlobalScope.
+// We import elkjs's bundled module here. The bundled module's default
+// constructor would normally spawn a Worker of its own for the GWT-compiled
+// ELK core; that nested-worker construction is what the runLayout call
+// site avoids by short-circuiting in the wrapper (see graph/layout/index.ts).
+// At phase 2, runLayout calls ELK directly on the main thread — this file
+// remains the worker-friendly entry point for phase 6 hardening when
+// graph sizes climb past the main-thread budget.
 
 /// <reference lib="webworker" />
 

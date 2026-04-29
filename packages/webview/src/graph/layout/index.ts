@@ -1,75 +1,97 @@
 // Lifted from claudemap/app/src/lib/layoutEngine.js @ claudemap@vendored.
-// Adapted: TS strict, message-passing wrapper around the off-main-thread ELK
-// worker (claudemap ran ELK on the main thread). Public API is a single
-// `runLayout(nodes, edges, options)` returning a positions array.
+// Adapted: TS strict. Public API is a single `runLayout(nodes, edges, options)`
+// returning a positions array.
 // License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+//
+// Worker posture (phase 2): runLayout calls ELK on the main thread. The
+// elkjs bundled module ships its own GWT-compiled worker that it tries to
+// spawn at construction time; nested-worker construction inside an ESM
+// module worker fails in browsers (`_Worker is not a constructor`). The
+// dedicated wrapper worker at ./elk.worker.ts is preserved as the phase-6
+// entry point for when graph sizes climb past the main-thread budget; at
+// L0 with ~600 nodes ELK runs in 100–300ms on the main thread, which is
+// acceptable for a one-shot startup layout. Tech-spec §3.5 line 142
+// ("ELK in a dedicated WebWorker") is the long-term posture; phase 6
+// hardening will fix the nested-worker construction (likely by passing a
+// real `workerFactory` that points at the elk-worker bundle).
+
+import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 
 import {
   type LayoutEdgeInput,
   type LayoutNodeInput,
   type LayoutOptions,
   type LayoutPosition,
-  type LayoutWorkerRequest,
-  type LayoutWorkerResponse,
 } from './layout-protocol.js';
 
 export type { LayoutEdgeInput, LayoutNodeInput, LayoutOptions, LayoutPosition };
 
-let workerSingleton: Worker | null = null;
-let pendingId = 0;
-const pending = new Map<
-  string,
-  { resolve: (positions: LayoutPosition[]) => void; reject: (err: Error) => void }
->();
+const DEFAULT_OPTIONS: Record<string, string> = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'DOWN',
+  'elk.spacing.nodeNode': '64',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '84',
+  'elk.padding': '[top=30,left=30,bottom=30,right=30]',
+  'org.eclipse.elk.portConstraints': 'FIXED_ORDER',
+};
 
-function getWorker(): Worker {
-  if (workerSingleton) return workerSingleton;
-  // Vite resolves this via `new URL(..., import.meta.url)` and bundles the worker
-  // separately. The `{ type: 'module' }` opt-in is required for ESM workers.
-  workerSingleton = new Worker(new URL('./elk.worker.ts', import.meta.url), {
-    type: 'module',
-  });
-  workerSingleton.addEventListener('message', (event: MessageEvent<LayoutWorkerResponse>) => {
-    const entry = pending.get(event.data.id);
-    if (!entry) return;
-    pending.delete(event.data.id);
-    if (event.data.error !== undefined) {
-      entry.reject(new Error(event.data.error));
-      return;
-    }
-    entry.resolve(event.data.positions);
-  });
-  return workerSingleton;
+let elkSingleton: InstanceType<typeof ELK> | null = null;
+function getElk(): InstanceType<typeof ELK> {
+  if (elkSingleton) return elkSingleton;
+  elkSingleton = new ELK();
+  return elkSingleton;
 }
 
-function nextId(): string {
-  pendingId += 1;
-  return `layout_${pendingId.toString(36)}`;
+function buildLayoutOptions(overrides: LayoutOptions['elkOptions'] | undefined): Record<string, string> {
+  if (!overrides) return DEFAULT_OPTIONS;
+  return { ...DEFAULT_OPTIONS, ...overrides };
 }
 
-export function runLayout(
+export async function runLayout(
   nodes: LayoutNodeInput[],
   edges: LayoutEdgeInput[],
   options?: LayoutOptions,
 ): Promise<LayoutPosition[]> {
-  const worker = getWorker();
-  const id = nextId();
-  const request: LayoutWorkerRequest = options !== undefined
-    ? { id, nodes, edges, options }
-    : { id, nodes, edges };
-  return new Promise<LayoutPosition[]>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    worker.postMessage(request);
+  const elkChildren: ElkNode[] = nodes.map((node) => ({
+    id: node.id,
+    width: node.width,
+    height: node.height,
+  }));
+
+  const elkEdges = edges.map((edge) => ({
+    id: edge.id,
+    sources: [edge.source],
+    targets: [edge.target],
+  }));
+
+  const graph: ElkNode = {
+    id: 'root',
+    layoutOptions: buildLayoutOptions(options?.elkOptions),
+    children: elkChildren,
+    edges: elkEdges,
+  };
+
+  const result = await getElk().layout(graph);
+  const placed = new Map<string, ElkNode>();
+  for (const child of result.children ?? []) {
+    placed.set(child.id, child);
+  }
+
+  return nodes.map((node) => {
+    const elkNode = placed.get(node.id);
+    return {
+      id: node.id,
+      x: elkNode?.x ?? 0,
+      y: elkNode?.y ?? 0,
+    };
   });
 }
 
+/**
+ * Phase-2 stub: no worker to dispose because runLayout runs on the main
+ * thread. Preserved as part of the public API so phase-6 hardening can
+ * re-introduce the worker wrapper without touching call sites.
+ */
 export function disposeLayoutWorker(): void {
-  if (workerSingleton) {
-    workerSingleton.terminate();
-    workerSingleton = null;
-  }
-  for (const entry of pending.values()) {
-    entry.reject(new Error('Layout worker disposed before request completed.'));
-  }
-  pending.clear();
+  elkSingleton = null;
 }
