@@ -132,13 +132,13 @@ importers:
         specifier: ^0.1.6
         version: 0.1.9
       tree-sitter:
-        specifier: ^0.21.1
+        specifier: 0.21.1
         version: 0.21.1
       tree-sitter-javascript:
-        specifier: ^0.23.1
+        specifier: 0.23.1
         version: 0.23.1(tree-sitter@0.21.1)
       tree-sitter-typescript:
-        specifier: ^0.23.2
+        specifier: 0.23.2
         version: 0.23.2(tree-sitter@0.21.1)
       ulid:
         specifier: ^2.3.0
@@ -7631,14 +7631,6 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.39)
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.19.17))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@22.19.17)
-
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -10962,7 +10954,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.17)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.19.17))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.39))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

@@ -39,6 +39,13 @@ export interface LanguageGrammar {
 // schema-affecting change because the AST shape changes — tech-spec §3.2 line
 // 119 forbids auto-tuning hyperparameters in the inner loop, and grammar
 // version is a hyperparameter. A future ADR may amend.
+//
+// These constants MUST match the exact (caret-free) versions in
+// packages/skill/package.json. The package.json pin is the load-bearing one;
+// these constants exist for the runtime sanity check below and for
+// grep-by-version when triaging a parse regression. CI / lockfile keep the
+// installed grammar at the pinned version; if the constants and package.json
+// drift, the sanity check fails the skill-startup path.
 const PINNED_TYPESCRIPT_VERSION = '0.23.2';
 const PINNED_JAVASCRIPT_VERSION = '0.23.1';
 

@@ -120,6 +120,13 @@ function main(): void {
   process.stdout.write(
     `[seed-dev-db] graph: ${result.summary.nodes} nodes (${result.summary.specNodes} spec, ${result.summary.codeModules} modules, ${result.summary.codeSymbols} symbols), ${result.summary.edges} edges\n`,
   );
+  if (result.summary.skeletonSymbols > 0) {
+    // Tech-spec §7-J: ERROR / MISSING regions are first-class. Log the count
+    // so a regression that suddenly emits hundreds of skeletons is visible.
+    process.stdout.write(
+      `[seed-dev-db]   of which ${result.summary.skeletonSymbols} unknown_skeleton symbol(s) from partial-parse regions\n`,
+    );
+  }
 
   // Ensure output dirs exist for both targets.
   mkdirSync(dirname(args.dbPath), { recursive: true });

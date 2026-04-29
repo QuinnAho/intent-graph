@@ -59,6 +59,7 @@ import { ulid } from 'ulid';
 import { parseSpecTree, type EdgeInsert, type NodeInsert } from './parser/spec-md/index.js';
 import { collectProjectSnapshot } from './parser/fileWalker.js';
 import { ParseCache } from './parser/cache.js';
+import { extractUnknownSkeletons, UNKNOWN_SKELETON_NAME } from './parser/error-nodes.js';
 import { extractCodeSymbols, parseFile } from './parser/tree-sitter.js';
 import type { DbClient } from './db/client.js';
 import { node as nodeTable, edge as edgeTable } from './db/schema.js';
@@ -91,6 +92,14 @@ export interface BuildGraphSummary {
   readonly specNodes: number;
   readonly codeModules: number;
   readonly codeSymbols: number;
+  /**
+   * Subset of `codeSymbols` whose qualified_name is the UNKNOWN_SKELETON_NAME
+   * sentinel (per tech-spec §7-J + parser/error-nodes.ts). Reported separately
+   * so the L0 dogfood seed shows a number — non-zero means the codebase has
+   * partial-parse regions; the L0 gate (tech-spec line 445) does not fail
+   * on these, but the count is informational for the verifier surface.
+   */
+  readonly skeletonSymbols: number;
   readonly warnings: ReadonlyArray<{ readonly file: string; readonly message: string }>;
   readonly errors: ReadonlyArray<{ readonly file: string; readonly message: string }>;
 }
@@ -144,6 +153,7 @@ export function build(opts: BuildGraphOptions): BuildGraphResult {
   const parseWarnings: Array<{ readonly file: string; readonly message: string }> = [];
   let codeModuleCount = 0;
   let codeSymbolCount = 0;
+  let skeletonSymbolCount = 0;
 
   const skipPrefixes = opts.skipPathPrefixes ?? DEFAULT_SKIP_PATH_PREFIXES;
 
@@ -235,6 +245,41 @@ export function build(opts: BuildGraphOptions): BuildGraphResult {
         createdAt: now,
       });
     }
+
+    // Tech-spec §7-J: ERROR / MISSING tree-sitter regions surface as
+    // synthetic `unknown_skeleton` code_symbol rows so phase-4 drift
+    // detection can reason about partial-parse regions. The id includes
+    // the start line+column because the sentinel qualified_name is
+    // shared across regions; signature_hash alone is not unique within
+    // a file when two regions share the same marker shape (e.g. two
+    // ERROR nodes of the same node-type at different positions).
+    const skeletons = extractUnknownSkeletons(toFileUri(absolutePath), parsed.entry.tree);
+    for (const skeleton of skeletons) {
+      const skeletonId = `code_symbol:${file.relativePath}#${UNKNOWN_SKELETON_NAME}#${skeleton.range.start.line}:${skeleton.range.start.column}`;
+      codeNodes.push({
+        id: skeletonId,
+        kind: 'code_symbol',
+        title: UNKNOWN_SKELETON_NAME,
+        body: JSON.stringify(skeleton),
+        confidence: 'extracted',
+        parentId: null,
+        version: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      codeSymbolCount += 1;
+      skeletonSymbolCount += 1;
+
+      codeEdges.push({
+        id: ulid(),
+        src: skeletonId,
+        dst: moduleId,
+        kind: 'produced_by',
+        weight: 1,
+        body: null,
+        createdAt: now,
+      });
+    }
   }
 
   const allNodes = [...spec.nodes, ...codeNodes];
@@ -249,6 +294,7 @@ export function build(opts: BuildGraphOptions): BuildGraphResult {
       specNodes: spec.nodes.length,
       codeModules: codeModuleCount,
       codeSymbols: codeSymbolCount,
+      skeletonSymbols: skeletonSymbolCount,
       warnings: [...spec.warnings, ...parseWarnings],
       errors: spec.errors,
     },
@@ -303,6 +349,7 @@ export function toGraphJson(result: BuildGraphResult): string {
         spec_nodes: result.summary.specNodes,
         code_modules: result.summary.codeModules,
         code_symbols: result.summary.codeSymbols,
+        skeleton_symbols: result.summary.skeletonSymbols,
       },
       nodes: result.nodes.map((n) => ({
         id: n.id,
