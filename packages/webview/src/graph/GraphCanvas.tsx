@@ -30,6 +30,15 @@ import { useZoomLevel, type ZoomLevel } from './zoom/useZoomLevel.js';
 type NodeMouseHandler = (event: MouseEvent, node: Node) => void;
 type PaneMouseHandler = (event: MouseEvent) => void;
 
+// Node-type → component map. React Flow looks each node's `type` field up
+// against this map to pick the renderer. Sub-flow handling (p2-t09): React
+// Flow reads `parentId` + `extent: 'parent'` from the node payload itself
+// (set by transport/graph-json-loader.ts), not from a per-type opt-in here
+// — so concept nodes act as sub-flow boundaries automatically when their
+// children carry the right parentId. Keeping the map flat (no `parent`-
+// specific entry) means adding a new node kind only requires adding it
+// here and registering a sizer; sub-flow capability is implicit in the
+// parent-child relationship.
 const NODE_TYPES: NodeTypes = {
   intent: IntentNode,
   constraint: ConstraintNode,
