@@ -130,6 +130,27 @@ describe('loadGraphFromJson — sub-flow parenting (p2-t09)', () => {
     const root = useGraphStore.getState().nodes.find((n) => n.id === 'intent-foo');
     expect((root as { parentId?: string }).parentId).toBeUndefined();
   });
+
+  it('does NOT set parentId when the parent exists but is not a concept', async () => {
+    // Per tech-spec §4.1 line 179, parent_id is concept-boundary-only.
+    // A code_symbol pointing at a code_module (the legacy walker behavior
+    // that produced overlapping cards in the L0 canvas) must not be turned
+    // into a React Flow sub-flow child even if both nodes are in the
+    // envelope. The renderer enforces the rule defensively against future
+    // producers that re-overload parent_id.
+    const moduleSymbolEnvelope = {
+      ...validEnvelope,
+      nodes: [
+        { id: 'code_module:foo.ts', kind: 'code_module', title: 'foo.ts', body: {}, confidence: 'extracted', parent_id: null },
+        { id: 'code_symbol:foo.ts#FOO', kind: 'code_symbol', title: 'FOO', body: {}, confidence: 'extracted', parent_id: 'code_module:foo.ts' },
+      ],
+      edges: [],
+    };
+    await loadGraphFromJson({ payload: moduleSymbolEnvelope });
+    const symbol = useGraphStore.getState().nodes.find((n) => n.id === 'code_symbol:foo.ts#FOO');
+    expect((symbol as { parentId?: string }).parentId).toBeUndefined();
+    expect((symbol as { extent?: string }).extent).toBeUndefined();
+  });
 });
 
 describe('loadGraphFromJson — edge deduplication', () => {

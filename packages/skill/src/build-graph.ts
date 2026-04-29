@@ -206,13 +206,19 @@ export function build(opts: BuildGraphOptions): BuildGraphResult {
       // tree-sitter.ts is what decides identity *after* a parse change; for
       // a fresh build, this composite key is the canonical id.
       const symbolId = `code_symbol:${file.relativePath}#${symbol.qualified_name}#${symbol.signature_hash.slice(0, 12)}`;
+      // parent_id is concept-boundary-only per tech-spec §4.1 line 179.
+      // Module-contains-symbol is edge-expressed (the produced_by edge below;
+      // see tech-spec §3.7 contain edges for the retrieval consumer). Setting
+      // parentId here would make the renderer treat the symbol as a sub-flow
+      // child of the module (graph-json-loader.ts:154 + ADR-0009), which is
+      // not what §3.5 line 141 ("sub-flows for concept boundaries") asks for.
       codeNodes.push({
         id: symbolId,
         kind: 'code_symbol',
         title: symbol.qualified_name,
         body: JSON.stringify(symbol),
         confidence: 'extracted',
-        parentId: moduleId,
+        parentId: null,
         version: 0,
         createdAt: now,
         updatedAt: now,

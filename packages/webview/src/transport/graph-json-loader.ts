@@ -133,7 +133,13 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
   nodes: Node[];
   edges: Edge[];
 } {
-  const nodeIds = new Set(envelope.nodes.map((n) => n.id));
+  // Map id → kind so sub-flow parenting can check the parent's kind, not
+  // just its existence. parent_id is concept-boundary-only per tech-spec
+  // §4.1 line 179; the renderer enforces that here as a belt-and-braces
+  // check against future producers re-overloading parent_id (see
+  // packages/skill/src/build-graph.ts where the walker keeps symbol
+  // parentId null and uses a contain edge instead).
+  const nodeKindById = new Map(envelope.nodes.map((n) => [n.id, n.kind]));
 
   const nodes: Node[] = envelope.nodes.map((n) => {
     const baseData: Record<string, unknown> = {
@@ -148,12 +154,18 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
       position: { x: 0, y: 0 }, // ELK sets the real position in applyLayout
       data: baseData,
     };
-    // Sub-flow parenting: only set parentId when the parent actually exists
-    // in the node set. A dangling parent_id (parent stored in DB but absent
-    // from the export) would otherwise crash React Flow's renderer.
-    if (n.parent_id !== null && nodeIds.has(n.parent_id)) {
-      (node as Node & { parentId?: string; extent?: 'parent' }).parentId = n.parent_id;
-      (node as Node & { parentId?: string; extent?: 'parent' }).extent = 'parent';
+    // Sub-flow parenting (per tech-spec §3.5 line 141): set parentId +
+    // extent:'parent' only when the parent exists in this envelope AND is
+    // a concept node. A dangling parent_id (parent stored in DB but absent
+    // from the export) would crash React Flow's renderer; a non-concept
+    // parent would invoke React Flow's sub-flow rendering on a relationship
+    // that isn't supposed to be a visual container (e.g. module→symbol).
+    if (n.parent_id !== null) {
+      const parentKind = nodeKindById.get(n.parent_id);
+      if (parentKind === 'concept') {
+        (node as Node & { parentId?: string; extent?: 'parent' }).parentId = n.parent_id;
+        (node as Node & { parentId?: string; extent?: 'parent' }).extent = 'parent';
+      }
     }
     return node;
   });
