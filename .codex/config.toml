@@ -87,6 +87,11 @@ args = ["-y", "@modelcontextprotocol/server-github"]
 description = "Issue tracking and PR operations. Load-bearing in Phase 6."
 env = { GITHUB_PERSONAL_ACCESS_TOKEN = "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
 
+[mcp.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--browser=chromium", "--viewport-size=1920,1080"]
+description = "Browser automation against the local Vite dev server. First UI-driving MCP server registered for IntentGraph. Used to reproduce webview canvas bugs and verify L0/L1 dogfood UX. Requires `npx playwright install chromium` once per machine."
+
 # Notes — also surfaced in AGENTS.md.
 #  * AgentRunner is the only path to model providers. ESLint enforces this in
 #    eslint.config.mjs; the rule blocks `import { generateText | ... } from "ai"`

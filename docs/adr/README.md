@@ -20,12 +20,14 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0014 | [Interactive /qa shells out to codex exec directly; supersede ADR-0013's composes-/codex clause](./0014-qa-pass-2-shells-out-to-codex-exec-directly.md) | Accepted (partially supersedes 0013) |
 | 0015 | [Schema scope: monolithic Drizzle schema in phase 2 vs staged per-phase migration](./0015-schema-scope-staged-vs-monolithic.md) | Accepted |
 | 0016 | [Verifier interface: location, scheduling, and registration](./0016-verifier-interface.md) | Accepted |
-| 0017 | [Task state machine: split storage and view enums](./0017-task-state-machine.md) | Proposed |
-| 0018 | [Concepts as the regeneration unit and primary scaling axis](./0018-concepts-as-regeneration-unit.md) | Proposed |
-| 0019 | [Obligation attachment semantics: schema permissive, discipline at concept contract surface](./0019-obligation-attachment-semantics.md) | Proposed |
-| 0020 | [Per-decision-type legibility taxonomy](./0020-per-decision-type-legibility-taxonomy.md) | Proposed |
-| 0021 | [Monitor LLM presentation framing: teammate observation, not audit finding](./0021-monitor-llm-presentation-framing.md) | Proposed |
-| 0022 | [Categorical encoding for AI confidence and severity](./0022-categorical-encoding-for-confidence-and-severity.md) | Proposed |
-| 0023 | [Branch-and-review for graph state: three-tier state model with merge as a new inbox item type](./0023-branch-and-review-for-graph-state.md) | Proposed |
-| 0024 | [Provenance preservation on edits: confidence flags downgrade only on explicit assertion](./0024-provenance-preservation-on-edits.md) | Proposed |
-| 0025 | [Scope change and stale requirement detection](./0025-scope-change-and-stale-requirement-detection.md) | Proposed |
+| 0017 | [Task state machine: split storage and view enums](./0017-task-state-machine.md) | Accepted |
+| 0018 | [Concepts as the regeneration unit and primary scaling axis](./0018-concepts-as-regeneration-unit.md) | Accepted |
+| 0019 | [Obligation attachment semantics: schema permissive, discipline at concept contract surface](./0019-obligation-attachment-semantics.md) | Accepted |
+| 0020 | [Per-decision-type legibility taxonomy](./0020-per-decision-type-legibility-taxonomy.md) | Accepted |
+| 0021 | [Monitor LLM presentation framing: teammate observation, not audit finding](./0021-monitor-llm-presentation-framing.md) | Accepted |
+| 0022 | [Categorical encoding for AI confidence and severity](./0022-categorical-encoding-for-confidence-and-severity.md) | Accepted |
+| 0023 | [Branch-and-review for graph state: three-tier state model with merge as a new inbox item type](./0023-branch-and-review-for-graph-state.md) | Accepted |
+| 0024 | [Provenance preservation on edits: confidence flags downgrade only on explicit assertion](./0024-provenance-preservation-on-edits.md) | Accepted |
+| 0025 | [Scope change and stale requirement detection](./0025-scope-change-and-stale-requirement-detection.md) | Accepted |
+| 0026 | [Parent ID is concept-only](./0026-parent-id-is-concept-only.md) | Accepted |
+| 0027 | [Playwright MCP as the first UI-driving MCP server](./0027-playwright-mcp-first-ui-driving-server.md) | Proposed |
