@@ -176,19 +176,20 @@ The five skills and thirteen slash commands appear in both directories with iden
 
 ### MCP servers
 
-Registered in both `.claude/settings.json` and `.codex/config.toml`:
+Registered in both `/.mcp.json` (Claude Code, project scope) and `.codex/config.toml [mcp.*]` (Codex). Per ADR-0028, `mcpServers` is **not** a valid key in `.claude/settings.json` and is silently ignored — registrations live one directory level up.
 
 | Server | Why |
 |--------|-----|
 | `filesystem` | Local filesystem access scoped to the workspace. Anthropic reference. |
 | `git` | Parsed git log, structured diff. Used by lifter and reconciler. |
 | `github` | Issue tracking and PR ops; load-bearing in Phase 6. |
+| `playwright` | UI-driving MCP for webview canvas diagnosis (per ADR-0027). Scoped to the local Vite dev server. Requires `npx playwright install chromium` once per machine. |
 
 When IntentGraph's own MCP server ships in Phase 3 (per Tech-Spec §6), register it here as `intentgraph` pointing at the local skill subprocess (`packages/skill/dist/index.js`) over stdio.
 
 ### Validation
 
-[`scripts/check-agent-config.ts`](./scripts/check-agent-config.ts) validates that every reference in `CLAUDE.md` / `AGENTS.md` resolves, every skill / subagent / command file has the expected frontmatter, `.claude/settings.json` is valid JSON with no allow/deny contradictions, `.codex/config.toml` registers the same MCP servers as `.claude/settings.json`, and every `/spec/` markdown file has the required frontmatter fields.
+[`scripts/check-agent-config.ts`](./scripts/check-agent-config.ts) validates that every reference in `CLAUDE.md` / `AGENTS.md` resolves, every skill / subagent / command file has the expected frontmatter, `.claude/settings.json` is valid JSON with no allow/deny contradictions and no stray `mcpServers` block (rejected with a pointer to ADR-0028), `.codex/config.toml [mcp.*]` registers the same MCP servers as `/.mcp.json` (parity enforced bidirectionally), and every `/spec/` markdown file has the required frontmatter fields.
 
 Run locally with `pnpm check:agent-config`. CI runs it after typecheck, before test (see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 

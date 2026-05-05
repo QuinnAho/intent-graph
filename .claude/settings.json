@@ -87,31 +87,6 @@
       "Bash(wget * | bash*)"
     ]
   },
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
-      "description": "Local filesystem access scoped to the workspace. Anthropic reference server."
-    },
-    "git": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "."],
-      "description": "Git operations beyond bash: parsed log, structured diff. Used by the lifter and reconciler."
-    },
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "description": "Issue tracking and PR operations. Optional in early phases; load-bearing in Phase 6.",
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--browser=chromium", "--viewport-size=1920,1080"],
-      "description": "Browser automation against the local Vite dev server. First UI-driving MCP server registered for IntentGraph; spawns its own headed Chromium. Used to reproduce webview canvas bugs and verify L0/L1 dogfood UX directly. Requires `npx playwright install chromium` once per machine (browser binary download, ~150 MB)."
-    }
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -130,7 +105,10 @@
     ]
   },
   "_intentgraph_notes": {
-    "future_mcp_servers": "When IntentGraph's own MCP server ships in Phase 3, register it here as `intentgraph` with command pointing at packages/skill/dist/index.js over stdio.",
+    "mcp_servers_location": "MCP server registrations live in /.mcp.json at the repo root, not here. Claude Code's settings.json schema does not include mcpServers; entries placed here are silently ignored. See ADR-0028 for the move from .claude/settings.json to .mcp.json and the reason ADR-0027's split-rejection was wrong. The .codex/ mirror is .codex/config.toml [mcp.*]; scripts/check-agent-config.ts enforces parity.",
+    "future_mcp_servers": "When IntentGraph's own MCP server ships in Phase 3, register it in /.mcp.json as `intentgraph` with command pointing at packages/skill/dist/index.js over stdio.",
+    "playwright_scoping": "Playwright MCP is scoped per ADR-0027: local Vite dev server (http://localhost:5173) and the packaged extension's webview only. No external URLs, credentials, or production systems without explicit per-invocation human approval. Requires `npx playwright install chromium` once per machine.",
+    "github_scoping": "github MCP is optional in early phases, load-bearing in Phase 6. Requires GITHUB_PERSONAL_ACCESS_TOKEN in the parent env for ${VAR} expansion to resolve.",
     "agent_runner_chokepoint": "ESLint enforces packages/skill/src/agent-runner as the only path to model calls. See eslint.config.mjs. PreToolUse hooks at automation/hooks/ enforce the same chokepoint earlier — at edit time — so violating diffs are never written.",
     "pretool_hooks": "guard-eslint-config.sh blocks edits to eslint.config.* without an ADR reference. guard-agent-runner-chokepoint.sh blocks edits outside packages/skill/src/agent-runner/ that introduce model-call imports from `ai`. Phase 1 may extend this list before merge to main."
   }

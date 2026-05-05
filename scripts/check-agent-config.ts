@@ -17,10 +17,14 @@
 //   4. Every command file under .claude/commands/ and .codex/commands/ has
 //      YAML frontmatter with `description`.
 //   5. .claude/settings.json parses as JSON; allowlist and denylist do not
-//      contradict each other (no entry appears in both, ignoring whitespace).
-//   6. .codex/config.toml exists and contains an [mcp.*] table per server in
-//      .claude/settings.json mcpServers (light coherence check, not full TOML
-//      parsing — we just look for the section header).
+//      contradict each other (no entry appears in both, ignoring whitespace);
+//      and it does NOT contain a top-level `mcpServers` key — that key is
+//      not part of Claude Code's settings.json schema and entries placed
+//      there are silently ignored. MCP servers belong in /.mcp.json. See
+//      ADR-0028 for the move.
+//   6. /.mcp.json exists and parses as JSON with a top-level `mcpServers`
+//      object. .codex/config.toml exists and contains an [mcp.<name>] table
+//      per server in /.mcp.json (parity mirror).
 //   7. Every spec file under /spec/intents/, /spec/constraints/,
 //      /spec/decisions/, /spec/concepts/ that is not a README has YAML
 //      frontmatter with the required fields (id, title, parent, confidence).
@@ -157,7 +161,10 @@ function checkClaudeSettings() {
   } catch (e) {
     return fail(file, `not valid JSON: ${(e as Error).message}`);
   }
-  const settings = parsed as { permissions?: { allow?: string[]; deny?: string[] } };
+  const settings = parsed as {
+    permissions?: { allow?: string[]; deny?: string[] };
+    mcpServers?: unknown;
+  };
   const allow = settings.permissions?.allow ?? [];
   const deny = settings.permissions?.deny ?? [];
   const allowSet = new Set(allow.map((s) => s.trim()));
@@ -166,25 +173,42 @@ function checkClaudeSettings() {
       fail(file, `entry appears in both allow and deny: ${d}`);
     }
   }
+  // ADR-0028: mcpServers in .claude/settings.json is silently ignored by
+  // Claude Code. Project-scoped MCP servers must live in /.mcp.json.
+  if (settings.mcpServers !== undefined) {
+    fail(
+      file,
+      'top-level `mcpServers` is not part of Claude Code\'s settings.json schema and is silently ignored. Move entries to /.mcp.json (see ADR-0028).',
+    );
+  }
 }
 
-function checkCodexConfigCoherence() {
+function checkMcpJsonAndCodexParity() {
+  const mcpFile = join(repoRoot, '.mcp.json');
   const codex = join(repoRoot, '.codex', 'config.toml');
-  const claude = join(repoRoot, '.claude', 'settings.json');
-  if (!existsSync(codex)) return fail(codex, '.codex/config.toml missing');
-  if (!existsSync(claude)) return;
 
-  let claudeJson: { mcpServers?: Record<string, unknown> } = {};
+  if (!existsSync(mcpFile)) return fail(mcpFile, '/.mcp.json missing');
+  if (!existsSync(codex)) return fail(codex, '.codex/config.toml missing');
+
+  let mcpParsed: { mcpServers?: Record<string, unknown> };
   try {
-    claudeJson = JSON.parse(readText(claude));
-  } catch {
-    return; // already reported by checkClaudeSettings
+    mcpParsed = JSON.parse(readText(mcpFile)) as { mcpServers?: Record<string, unknown> };
+  } catch (e) {
+    return fail(mcpFile, `not valid JSON: ${(e as Error).message}`);
+  }
+  if (
+    !mcpParsed.mcpServers ||
+    typeof mcpParsed.mcpServers !== 'object' ||
+    Array.isArray(mcpParsed.mcpServers)
+  ) {
+    return fail(mcpFile, 'top-level `mcpServers` object missing or not an object');
   }
 
   // ADR-0006:32 used a substring match (`codexText.includes('[mcp.<name>]')`)
   // which incorrectly accepts a commented `# [mcp.foo]` line and would miss
   // the inline-table form. ADR-0010 supersedes that decision; we now parse
-  // the TOML with @iarna/toml (zero transitive deps).
+  // the TOML with @iarna/toml (zero transitive deps). ADR-0028 moves the
+  // source-of-truth from .claude/settings.json mcpServers to /.mcp.json.
   let codexParsed: Record<string, unknown>;
   try {
     codexParsed = TOML.parse(readText(codex)) as Record<string, unknown>;
@@ -193,11 +217,19 @@ function checkCodexConfigCoherence() {
   }
   const mcpTable = (codexParsed.mcp ?? {}) as Record<string, unknown>;
 
-  for (const name of Object.keys(claudeJson.mcpServers ?? {})) {
+  for (const name of Object.keys(mcpParsed.mcpServers)) {
     if (!(name in mcpTable)) {
       fail(
         codex,
-        `MCP server "${name}" registered in .claude/settings.json but missing from .codex/config.toml [mcp] table`,
+        `MCP server "${name}" registered in /.mcp.json but missing from .codex/config.toml [mcp] table`,
+      );
+    }
+  }
+  for (const name of Object.keys(mcpTable)) {
+    if (!(name in mcpParsed.mcpServers)) {
+      fail(
+        mcpFile,
+        `MCP server "${name}" registered in .codex/config.toml but missing from /.mcp.json mcpServers`,
       );
     }
   }
@@ -267,7 +299,7 @@ function main() {
   }
 
   checkClaudeSettings();
-  checkCodexConfigCoherence();
+  checkMcpJsonAndCodexParity();
 
   for (const specDir of ['spec/intents', 'spec/constraints', 'spec/decisions', 'spec/concepts']) {
     const dir = join(repoRoot, specDir);

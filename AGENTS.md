@@ -84,7 +84,7 @@ The `.codex/` directory mirrors `.claude/` so the same discipline ships across b
 - `.codex/commands/` — slash commands. Same shape as `.claude/commands/`.
 - `.codex/config.toml` — Codex CLI settings: sandboxing, command allowlist/denylist, MCP server registrations.
 
-When IntentGraph's own MCP server ships in Phase 3, both `.claude/settings.json` and `.codex/config.toml` register it as `intentgraph` over stdio.
+Project-scoped MCP server registrations for Claude Code live in `/.mcp.json` at the repo root, not in `.claude/settings.json` (per ADR-0028 — Claude Code's settings.json schema does not include `mcpServers` and silently ignores entries placed there). The Codex mirror is `.codex/config.toml [mcp.<name>]`. When IntentGraph's own MCP server ships in Phase 3, register it as `intentgraph` over stdio in both `/.mcp.json` and `.codex/config.toml`.
 
 ## Commands to run before marking work complete
 

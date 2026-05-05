@@ -30,4 +30,5 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0024 | [Provenance preservation on edits: confidence flags downgrade only on explicit assertion](./0024-provenance-preservation-on-edits.md) | Accepted |
 | 0025 | [Scope change and stale requirement detection](./0025-scope-change-and-stale-requirement-detection.md) | Accepted |
 | 0026 | [Parent ID is concept-only](./0026-parent-id-is-concept-only.md) | Accepted |
-| 0027 | [Playwright MCP as the first UI-driving MCP server](./0027-playwright-mcp-first-ui-driving-server.md) | Proposed |
+| 0027 | [Playwright MCP as the first UI-driving MCP server](./0027-playwright-mcp-first-ui-driving-server.md) | Proposed (split-rejection clause to be superseded by 0028 on acceptance) |
+| 0028 | [MCP server registrations belong in /.mcp.json, not .claude/settings.json](./0028-mcp-server-registrations-belong-in-mcp-json.md) | Proposed |
