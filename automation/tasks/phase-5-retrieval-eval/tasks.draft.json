@@ -1,0 +1,285 @@
+{
+  "_banner": "DRAFT — research-driven amendments to phase-5-retrieval-eval from /docs/research/ux-research-synthesis.md (April 2026). Awaiting human review. Does NOT replace the existing tasks.json (still the stub blocked on retrieval-stack ADR). Once that ADR plus ADR-0023 (branch-and-review) accept, this draft merges into tasks.json. Phase-5 substrate has two prerequisites: (a) the retrieval/eval substrate from the existing stub, and (b) ADR-0023's three-tier state model and merge-conflict inbox type. Tags: tasks marked `[A/B before hardening]` are flagged in the synthesis as 'informed by research but unverified' and require user-test gates. Surfaces grouped: branch-and-merge / onboarding deep features / trust calibration / verifier-and-counterexamples / monitor.",
+  "phase": "phase-5-retrieval-eval",
+  "status": "draft-amendment-pending-review",
+  "approval": null,
+  "autonomy_level": "high",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "_dependency_notes": "All p5-r* tasks below depend on Phase 4 ADRs being accepted (ADR-0020, 0021, 0022, 0024) and on ADR-0023 (branch-and-review) being accepted before Phase 5 task work begins. The branch-and-merge tasks (p5-r01–r05) are prerequisites for the merge-resolver UI tasks; the merge-resolver tasks are prerequisites for AI-suggested merges.",
+  "tasks": [
+    {
+      "id": "p5-r01",
+      "title": "Implement the three-tier state model substrate: per-branch DB selector (intentgraph-<branch-hash>.db), local_user_state schema namespace, .intentgraph/branches/ directory layout with Git LFS configuration",
+      "depends_on": [],
+      "scope_files": [
+        "packages/skill/src/db/branch-resolver.ts",
+        "packages/skill/src/db/schema.ts",
+        "packages/skill/src/db/migrations/**",
+        ".gitattributes",
+        ".intentgraph/branches/.gitignore"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R01_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0023 (branch-and-review) accepted",
+      "notes": "**Architectural surface — flagged human_checkpoint.** ADR-0023 §1 substrate. Adds local_user_state schema (local_inbox_state, local_acceptance_rate). Branch DB selector reads current Git branch and opens `intentgraph-<branch-hash>.db`. Git LFS tracks .db binaries. The Atlas migration linter applies to schema definition; per-branch DBs use the same schema. **Human reviews the LFS configuration and the branch-DB pruning policy gap (Phase 6 territory but flagged here).**"
+    },
+    {
+      "id": "p5-r02",
+      "title": "Implement the per-branch event_log + trace_event flow: branch-isolated writes; merge-time crossover into main per ADR-0023 §1",
+      "depends_on": ["p5-r01"],
+      "scope_files": [
+        "packages/skill/src/db/event-log.ts",
+        "packages/skill/src/db/trace-event.ts",
+        "packages/skill/src/merge/crossover.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R02_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0023 accepted",
+      "notes": "**Architectural surface.** ADR-0023 §1 boundary rule: per-branch event log and trace events write to the branch DB; on merge-to-main, only resolved-decision rows cross into main. Rejected/orphaned proposals stay in branch DB and prune with the branch."
+    },
+    {
+      "id": "p5-r03",
+      "title": "Implement the node-by-node, field-by-field merge-conflict detector",
+      "depends_on": ["p5-r02"],
+      "scope_files": [
+        "packages/skill/src/merge/detector.ts",
+        "packages/skill/src/merge/field-comparator.ts",
+        "packages/shared/src/protocol/merge-events.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R03_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0023 accepted",
+      "notes": "**Architectural surface.** ADR-0023 §3–§4. Field-by-field comparator uses Zod schema introspection plus field-level equality. Auto-resolves non-conflicting field-additions. Emits one merge-conflict descriptor per conflicting node into the wire format."
+    },
+    {
+      "id": "p5-r04",
+      "title": "Extend the design-system module for the sixth decision type (merge_conflict): purple left-border, M keyboard binding, no Y/N at row level",
+      "depends_on": ["p5-r03"],
+      "scope_files": [
+        "packages/webview/src/design-system/decision-types.ts",
+        "packages/webview/src/inbox/MergeConflictRow.tsx",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R04_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0023 accepted; ADR-0020 accepted (extends design-system module)",
+      "notes": "ADR-0023 §3 sixth-type rules. Extends p4-r01's design-system module with the sixth type. Layer 1 row only — Layer 2 is the resolver itself (p5-r05)."
+    },
+    {
+      "id": "p5-r05",
+      "title": "Implement the merge-conflict resolver UI: per-field 'use yours / use theirs / write a third' for natural-language fields; 'keep both / replace / combine' for structured fields; semantic-divergence indicator (AgentRunner-routed prose summary)",
+      "depends_on": ["p5-r04"],
+      "scope_files": [
+        "packages/webview/src/merge/Resolver.tsx",
+        "packages/webview/src/merge/FieldDiff.tsx",
+        "packages/webview/src/merge/SemanticDivergenceIndicator.tsx",
+        "packages/skill/src/merge/semantic-summary.ts",
+        "packages/skill/tests/**",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R05_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0023 accepted; ADR-0020 accepted; ADR-0021 accepted (semantic-summary monitor verdict surfaces here)",
+      "notes": "**Architectural surface — flagged human_checkpoint.** ADR-0023 §4. Resolver does NOT show character-level three-way diff for natural-language fields by default; toggle available. AgentRunner-routed prose summary is generated by a T1 model call, monitor-reviewed per ADR-0021. **Synthesis recommends user-testing before hardening (line 762: 'task-completion testing with realistic conflict scenarios').** Tag deliverable as v1 hypothesis."
+    },
+    {
+      "id": "p5-r06",
+      "title": "Implement AI-suggested merge proposals: routed through monitor LLM per ADR-0021; never default-selected; block verdict prevents selection without override flow",
+      "depends_on": ["p5-r05"],
+      "scope_files": [
+        "packages/skill/src/merge/ai-suggest.ts",
+        "packages/webview/src/merge/AISuggestionOption.tsx",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R06_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0023 accepted; ADR-0021 accepted",
+      "notes": "**Flagged human_checkpoint.** ADR-0023 §5. AI-suggested merge surfaces in the resolver as one option alongside Use yours / Use theirs / Write a third. Confidence cue per ADR-0022. Monitor verdict per ADR-0021's chevron-overlay rule. Cap on AI-suggest invocations per merge (suggested: first 5 fields) to bound cost."
+    },
+    {
+      "id": "p5-r07",
+      "title": "Implement in-app branch / open PR / resolve conflicts affordances (mirror Figma's in-app branching)",
+      "depends_on": ["p5-r05"],
+      "scope_files": [
+        "packages/extension/src/git/branch-affordances.ts",
+        "packages/extension/src/git/pr-affordances.ts",
+        "packages/webview/src/merge/BranchControls.tsx"
+      ],
+      "spec_reference": "docs/adr/0023-branch-and-review-for-graph-state.md",
+      "completion_signal": "PHASE5_R07_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0023 accepted",
+      "notes": "ADR-0023 §6. Wraps git, gh CLIs. Affordance hidden when no remote. Power users can continue using CLI directly."
+    },
+    {
+      "id": "p5-r08",
+      "title": "Implement the merge-resolver confidence handling per ADR-0024 §3: select-yours/theirs preserves; write-a-third defaults to stronger of the two; explicit-assert affordance afterward",
+      "depends_on": ["p5-r05"],
+      "scope_files": [
+        "packages/skill/src/merge/confidence-handler.ts",
+        "packages/webview/src/merge/PostMergeAssert.tsx",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0024-provenance-preservation-on-edits.md",
+      "completion_signal": "PHASE5_R08_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0024 accepted; ADR-0023 accepted",
+      "notes": "Implements ADR-0024 §3's merge-confidence rule. Routes through p4-r03's node-write chokepoint."
+    },
+    {
+      "id": "p5-r09",
+      "title": "Implement reading-mode toggle (R) on detail panel for full-screen TipTap prose view of intent + rationale + decisions",
+      "depends_on": [],
+      "scope_files": [
+        "packages/webview/src/detail-panel/ReadingModeToggle.tsx",
+        "packages/webview/src/detail-panel/ProseReader.tsx",
+        "packages/webview/src/keyboard/bindings.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE5_R09_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P5.4. Synthesis Q3 #4. Reading-mode is a viewport-fill TipTap surface; no architectural commitment."
+    },
+    {
+      "id": "p5-r10",
+      "title": "Implement Cmd-Shift-D 'whole graph as traversable reading document in dependency order'",
+      "depends_on": [],
+      "scope_files": [
+        "packages/webview/src/reading/DependencyOrderTraversal.tsx",
+        "packages/webview/src/reading/GraphReader.tsx",
+        "packages/skill/src/queries/dependency-order.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE5_R10_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P5.5. Synthesis Q3 #5: 'highest-leverage onboarding feature in v1.' Dependency-order traversal uses `realizes` and `depends_on` edges. **User-test early per synthesis line 763.**"
+    },
+    {
+      "id": "p5-r11",
+      "title": "Implement Day-1-to-Day-7 onboarding scaffold with explicit milestones (3 inbox items by EOD-1, 20 nodes read by EOW-1, first edit by Day-4)",
+      "depends_on": ["p5-r09", "p5-r10"],
+      "scope_files": [
+        "packages/skill/src/onboarding/scaffold.ts",
+        "packages/webview/src/onboarding/MilestoneTracker.tsx",
+        "packages/extension/src/onboarding/dispatcher.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE5_R11_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P5.6. Synthesis Q3 'first week experience' (lines 213–217). **User-test early per synthesis line 763.**"
+    },
+    {
+      "id": "p5-r12",
+      "title": "Implement per-type acceptance-rate watcher with non-modal protective banner [A/B before hardening]",
+      "depends_on": [],
+      "scope_files": [
+        "packages/skill/src/inbox/acceptance-rate-watcher.ts",
+        "packages/webview/src/inbox/ProtectiveBanner.tsx",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q1",
+      "completion_signal": "PHASE5_R12_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**[A/B before hardening] — flagged human_checkpoint** because copy is sensitive (must avoid the punitive framing the synthesis warns against). Coverage matrix P5.1. Synthesis Q1 #3. Picked 9-of-10 by Tesla analogy per synthesis line 754. **'Protective, not punitive' framing per synthesis line 67.** Type-scoped, not global. Spot-check shows random item from the rate-tracked type. Reads `local_acceptance_rate` from p5-r01's local_user_state schema."
+    },
+    {
+      "id": "p5-r13",
+      "title": "Implement the 25-item / 45-minute soft 'take a break' intervention [A/B before hardening]",
+      "depends_on": ["p5-r12"],
+      "scope_files": [
+        "packages/skill/src/inbox/break-intervention.ts",
+        "packages/webview/src/inbox/TakeBreakBanner.tsx"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q2",
+      "completion_signal": "PHASE5_R13_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "**[A/B before hardening]** Coverage matrix P5.3. Synthesis Q2 #3. 45-min threshold picked by analogy per synthesis lines 754–755. Non-modal, dismissible, never punitive. Personalization deferred to v1.1 (V1.1.2)."
+    },
+    {
+      "id": "p5-r14",
+      "title": "Implement counterexample provenance UI: literal input, literal output, contradicted spec, inference path, click-through to canvas",
+      "depends_on": [],
+      "scope_files": [
+        "packages/webview/src/inbox/CounterexampleProvenance.tsx",
+        "packages/webview/src/inbox/InferencePathView.tsx",
+        "packages/skill/src/queries/counterexample-render.ts"
+      ],
+      "spec_reference": "docs/adr/0020-per-decision-type-legibility-taxonomy.md",
+      "completion_signal": "PHASE5_R14_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0020 accepted (Type 5 Layer 2 rules)",
+      "notes": "Coverage matrix P5.13. Implements ADR-0020 §3 Type 5 Layer 2 fully. Reads `counterexample` node body (tech-spec §4.1: input_repr, observed, expected, reproducer). Counterfactual-consistency principle from synthesis line 505."
+    },
+    {
+      "id": "p5-r15",
+      "title": "Implement real-time low-noise 'verifier caught' toasts and weekly digest of verifier-caught proposals",
+      "depends_on": [],
+      "scope_files": [
+        "packages/extension/src/notifications/verifier-toasts.ts",
+        "packages/webview/src/digest/VerifierCaughtDigest.tsx",
+        "packages/skill/src/digest/aggregator.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q5",
+      "completion_signal": "PHASE5_R15_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P5.14. Synthesis Q5 #6: protective framing. 'Verifier caught a proposal on `auth.login`. Won't surface in your inbox.' Weekly digest aggregates positive outcomes. Frames the system as protecting the user."
+    },
+    {
+      "id": "p5-r16",
+      "title": "Implement weekly monitor-finding summary digest (override / fix / false-flag breakdown)",
+      "depends_on": ["p4-r14"],
+      "scope_files": [
+        "packages/webview/src/digest/MonitorWeeklyDigest.tsx",
+        "packages/skill/src/digest/monitor-aggregator.ts"
+      ],
+      "spec_reference": "docs/adr/0021-monitor-llm-presentation-framing.md",
+      "completion_signal": "PHASE5_R16_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0021 accepted",
+      "notes": "**Flagged human_checkpoint** because copy must satisfy ADR-0021 §1 + §4 framing (positive aggregation; subject is the monitor's flag outcome, never the user's behavior). Coverage matrix P5.16. Synthesis Q5 framing rule 4: 'this week, the monitor flagged 4 issues. You overrode 1, fixed 2, and the third turned out to be a false flag.' Reads from event_log monitor.override and monitor.false_positive entries."
+    }
+  ]
+}

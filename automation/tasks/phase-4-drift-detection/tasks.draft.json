@@ -1,0 +1,326 @@
+{
+  "_banner": "DRAFT — research-driven amendments to phase-4-drift-detection from /docs/research/ux-research-synthesis.md (April 2026). Awaiting human review. This file is the architect-skill output; it does NOT replace the existing tasks.json (which is still the stub blocked on ADRs ADR-NNNN-diff-ladder, ADR-NNNN-agent-runner-trace-shape, ADR-NNNN-monitor-llm-verdict). Once those three substrate ADRs land AND the five new research ADRs (0020–0024) accept, this draft merges into tasks.json with the substrate tasks added. Until then it is a planning artifact. Tags: tasks marked `[A/B before hardening]` are flagged in the synthesis as 'informed by research but unverified' and require user-test gates before being treated as permanent. Surfaces grouped: canvas / detail panel / inbox / status bar / extension dispatcher.",
+  "phase": "phase-4-drift-detection",
+  "status": "draft-amendment-pending-review",
+  "approval": null,
+  "autonomy_level": "medium-low",
+  "max_iterations_per_task": 15,
+  "max_total_cost_usd": 100,
+  "verification": {
+    "required_commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test"
+    ],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": true,
+    "model": "llama-3.3-70b-versatile"
+  },
+  "_dependency_notes": "All p4-r* tasks below depend on the substrate tasks in the existing tasks.json stub being decomposed first (drift detection pipeline, AgentRunner, monitor LLM gate). The new tasks specifically target the user-facing surfaces that consume those substrate outputs.",
+  "tasks": [
+    {
+      "id": "p4-r01",
+      "title": "Land the design-system module: DecisionType discriminated union, per-type style tokens, per-layer content adapters in packages/webview/src/design-system/decision-types.ts",
+      "depends_on": [],
+      "scope_files": [
+        "packages/webview/src/design-system/decision-types.ts",
+        "packages/shared/src/protocol/decision-events.ts",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0020-per-decision-type-legibility-taxonomy.md",
+      "completion_signal": "PHASE4_R01_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0020 (per-decision-type legibility taxonomy) accepted",
+      "notes": "**Architectural surface — flagged human_checkpoint.** This module is the single source of truth for type styling per ADR-0020 §5; every subsequent inbox / canvas / detail-panel task imports from it. The discriminated union maps from `trace_event.kind` (substrate) to DecisionType (user-facing) per ADR-0020 §1. Includes the wire format in `packages/shared/src/protocol/decision-events.ts` so the extension can forward decision events to the webview without duplicating type rules."
+    },
+    {
+      "id": "p4-r02",
+      "title": "Implement the categorical confidence-cue rendering (stroke style + badge per ADR-0022) in packages/webview/src/design-system/confidence-cue.ts; ESLint rule (or contributor checklist if rule is too noisy) forbidding percentage scores in user-facing surfaces",
+      "depends_on": ["p4-r01"],
+      "scope_files": [
+        "packages/webview/src/design-system/confidence-cue.ts",
+        "eslint.config.mjs",
+        "CLAUDE.md"
+      ],
+      "spec_reference": "docs/adr/0022-categorical-encoding-for-confidence-and-severity.md",
+      "completion_signal": "PHASE4_R02_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0022 (categorical encoding) accepted",
+      "notes": "**Architectural surface.** Implements the four-state confidence rendering (asserted / inferred / semantic / extracted) and the percentage-scores-forbidden rule. ESLint rule is optional per ADR-0022 §Implementation implications (false-positive prone); if the rule is dropped, the contributor checklist in CLAUDE.md and the spec-writer skill enforce the same rule. Human reviews the rule's signal-to-noise ratio."
+    },
+    {
+      "id": "p4-r03",
+      "title": "Implement the node-write.ts transition rule chokepoint (max-strength rule + assertion event_log) per ADR-0024",
+      "depends_on": [],
+      "scope_files": [
+        "packages/skill/src/db/node-write.ts",
+        "packages/shared/src/schemas/node.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0024-provenance-preservation-on-edits.md",
+      "completion_signal": "PHASE4_R03_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0024 (provenance preservation) accepted",
+      "notes": "**Architectural surface — single chokepoint pattern, mirroring ADR-0005's AgentRunner-only.** Implements the `max(prior, declared)` transition rule in §1. Adds optional `declared_confidence` to write input schema. Emits `event_log.kind='node.asserted'` on the three explicit-assertion paths. The Phase 3 markdown sync (existing per p3-* once it lands), the TipTap save path, the drift-resolver, and the merge-resolver all route through this module."
+    },
+    {
+      "id": "p4-r04",
+      "title": "Implement the spec-writer skill discipline note: never auto-promote confidence; never pre-check the assertion checkbox in drift resolution; language-rules check against ADR-0021 §1 for monitor-touching copy",
+      "depends_on": ["p4-r03"],
+      "scope_files": [
+        ".claude/skills/intentgraph-spec-writer/SKILL.md",
+        ".codex/skills/intentgraph-spec-writer/SKILL.md"
+      ],
+      "spec_reference": "docs/adr/0021-monitor-llm-presentation-framing.md",
+      "completion_signal": "PHASE4_R04_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0021 and ADR-0024 accepted",
+      "notes": "Discipline-only update to the spec-writer skill. The skill-side enforcement of the assertion rules and the monitor language rules. Per ADR-0021 §Implementation implications and ADR-0024 §Implementation implications. No code changes outside the skill markdown."
+    },
+    {
+      "id": "p4-r05",
+      "title": "Implement the inbox-sort algorithm with three-tier output (Tier 1 capped at ~10 items with overflow indicator; Tier 2 with internal severity × confidence-uncertainty × blast-radius score; Tier 3 collapsed by default)",
+      "depends_on": ["p4-r01", "p4-r02"],
+      "scope_files": [
+        "packages/skill/src/inbox/sort.ts",
+        "packages/shared/src/protocol/inbox-events.ts",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0022-categorical-encoding-for-confidence-and-severity.md",
+      "completion_signal": "PHASE4_R05_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0022 accepted; ADR-0020 accepted",
+      "notes": "**Architectural surface.** Tier assignment lives at the skill side per ADR-0022 §2; webview never computes tiers. Internal scoring is permitted in this module per ADR-0022 §5; the wire-format `tier` field is the only thing crossing into rendering. Tier 1 overflow-demotion algorithm is part of this task: when more than 10 items qualify for Tier 1, demote excess to Tier 2 with a clear rule (suggested: oldest-first demotion, but human reviews)."
+    },
+    {
+      "id": "p4-r06",
+      "title": "Implement InboxRow.tsx for the five base decision types per ADR-0020 §3 (drift / proposal / monitor verdict overlay / retrieval not-in-row / verifier outcome); two-row layout for confident vs uncertain proposals",
+      "depends_on": ["p4-r01", "p4-r02", "p4-r05"],
+      "scope_files": [
+        "packages/webview/src/inbox/InboxRow.tsx",
+        "packages/webview/src/inbox/MonitorChevron.tsx",
+        "packages/webview/src/inbox/ConfidentRow.tsx",
+        "packages/webview/src/inbox/UncertainRow.tsx",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0020-per-decision-type-legibility-taxonomy.md",
+      "completion_signal": "PHASE4_R06_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0020 accepted; ADR-0021 accepted (chevron framing); ADR-0022 accepted (confidence cue + tier)",
+      "notes": "**Architectural surface — flagged human_checkpoint.** Implements ADR-0020 §3 Layer 1 rules per type. Confident-row (one line, Y/N primary) vs uncertain-row (two lines with stated reason, V primary) implements coverage matrix P4.2. MonitorChevron is the Type-3 overlay per ADR-0020 §3 + ADR-0021 §1's heads-up tooltip language. The five-type styling is consumed from p4-r01's design-system module."
+    },
+    {
+      "id": "p4-r07",
+      "title": "Implement ExpandedView.tsx for Layer 2 disclosure per ADR-0020 §3 — diff/counterexample, AI reasoning sentence, monitor verdict if available, top-3 sources via 'Based on:' formatting",
+      "depends_on": ["p4-r06"],
+      "scope_files": [
+        "packages/webview/src/inbox/ExpandedView.tsx",
+        "packages/webview/src/inbox/SourcesLine.tsx",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0020-per-decision-type-legibility-taxonomy.md",
+      "completion_signal": "PHASE4_R07_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0020 accepted; ADR-0021 accepted",
+      "notes": "Layer 2 content rules per type from ADR-0020 §3. Sources line uses the consistent 'Based on:' formatting (cross-cutting visual convention §4). Retrieval surfacing in expanded view (not row) implements coverage matrix P4.17."
+    },
+    {
+      "id": "p4-r08",
+      "title": "Implement TierBanner.tsx and the inbox-tier visual structure (Tier 1 top with overflow indicator, Tier 2 middle with budget context, Tier 3 collapsed-by-default)",
+      "depends_on": ["p4-r05", "p4-r06"],
+      "scope_files": [
+        "packages/webview/src/inbox/TierBanner.tsx",
+        "packages/webview/src/inbox/InboxView.tsx",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0022-categorical-encoding-for-confidence-and-severity.md",
+      "completion_signal": "PHASE4_R08_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0022 accepted",
+      "notes": "Implements coverage matrix P4.4 (three-tier inbox sort with explicit visual markers). Tier 3 collapsed-by-default with counter visible. Reads tier from wire format only; no tier computation in webview."
+    },
+    {
+      "id": "p4-r09",
+      "title": "Implement bulk-action affordances (Tier 3 bulk-accept; Tier-aware bulk-snooze with conditional resurface; bulk-dismiss with typed reason for monitor-flagged items only)",
+      "depends_on": ["p4-r08"],
+      "scope_files": [
+        "packages/webview/src/inbox/BulkActions.tsx",
+        "packages/webview/src/inbox/SnoozeMenu.tsx",
+        "packages/webview/src/inbox/DismissDialog.tsx",
+        "packages/webview/tests/**"
+      ],
+      "spec_reference": "docs/adr/0022-categorical-encoding-for-confidence-and-severity.md",
+      "completion_signal": "PHASE4_R09_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0022 accepted; ADR-0021 accepted (override-reason discipline)",
+      "notes": "**Flagged human_checkpoint** because bulk actions are high-blast-radius. Coverage matrix P4.6. Bulk-accept restricted to Tier 3 per ADR-0022 §4. Typed reason for bulk-dismiss-monitor-flagged per ADR-0022 §4 (CPOE-derived). Linear-style snooze with activity-based resurface per synthesis Q2 finding 4."
+    },
+    {
+      "id": "p4-r10",
+      "title": "Implement Cmd-Shift-Enter 'highest-leverage next item' jump [A/B before hardening]",
+      "depends_on": ["p4-r05", "p4-r08"],
+      "scope_files": [
+        "packages/webview/src/inbox/HighestLeverageJump.tsx",
+        "packages/webview/src/keyboard/bindings.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q2",
+      "completion_signal": "PHASE4_R10_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "**[A/B before hardening] Synthesis explicitly tags this affordance as derived from reasoning, not research (line 745: 'has no direct empirical analog; derived from reasoning rather than from research'). Land as v1 hypothesis with explicit user-test gate per synthesis line 764.** Implements coverage matrix P4.7. Jumps to highest-Tier-2 item not yet reviewed today. Status-bar shows 'X high-leverage remaining' per p4-r12."
+    },
+    {
+      "id": "p4-r11",
+      "title": "Implement first-run failure-mode-by-category framing screen [A/B before hardening]",
+      "depends_on": [],
+      "scope_files": [
+        "packages/webview/src/onboarding/FailureModesScreen.tsx",
+        "packages/webview/src/onboarding/FirstRunOrchestrator.tsx"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q1",
+      "completion_signal": "PHASE4_R11_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**[A/B before hardening]** Synthesis Q1 #5 — the Wischnewski pre-interaction calibration finding (well-cited but operationally contested for software-tools UX). Coverage matrix P4.3. Land as v1 hypothesis. **Human_checkpoint** because copy-quality is paramount: this is the first thing a user sees and frames the trust posture. Copy must satisfy ADR-0021 §1 language rules (monitor framed as teammate, etc.). Single screen of text + one diagram per synthesis Q3 'first 30 minutes' (line 209)."
+    },
+    {
+      "id": "p4-r12",
+      "title": "Implement status-bar budget context display ('12/25 reviewed · 23min · 3 high-leverage remaining')",
+      "depends_on": ["p4-r05"],
+      "scope_files": [
+        "packages/extension/src/statusbar/budget-display.ts",
+        "packages/extension/src/statusbar/dispatcher.ts",
+        "packages/extension/tests/**"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q2",
+      "completion_signal": "PHASE4_R12_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Implements coverage matrix P4.5. Cross-cutting Theme #2 from synthesis (externalize what cannot be internalized — line 621). Reads inbox-sort tier output from p4-r05 plus session-time tracking from extension activation. No new architectural commitment."
+    },
+    {
+      "id": "p4-r13",
+      "title": "Implement the synchronous-notification dispatcher rule (interrupt only for monitor-flagged severe (block) and verifier-failed; everything else batches)",
+      "depends_on": ["p4-r12"],
+      "scope_files": [
+        "packages/extension/src/notifications/dispatcher.ts",
+        "packages/extension/tests/**"
+      ],
+      "spec_reference": "docs/adr/0021-monitor-llm-presentation-framing.md",
+      "completion_signal": "PHASE4_R13_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0021 accepted",
+      "notes": "**Flagged human_checkpoint.** Implements ADR-0021 §3 (never modal except for `block`) and coverage matrix P4.8. Phansalkar-derived rare-Tier-1-modality posture. The block-override modal dialog itself lands in p4-r14."
+    },
+    {
+      "id": "p4-r14",
+      "title": "Implement the monitor block-override dialog (typed reason ≥1 char; explicit acknowledgement checkbox; event_log entry on submit)",
+      "depends_on": ["p4-r13"],
+      "scope_files": [
+        "packages/webview/src/dialogs/MonitorOverrideDialog.tsx",
+        "packages/skill/src/inbox/override-handler.ts",
+        "packages/webview/tests/**",
+        "packages/skill/tests/**"
+      ],
+      "spec_reference": "docs/adr/0021-monitor-llm-presentation-framing.md",
+      "completion_signal": "PHASE4_R14_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": true,
+      "blocked_on_decision": "ADR-0021 accepted",
+      "notes": "**Flagged human_checkpoint.** Implements ADR-0021 §2's override mechanics. The dialog is the **only** modal in the monitor surface per §3. Copy must satisfy §1 language rules (subject is the proposal, not the user, except in the acknowledgement checkbox where the user IS the agent). event_log writes `kind='monitor.override'` with payload including the typed reason."
+    },
+    {
+      "id": "p4-r15",
+      "title": "Implement onboarding-mode detail panel (auto-expanded to 60% viewport for first 30 days; code anchors collapsed; default new-user landing surface = inbox)",
+      "depends_on": ["p4-r07"],
+      "scope_files": [
+        "packages/webview/src/detail-panel/OnboardingModeDetailPanel.tsx",
+        "packages/webview/src/onboarding/onboarding-state.ts",
+        "packages/extension/src/activation/onboarding-detector.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE4_R15_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Implements coverage matrix P4.9 (default landing = inbox), P4.11 (60% detail panel), P4.13 (Cmd-K preserves position). 30-day window detected at extension activation. Synthesis Q3 'first week experience' (lines 213–217)."
+    },
+    {
+      "id": "p4-r16",
+      "title": "Implement three pre-curated inbox items on first launch with light didactic annotations on type",
+      "depends_on": ["p4-r06", "p4-r15"],
+      "scope_files": [
+        "packages/skill/src/onboarding/precurated-items.ts",
+        "packages/webview/src/inbox/DidacticAnnotation.tsx"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE4_R16_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P4.10. Synthesis Q3 #2: AI selects three items from user's actual codebase for clarity and didactic value. Auto-disabled after first session. Annotations explain 'this is an inferred suggestion / drift event / verifier failure.'"
+    },
+    {
+      "id": "p4-r17",
+      "title": "Implement onboarding-mode 'team activity' canvas filter (highlights nodes touched in last 30 days with author avatars)",
+      "depends_on": ["p4-r15"],
+      "scope_files": [
+        "packages/webview/src/canvas/TeamActivityFilter.tsx",
+        "packages/webview/src/canvas/RecentActivityHighlight.tsx",
+        "packages/skill/src/queries/recent-activity.ts"
+      ],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "PHASE4_R17_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix P4.12. Default canvas view in onboarding mode. Reads `event_log` for touch timestamps + `actor` for avatar. Synthesis Q3 'mental model formation by recent activity' (line 203)."
+    },
+    {
+      "id": "p4-r18",
+      "title": "Implement the assert-this affordance in detail panel (button + keyboard shortcut A) with event_log emission",
+      "depends_on": ["p4-r03"],
+      "scope_files": [
+        "packages/webview/src/detail-panel/AssertButton.tsx",
+        "packages/extension/src/commands/assert-node.ts",
+        "packages/webview/src/keyboard/bindings.ts"
+      ],
+      "spec_reference": "docs/adr/0024-provenance-preservation-on-edits.md",
+      "completion_signal": "PHASE4_R18_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0024 accepted",
+      "notes": "Implements ADR-0024 §2's first explicit-assertion path. Routes through p4-r03's chokepoint with `declared_confidence='asserted'`. Emits `event_log.kind='node.asserted'` with action=`assert_button`."
+    },
+    {
+      "id": "p4-r19",
+      "title": "Implement the drift-resolver Type-1 row + 'I assert this' checkbox (default unchecked) on the 'accept drift, update intent' flow",
+      "depends_on": ["p4-r03", "p4-r06"],
+      "scope_files": [
+        "packages/webview/src/inbox/DriftResolver.tsx",
+        "packages/webview/src/inbox/AssertionCheckbox.tsx"
+      ],
+      "spec_reference": "docs/adr/0020-per-decision-type-legibility-taxonomy.md",
+      "completion_signal": "PHASE4_R19_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": "ADR-0020 accepted; ADR-0024 accepted",
+      "notes": "Implements ADR-0020 §3 Type 1 (drift detection) Layer 2 + ADR-0024 §2's third explicit-assertion path. Checkbox is **default unchecked** per ADR-0024 §2 — the user must affirmatively check to assert. Routes through p4-r03 chokepoint."
+    }
+  ]
+}

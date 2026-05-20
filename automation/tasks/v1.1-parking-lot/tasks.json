@@ -1,0 +1,176 @@
+{
+  "_banner": "PARKING LOT — v1.1 (and v1.2+ where noted) tasks surfaced from /docs/research/ux-research-synthesis.md (April 2026). Visible in the task tracker but NOT in the active queue. Status: parking-lot. The Ralph loop refuses to execute tasks with this status. Three v1.2+ tasks at the bottom are flagged separately because the synthesis explicitly defers them past v1.1. To promote a task from this lot to active, move it into the relevant phase's tasks.json and re-run the approval flow per APPROVAL.md.",
+  "phase": "v1.1-parking-lot",
+  "status": "parking-lot",
+  "approval": null,
+  "autonomy_level": "n/a",
+  "max_iterations_per_task": 0,
+  "max_total_cost_usd": 0,
+  "verification": {
+    "required_commands": [],
+    "phase_specific_checks": []
+  },
+  "monitor_llm": {
+    "required": false,
+    "model": null
+  },
+  "_dependency_notes": "Most v1.1 tasks depend on v1.0 (Phase 4–6) shipping. Team-coordination tasks (V1.1.4–V1.1.6) additionally depend on ADR-0023 being accepted and Phase 5 branch-and-review substrate landing. Skill-retention tasks (SR-V1.2-*) are explicitly v1.2+ per synthesis line 609.",
+  "tasks": [
+    {
+      "id": "v11-r01",
+      "title": "Per-user trust calibration metric: ratio of accepts/rejects/investigates by confidence tier; personal-only dashboard",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q1",
+      "completion_signal": "V11_R01_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.1. Synthesis Q1 #6. Personal metric, **never shared with managers** (the synthesis is explicit on this). Reads `local_acceptance_rate` from ADR-0023 §1 local_user_state schema."
+    },
+    {
+      "id": "v11-r02",
+      "title": "Per-user budget tuning that learns from post-hoc accuracy (±50% from initial 25-item / 45-min baseline)",
+      "depends_on": ["v11-r01"],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q2",
+      "completion_signal": "V11_R02_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.2. Synthesis Q2 #7. Adaptive layer over Phase 5's static threshold (p5-r13). **human_checkpoint** because adaptive personalization has known drift failure modes. Define 'post-hoc accuracy' precisely before implementing — synthesis suggests agreement with verifier outcomes."
+    },
+    {
+      "id": "v11-r03",
+      "title": "Insert one novel-type item per five Tier-2 items to support knowledge-transfer benefit (Bacchelli & Bird)",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q2",
+      "completion_signal": "V11_R03_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.3. Synthesis Q2 #8. Smart-Catch-up insertion in Tier 2 sort. Inserts a novel-type item (a category the user hasn't reviewed in N days) every fifth Tier-2 position."
+    },
+    {
+      "id": "v11-r04",
+      "title": "Buddy/mentor pairing affordance: node-comment that pings a designated mentor without escalating to general team channels",
+      "depends_on": ["v11-r05"],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q3",
+      "completion_signal": "V11_R04_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.4. Synthesis Q3 #8. Depends on V1.1.5 (per-node comment threads). Mentor designation is per-user setting; the node-comment with mentor mention generates an inbox item."
+    },
+    {
+      "id": "v11-r05",
+      "title": "Per-node comment threads with @-mentions generating inbox items",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q4",
+      "completion_signal": "V11_R05_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.5. Synthesis Q4 #6. **human_checkpoint** because the schema for comment threads is a substrate addition. Lives in graph (not separate channel) per Linear/Notion pattern. Depends on Phase 5's branch-and-review substrate landing first (ADR-0023)."
+    },
+    {
+      "id": "v11-r06",
+      "title": "Permission model mapped to GitHub roles (read/write/admin)",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#concrete-design-recommendations-for-q4",
+      "completion_signal": "V11_R06_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.6. Synthesis Q4 #7. **human_checkpoint** for security review. Read = canvas/inbox view; write = edit nodes on own branch; admin = approve merges, resolve conflicts. Maps to existing GitHub roles for adoption ease."
+    },
+    {
+      "id": "v11-r07",
+      "title": "Hourly batching for low-priority drift events on stable nodes",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V11_R07_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.9. Synthesis adjacent finding (notification design): 'batching by type within time-window reduces notification fatigue 40-80%.' Tuning of Phase 4 inbox; non-blocking for L2."
+    },
+    {
+      "id": "v11-r08",
+      "title": "Quiet hours setting (default off, opt-in)",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V11_R08_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.10. Now 'table stakes' per synthesis adjacent finding. Per-user setting in local_user_state."
+    },
+    {
+      "id": "v11-r09",
+      "title": "Auto-filter previously-dismissed items of same exact type (Sentry-style)",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V11_R09_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.11. Synthesis adjacent finding: 'default-filter-out low-priority is critical at scale.' Reads `local_inbox_state.status='dismissed'`."
+    },
+    {
+      "id": "v11-r10",
+      "title": "Verify direct manipulation is preserved as a first-class operation alongside proposal review (no implementation; documentation + audit)",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V11_R10_DONE",
+      "estimated_minutes": 30,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "Coverage matrix V1.1.12. **'Verify, do not implement.'** Synthesis adjacent finding: ensure the user can edit any node directly without going through a proposal flow. The TipTap editor (tech-spec §3.5) and the assert-this affordance (p4-r18) jointly satisfy this; this task is a v1.1 audit to confirm no Phase 4–5 work has accidentally constrained direct edit paths."
+    },
+    {
+      "id": "v11-r11",
+      "title": "Adopt Linear-style snooze with conditional resurface as the default snooze pattern",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V11_R11_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "If Phase 4's bulk-snooze (p4-r09) shipped a simpler time-based snooze rather than activity-based, this task adds the conditional resurface ('come back when there's new information'). Synthesis adjacent finding: conditional resurface is preferred to time-based snooze."
+    },
+    {
+      "id": "v12-r01",
+      "title": "[v1.2+] Opt-in 'unaided review' mode where AI's stated reasoning is hidden during review",
+      "depends_on": [],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V12_R01_DONE",
+      "estimated_minutes": 60,
+      "human_checkpoint": true,
+      "blocked_on_decision": null,
+      "notes": "**v1.2+ per synthesis line 609** — explicitly tagged as not-v1.1. Coverage matrix V1.1.7. Synthesis adjacent finding (skill atrophy): forced unaided practice on regular cadence. Frame as skill-retention practice, not productivity feature."
+    },
+    {
+      "id": "v12-r02",
+      "title": "[v1.2+] Per-user agreement rate between unaided judgments and verifier outcomes (personal calibration metric)",
+      "depends_on": ["v12-r01"],
+      "scope_files": [],
+      "spec_reference": "docs/research/ux-research-synthesis.md#adjacent-findings",
+      "completion_signal": "V12_R02_DONE",
+      "estimated_minutes": 45,
+      "human_checkpoint": false,
+      "blocked_on_decision": null,
+      "notes": "**v1.2+ per synthesis line 609.** Coverage matrix V1.1.8. Pairs with V1.2 R01."
+    }
+  ]
+}
