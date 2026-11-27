@@ -64,8 +64,23 @@ Stop and report after 40 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
-(the builder fills this in)
+Reused from the repo: React Flow props onNodeContextMenu, onPaneContextMenu and onMoveStart, the panel's titleProblem rule, selectOnly, saveNode and fetchEditableNode, the node chrome title element and the ui store.
+New: app/direct-edit-model.ts (pure rules, 25 tests), direct-edit-actions.ts, graph/ContextMenu.tsx, graph/nodes/shared/RenameField.tsx. No new dependency, no server change.
 
 ## Builder notes
 
+- Rename field is a textarea drawn over the hidden title text, so the node box cannot change. The check in e2e-edit compares the box and the title place within 1 px.
+- A double-click is caught in the capture phase on the canvas wrapper. On a node it is stopped before the zoom sees it, on a title it renames, on empty canvas it falls through and zooms.
+- Key handling reads the selection in the capture phase, so the Enter that selects a node by keyboard does not also open its details.
+- Esc closes one layer: menu, rename field, create form, then the panel (undo unsaved text first). The menu and the field stop the key themselves.
+- The menu closes only on a move the person makes (wheel, drag). The page panning a node clear of the panel does not close it.
+- Right-click on a code node leaves the browser menu alone, as does everything outside the canvas.
+- A saved title shows at once and is dropped when the live update brings the same label, or after 5 s.
+- The panel title can lag a moment behind a rename until the live update reloads it.
+
 ## Results
+
+- verify all: PASS, 329 tests in 40 files (304 before). e2e-edit, e2e-live, e2e-wires and e2e-drift-marks pass.
+- Frames: the e2e-edit run folder, direct-1-rename-field, direct-2-concept-menu, direct-3-read-only-menu, direct-4-plus-button, direct-5-keyboard-menu.
+- Polish: the read-only menu no longer highlights a disabled entry. Focus rings added for nodes, the plus button and the panel controls.
+- Not verified: a real browser window, the menu key on a real keyboard (the script sends the key), touch.

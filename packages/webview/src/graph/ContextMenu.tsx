@@ -61,7 +61,7 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
     }
     const r = box.current.getBoundingClientRect();
     setAt(clampMenu({ x: menu.x, y: menu.y }, { width: r.width, height: r.height }, { width: window.innerWidth, height: window.innerHeight }));
-    setActive(Math.max(0, items.findIndex((i) => !i.disabled)));
+    setActive(items.findIndex((i) => !i.disabled));
 
     // the menu is placed once per opening
   }, [menu]);
@@ -101,11 +101,11 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
     };
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       own();
-      const next = stepMenu(items, active, e.key === 'ArrowDown' ? 1 : -1);
+      const next = stepMenu(items, Math.max(active, 0), e.key === 'ArrowDown' ? 1 : -1);
       if (next !== null) setActive(next);
     } else if (e.key === 'Enter' || e.key === ' ') {
       own();
-      pick(items[active]!);
+      if (items[active]) pick(items[active]);
     } else if (e.key === 'Escape') {
       own();
       closeMenu();
@@ -126,7 +126,7 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
       tabIndex={-1}
       data-context-menu={menu.kind ?? 'pane'}
       aria-label={menu.kind ? `${menu.kind} menu` : 'canvas menu'}
-      aria-activedescendant={`ig-menu-${items[active]?.id ?? ''}`}
+      {...(items[active] ? { 'aria-activedescendant': `ig-menu-${items[active].id}` } : {})}
       style={{ ...BOX, left: at?.x ?? menu.x, top: at?.y ?? menu.y, visibility: at ? 'visible' : 'hidden' }}
       onKeyDown={onKeyDown}
       onContextMenu={(e) => e.preventDefault()}
@@ -148,7 +148,7 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
             background: i === active ? 'rgba(120, 169, 255, 0.18)' : 'transparent',
             boxShadow: i === active ? 'inset 0 0 0 1px rgba(120, 169, 255, 0.8)' : 'none',
           }}
-          onMouseEnter={() => setActive(i)}
+          onMouseEnter={() => (item.disabled ? undefined : setActive(i))}
           onClick={() => pick(item)}
         >
           {item.label}
