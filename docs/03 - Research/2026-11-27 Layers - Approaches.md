@@ -56,3 +56,37 @@ The experiment runs on a copy. Nothing in the real `/spec` changes.
 - More layers means more to keep true. Without a drift check per layer, the middle one becomes a second set of docs.
 - One piece of code can serve several mechanisms. Inside a mechanism the code is a reference, not a home.
 - The first night's lesson holds here too: this repo has no intent bound to code yet, so the layers have nothing real to show until at least one is bound.
+
+## Declared and inferred (added the same day, after the owner's next thought)
+
+The owner, paraphrased: we should see the intent and the intent inferred from the code, and a person should be able to change either easily. The open question is the best way to show it.
+
+Two directions meet on the graph:
+
+- Top down: the declared intent. A person wrote it.
+- Bottom up: what a model reads out of the code. It says what the code seems to be for.
+
+Where they agree, nothing needs attention. Where they differ, or where code has no declared intent at all, the person decides.
+
+### Ways to show it
+
+- **Dashed on the canvas.** An inferred node or wire is drawn dashed and dimmer, with the word "inferred". It sits where the real thing would sit. Editors show a suggestion the same way, as ghost text.
+- **A review tray.** A list beside the graph: "14 to review". One key accepts, one edits, one dismisses. Documents show suggested changes this way, and it is fast for many items.
+- **Side by side in the panel.** For one node: what was declared, what the code seems to do, and three choices: keep mine, use the inferred one, edit.
+
+### Recommendation
+
+All three, in this order, because each is small on top of what exists:
+
+1. Dashed on the canvas, with the word and the evidence: which files and symbols it was read from.
+2. One key each. Enter accepts and writes a real spec file through the same writer, so undo works. A double-click edits the title first. Delete dismisses, and a dismissed one is not proposed again.
+3. A count ("14 inferred") that opens the tray.
+4. The side-by-side view for nodes that have both. That is the drift mark with its reasons spelled out.
+
+### How it fits the layers and the nesting
+
+The middle layer is the natural home of inference. A model can read "how it works" out of code far better than it can guess why the code exists. So the person declares intents, the model proposes the how under each, and the code sits under the how. Inferred pieces stay dashed until a person confirms them.
+
+### The smallest experiment
+
+One script runs a cheap model over code that no intent claims and writes its proposals under `.runs/`, never to `/spec`. The page draws them dashed, nested with their code. Enter, a double-click and Delete do the three things above. It runs on a copy. The model cost is a few cents, and proposals are cached by the code's signature hash, so only changed code is read again.

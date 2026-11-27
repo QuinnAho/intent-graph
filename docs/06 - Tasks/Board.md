@@ -17,11 +17,11 @@ None is building. Lane 7 (direct editing: rename in place, a right-click menu, a
 
 | Lane | What | Branch | Status |
 |---|---|---|---|
-| 9 three levels | One real intent, shown as three nested levels: the intent, how it works, the code. The owner's two thoughts in one: Blueprint-style nesting, and a layer between intent and code. Options and a recommendation: [[2026-11-27 Layers - Approaches]] | `three-levels` | waits for the owner's go |
+| 9 declared and inferred | A cheap model reads code that no intent claims and proposes what it is for. The page draws the proposals dashed, nested with their code. Enter accepts, a double-click edits, Delete dismisses. It carries the owner's three thoughts: nesting, a layer between intent and code, and inferred intent a person can change easily. Options and a recommendation: [[2026-11-27 Layers - Approaches]] | `inferred` | waits for the owner's go |
 
 ## Waiting on the owner
 
-1. **The three-level experiment: go?** One intent of this repo, a drafted "how" node, the code under it, shown nested in two variants (open in place, step inside), on a copy so the real `/spec` is untouched. Recommended: yes.
+1. **The declared and inferred experiment: go?** Dashed proposals on the canvas, nested with their code, accepted, edited or dismissed with one key each. On a copy, so the real `/spec` is untouched, and a few cents of model use. Recommended: yes.
 2. **ADR 0030, the anchor format.** Accept it? Until then anchors live only on fixtures, so every node of this repo shows pending, no wire runs from a spec node to code, and nesting has nothing real to show.
 3. **Which words are target kinds?** `spec/intents/README.md` and all 12 intents of this repo use `module` and `api`. The code schema (`packages/shared/src/schemas/node.ts:31`) only knows node kinds such as `code_module`, and the new-intent form offers those nine. Recommended: the README's words.
 4. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
