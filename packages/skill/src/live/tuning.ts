@@ -12,6 +12,8 @@ export const LIVE_TUNING = {
   keepAliveMs: 15_000,
   // browser reconnect delay sent in the sse retry field
   retryMs: 1000,
+  // how often the server looks for a new drift report. it only stats and reads files.
+  driftPollMs: 400,
   // largest json body a save or create may send
   maxRequestBytes: 256 * 1024,
 } as const;
