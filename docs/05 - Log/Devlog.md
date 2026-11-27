@@ -153,3 +153,13 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - On the way the builder found and fixed a crash: a Windows file lock during a write took the server down. Writes now retry.
 
 **Not yet.** Nobody has tried this with a real mouse in a real window. A spec file with no `parent` key is not a node, so it cannot be connected from the canvas. Relations other than `parent` do not exist in the spec format.
+
+### 2026-11-27, 4:05 PM  Day 2 goes to main, and two questions from the owner
+
+**What happened.** The owner looked at the editing lanes, said they look good and said to merge. `day-2` goes into `main`. The owner also asked two things. Should this be a VS Code extension, with the second thought that maybe it is not needed. And what about three layers of abstraction: the intent, how it works, and the actual code.
+
+**The answers given.**
+- VS Code: not now. The page works beside any editor, and the agent side belongs in a Claude Code plugin (ADR 0029). The cheap part of an extension, a click on a node that opens the file in the editor, can be had from the page with an editor link. A real extension is worth it once nodes are bound to code and there is something to show next to the code.
+- Layers: yes, and it is the same question as nesting. The options, what others do and a small experiment are in [[2026-11-27 Layers - Approaches]]. It waits for the owner's go.
+
+**Evidence.** The gate and the end-to-end scripts were run on `main` in a clean checkout before the push. The pass lines are in the run log.
