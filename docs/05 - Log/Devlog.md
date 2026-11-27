@@ -108,3 +108,13 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **Not yet.** The form offers the nine node kinds from the code schema, while this repo's intents use `module` and `api` (Board, call 3). The "Add intent" button can be cut off at the top edge after the view moves. Nobody has double-clicked the launcher files yet.
 
 **The day in numbers.** 91 tests when the overhaul merged, 304 now. Six feature lanes, each gated by script and then checked by a verifier that never saw the builder's report. The verifiers found five real faults that had passed the builders' own tests, all in lanes 1 and 2, all fixed. `main` did not move.
+
+### 2026-11-27, 12:45 PM  Night 1 goes to main, and the direction for editing
+
+**What happened.** The owner looked at the frames and the report and said to merge. `night-1` goes into `main` as one squashed commit. The leftover test server from lane 6 was stopped with the owner's OK. New work starts on `day-2`.
+
+**The owner's direction, paraphrased.** Blueprint is liked most for its nesting. It is not certain that nesting fits this tool, and one idea is that the code sits nested under the intent it realizes. Editing on the graph has to be easy and intuitive. Every lane ends with polish.
+
+**What it changes.** Two lanes have a go: direct editing (rename in place, a right-click menu) and editing by wire (connect, disconnect, move, undo). Nesting is an experiment, built small in more than one variant and kept or dropped after a look at frames. Each lane note now carries a polish step.
+
+**Evidence.** The squashed commit has the same tree as `night-1` at its last commit, and the gate and the end-to-end scripts were run on `main` in a clean checkout before the push. The pass lines are in the run log.
