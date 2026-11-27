@@ -43,3 +43,22 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **Not yet.** A third of real commits come back "unclear", mostly because large diffs are cut. No real breaking commit exists in our history, so catching is proven on seeded cases only. Nothing is shown on the graph yet.
 
 **See it.** `node tools/drift.mjs`. Tokens: builder 232k plus 288k for the retry (opus), verifiers 99k and 61k (sonnet).
+
+### 2026-11-27, 7:13 AM  Visual editing merged to night-1, three more lanes have a go
+
+**What happened.** Lane 3 landed on `night-1`: select a spec node, edit its title and body in a side panel, save, and the markdown file changes with every other byte kept. A new intent can be created inside a concept. Writes need `--write`, a token and 127.0.0.1. Before going offline the owner gave a go on three more lanes (edge routing, drift on the graph, editing polish), allowed green and verified visual lanes to merge into `night-1` while `main` waits for a look, and set a direction: node-based views move toward the way the Unreal Blueprint editor works (ADR 0031).
+
+**Why it matters.** Editing on the canvas is the visual-first half of ADR 0029. The Blueprint direction gives every later graph lane one model to follow instead of ad hoc choices.
+
+**Evidence.** On `night-1` at `43e08cf`: `PASS all (52.2s) - 4 steps, 249 tests`, `PASS e2e-live (68.8s) - label 386 ms, failed mark 3048 ms, clean stop` (slow because a research agent ran at the same time, 34 s when alone), `PASS e2e-edit (39.5s) - label 406 ms, new node 874 ms, 6 frames`. An independent verifier passed 13 of 13 checks the builder never saw: a byte-exact save on a file with comments, odd key order, a block value and Windows line endings, path traversal refused, token and origin checks, a conflict that kept the outside edit, and one listener on 127.0.0.1. Frames: `docs/05 - Log/Frames/2026-11-27 Night 1/`, files `3a` to `3g`.
+
+**Also landed.** A source file over 32 KB now parses (`af14da0`). The test was written first and failed with "Invalid argument", then 210 tests passed, and a 40 KB probe file went from 0 nodes and a warning to 630 nodes. The notes now say "the owner" because the remote is public (`7587ef7`). Everything pushed on 2026-11-27 was scanned first: no secret patterns in 18,127 added lines, and no local paths.
+
+**Calls taken in loop.** The owner can overrule any of these.
+- The orchestrator fixed the 32 KB limit itself, three lines and a test, instead of dispatching an agent. That bends the rule that the orchestrator writes no product code.
+- First failures in lanes 1 and 2 went back to the same builder, though both were past 150k tokens of context. Each retry wrote the whole transcript to the cache again. From now on a fix goes to a fresh, smaller agent.
+- New intents will take their `target_kinds` from the form, with one preselected (lane 6).
+- Lane 4 is step one of ADR 0031 only. One pin per relation kind and editing by wire wait until the owner has seen step one.
+- Effort is scaled to the lane: lane 4 on the strongest allowed model at high effort, lanes 5 and 6, the research and every verifier one tier down at medium.
+
+**Not yet.** The selected node is not highlighted, the panel covers the right edge of the canvas, and a new intent shows as a problem until it has target kinds. All three are in lane 6.
