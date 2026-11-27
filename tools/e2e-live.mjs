@@ -24,6 +24,8 @@ mkdirSync(runDir, { recursive: true });
 const LABEL_LIMIT_MS = 3000;
 const FLIP_LIMIT_MS = 15000;
 const STOP_LIMIT_MS = 10000;
+// well past the server's quiet window, so a rebuild would have landed
+const SAME_WAIT_MS = 1500;
 
 const fixture = join(root, 'tests', 'fixtures', 'live-workspace');
 const cli = join(root, 'packages', 'skill', 'src', 'live', 'cli.ts');
@@ -184,6 +186,15 @@ try {
   if (!stillSelected) await fail('selection lost on update');
   console.log(`ok label (${secs()}s) - changed in ${labelMs} ms, no reload, viewport and selection kept`);
 
+  // 4b rewriting a file with the same bytes must not rebuild
+  const versionOf = () => page.evaluate(() => document.documentElement.dataset.graphVersion ?? '');
+  const vSame = await versionOf();
+  const same = join(work, 'spec', 'intents', 'has-no-checks.md');
+  writeFileSync(same, readFileSync(same));
+  await page.waitForTimeout(SAME_WAIT_MS);
+  if ((await versionOf()) !== vSame) await fail(`same-content save rebuilt the graph (v${vSame} -> v${await versionOf()})`);
+  console.log(`ok same-content save (${secs()}s) - still v${vSame}`);
+
   // 5 flip the test. the mark must turn failed in 15 s.
   const tFlip = Date.now();
   editFile('tests/flip.test.ts', "toBe('hello quinn')", "toBe('goodbye quinn')");
@@ -211,6 +222,14 @@ try {
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
   await browser.close();
   browser = null;
+
+  // 6b the frames script against the live page, focused on a fixture spec node
+  const framesOut = join(runDir, 'frames-focus');
+  const fr = spawnSync(process.execPath, [join(root, 'tools', 'frames.mjs'), '--url', `${url}?focus=intent-greets-by-name`, '--out', framesOut], { cwd: root, encoding: 'utf8' });
+  writeFileSync(join(runDir, 'frames-focus.log'), (fr.stdout || '') + (fr.stderr || ''));
+  const frLine = (fr.stdout || '').trim().split(/\r?\n/).pop() || '';
+  if (fr.status !== 0 || !frLine.startsWith('PASS')) await fail(`frames on the focused live page: ${frLine || 'no output'}`);
+  console.log(`ok frames focus (${secs()}s) - ${frLine.slice(0, 80)}`);
 
   // 7 clean stop: process exits, port closes, no test run left behind
   const stopped = await stopServer();

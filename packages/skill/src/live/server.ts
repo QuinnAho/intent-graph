@@ -12,7 +12,7 @@ import { watch, type FSWatcher } from 'chokidar';
 
 import { build, type BuildGraphResult } from '../build-graph.js';
 import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js';
-import { ChangeBatcher, ContentHashGate } from './change-gate.js';
+import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
 import { composeLiveGraph, type LiveGraph } from './compose.js';
 import { runLinkedTests, type TestRunHandle } from './test-runner.js';
@@ -156,6 +156,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   });
   const rel = (p: string): string => relative(root, p).split(sep).join('/');
   const onFile = (p: string): void => {
+    if (!isWatchedFile(rel(p))) return;
     if (ready) {
       batcher.add(rel(p));
       return;
@@ -169,7 +170,9 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   const watcher: FSWatcher = watch(root, { ignored: (p) => IGNORED_DIRS.test(sep + relative(root, p)), ignoreInitial: false, persistent: true });
   watcher.on('add', onFile);
   watcher.on('change', onFile);
-  watcher.on('unlink', (p) => batcher.add(rel(p)));
+  watcher.on('unlink', (p) => {
+    if (isWatchedFile(rel(p))) batcher.add(rel(p));
+  });
   watcher.on('error', (e) => log(`watcher error: ${(e as Error).message}`));
   await new Promise<void>((ok) => watcher.once('ready', () => ok()));
   ready = true;

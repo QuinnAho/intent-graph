@@ -1,7 +1,19 @@
 // the watcher only rebuilds when content really changed, and batches saves.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ContentHashGate, ChangeBatcher, pickWindow } from '../src/live/change-gate.js';
+import { ContentHashGate, ChangeBatcher, isWatchedFile, pickWindow } from '../src/live/change-gate.js';
+
+describe('isWatchedFile', () => {
+  it('watches spec markdown and source files only', () => {
+    expect(isWatchedFile('spec/intents/a.md')).toBe(true);
+    expect(isWatchedFile('src/a.ts')).toBe(true);
+    expect(isWatchedFile('tests/a.test.tsx')).toBe(true);
+    expect(isWatchedFile('README.md')).toBe(false);
+    expect(isWatchedFile('spec/intents/.a.md.swp')).toBe(false);
+    expect(isWatchedFile('notes.txt')).toBe(false);
+    expect(isWatchedFile('src/costs')).toBe(false);
+  });
+});
 
 describe('ContentHashGate', () => {
   it('passes the first sight and real edits, blocks identical rewrites', () => {

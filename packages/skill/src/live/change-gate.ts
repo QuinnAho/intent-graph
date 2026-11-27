@@ -4,6 +4,15 @@
 
 import { createHash } from 'node:crypto';
 
+// spec markdown and the source kinds the tree-sitter walk reads. editor swap
+// files, logs and reports are not worth a rebuild.
+const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
+
+export function isWatchedFile(rel: string): boolean {
+  if (rel.startsWith('spec/') && rel.toLowerCase().endsWith('.md')) return true;
+  return SOURCE_EXT.test(rel);
+}
+
 export class ContentHashGate {
   private readonly hashes = new Map<string, string>();
 
