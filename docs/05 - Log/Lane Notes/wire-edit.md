@@ -31,7 +31,8 @@ The owner, paraphrased: editing on the graph has to be easy and intuitive, and e
 6. Move: drag a node and drop it inside another concept box, and its `parent` becomes that concept. A drop anywhere else puts it back where it was and writes nothing. A small move inside its own box writes nothing.
 7. Every change shows a short notice that says what happened, with an Undo button. Ctrl+Z and Cmd+Z undo when no text field has the focus. Inside a text field they stay the browser's own text undo.
 8. Read only: pins do not connect, a dragged node goes back, the wire menu's entry is disabled with the reason, and nothing is sent.
-9. Polish, the last step: open every frame you took and fix what looks off. The wire being dragged, the highlight on valid targets, the notice, the focus states.
+9. A right-click opens the menu and nothing else. Today it also opens the side panel, so the view shifts under the open menu and the menu ends up over another node (`docs/05 - Log/Frames/2026-11-27 Day 2/7b-right-click-menu.jpg`).
+10. Polish, the last step: open every frame you took and fix what looks off. The wire being dragged, the highlight on valid targets, the notice, the focus states.
 
 ## Files the builder may touch
 

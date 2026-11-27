@@ -118,3 +118,19 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **What it changes.** Two lanes have a go: direct editing (rename in place, a right-click menu) and editing by wire (connect, disconnect, move, undo). Nesting is an experiment, built small in more than one variant and kept or dropped after a look at frames. Each lane note now carries a polish step.
 
 **Evidence.** The squashed commit has the same tree as `night-1` at its last commit, and the gate and the end-to-end scripts were run on `main` in a clean checkout before the push. The pass lines are in the run log.
+
+### 2026-11-27, 1:58 PM  Direct editing merged to day-2
+
+**What happened.** Lane 7: a double-click on a node's title, or F2, opens a rename field right on the node. Enter saves, Esc cancels, a click elsewhere saves if the text changed. A right-click menu offers "Add intent here", "Rename" and "Edit details", and it works from the keyboard. A plus in a concept's header adds an intent. A double-click on a node no longer zooms the view. In read only none of it writes, and the menu says why.
+
+**Why it matters.** The owner's bar is that editing on the graph is easy and intuitive. A rename used to take four steps through the side panel. Now it is a double-click where the eye already is.
+
+**Evidence.** On `day-2` at `c5f3b04` plus the script fix `e42ee1d`: `PASS all (47.6s) - 4 steps, 329 tests`, `PASS e2e-edit` three runs of three, and `e2e-live`, `e2e-wires` and `e2e-drift-marks` pass. The independent verifier confirmed a byte-exact rename on a file with comments and Windows line endings, that an empty or unchanged title writes nothing, that a conflict keeps the outside change, and that the node keeps its size to 0.00 px when the field opens.
+
+**What the verifier caught.** A double-click on a node that was not selected yet opened no field: the first click opened the side panel and shifted the view, so the second click landed on another node. The builder's script only renamed nodes it had selected first. A second, smaller agent fixed it (the panel and the shift now wait 250 ms, and a single click still opens the panel in about 330 ms) and added the missing case to the script. The orchestrator's own probe then double-clicked five unselected nodes and all five opened the field. The same agent added a rename hint on hover, a clear focus ring and a tab order that never leaves the panel.
+
+**Calls taken.**
+- The fix went to a fresh agent with a tight brief instead of back to the builder, which was past 150k tokens of context.
+- One red on `day-2` after the merge was the script, not the product: it looked for the server's second start-up line the moment it saw the first. Three reruns passed unchanged. The script now waits for the line it checks.
+
+**Not yet.** A right-click also opens the side panel, so the view shifts under the open menu (lane 8). A code node's title was not tested, since none is on screen in the example.

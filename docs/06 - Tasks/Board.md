@@ -13,8 +13,9 @@ The owner on 2026-11-27, paraphrased: editing on the graph has to be easy and in
 
 | Lane | What | Branch | Status | Evidence |
 |---|---|---|---|---|
-| 7 direct editing | Rename a node in place, a right-click menu to add and rename, the keys a person expects. Lane note: [[direct-edit]] | `direct-edit` | building | |
-| 8 editing by wire | Drag from a pin to connect, delete a wire, drag an intent into another concept, undo | `wire-edit` | waits for lane 7 | |
+| 8 editing by wire | Drag from a pin to connect, delete a wire, drag an intent into another concept, undo. Lane note: [[wire-edit]] | `wire-edit` | building | |
+
+Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) is merged into `day-2`. See the [[Devlog]]. Frames: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
 ## An experiment, kept or dropped after a look
 
