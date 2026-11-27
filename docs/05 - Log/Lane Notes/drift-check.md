@@ -63,12 +63,55 @@ The judge cannot be called from a script within 30 minutes of trying. The gate c
 
 ## Reuse record
 
-(builder fills this in)
+- **Fiberplane Drift (MIT): borrow.** Took its idea: hash tree-sitter node kinds plus token text, so formatting and comments don't count. sha-256 from `node:crypto` instead of XxHash3, no dependency. Its `path#Symbol@sig` target syntax comes in through ADR-0030. Not adopted as a tool: a Zig binary, not on npm, and it keeps bindings in a lock file. Built from the summary in the brief and ADR-0030. I did not read Drift's source this lane.
+- **OpenSpec ADDED/MODIFIED/REMOVED deltas: skip for now.** That format is for proposing spec edits, and this lane makes none. Look again when "accept drift, update intent" lands. Written from memory, not re-read.
+- **Monitor verdict (`.claude/agents/monitor.md`): borrow the field names.** Kept `evidence` (a quote) and a one-line action, named `suggested_action` because the ask is free text, not the `allow/review/block` enum. Dropped the numeric `score` (ADR-0022) and used a category, `high|medium|low`, instead.
+- **Repo parser, grammar registry, frontmatter parser: adopt as they are.**
+- **`claude -p` as the judge transport: adopt.** No model SDK is imported anywhere.
+- **New dependencies: none.** `tools/drift.mjs` loads the TypeScript through `tsx`, which was already a root dev dependency.
 
 ## Results
 
-(builder fills this in: the seeded-case counts, the 20-commit table, the cost)
+**Seeded cases** (`node tools/drift.mjs`, 9 cases in `tests/fixtures/drift-cases/`): caught 4 of 4 breaking, missed 0, wrongly flagged 0 of 5 harmless, 0 unclear, 0 errors. 7 judged pairs, $0.0025, 38s. The reformat and comment cases were settled by hash with no model call. With `--judge-all` the judge sees those too and still scores 9 of 9: $0.0034, 46.7s. Every quote the judge gave was found in the diff.
+
+**Real run.** Only 13 commits on `main` (after the root commit) touch the proposed targets in `tests/fixtures/drift-real/anchors.json`, so "the last 20" is all 13 of them:
+`node tools/drift.mjs --range 9e3b45e..main --anchors tests/fixtures/drift-real/anchors.json --last 20`
+13 commits, 21 pairs (20 judged, 1 by hash), 0 drift, 7 unclear, 0 errors. **Total $0.0244, 118.5s** (about 5.5s and $0.0012 per judged pair). The judge ran on haiku (`claude-haiku-5-5`) with no tools and a $0.05 cap per call.
+A second run on the plain last 20 commits (`--range main~20..main`): 20 commits, 11 pairs, 0 drift, $0.0057, 62s. The docs-only commits made no model call.
+
+| commit | node | verdict | evidence (short) | agree? | why |
+|---|---|---|---|---|---|
+| da97506 | constraint-no-direct-model-imports | aligned | `rel === AGENT_RUNNER_PREFIX \|\| rel.startsWith(...)` | yes | tightens the lint rule the constraint names |
+| 51a19f8 | constraint-event-log-projection | aligned | `checkParseIntRoundTrip(...)` | yes | trivial property, touches no projector |
+| 01b2f28 | developers-stay-in-their-editor | aligned | `<GraphCanvas nodes={[]} ...>` | yes | webview shell, nothing leaves the editor |
+| b38e2cd | concurrent-agents-stay-consistent | unclear | `fence_token: z.number()...` | yes | schema only, diff cut at 12k chars |
+| b38e2cd | agent-runs-are-traceable | aligned | `retrieved_node_ids: z.string()...` | yes | schema adds the trace fields |
+| b38e2cd | constraint-occ-prevents-stale-writes | unclear | `version: integer('version')...` | yes | the column exists, enforcement is not in this diff (cut) |
+| 4a65b86 | graph-state-survives-crashes | unclear | `export function initDatabase(...)` | no | WAL and backup-before-migrate support the node. Nothing broke, so aligned. My anchor misses the replay code |
+| 4a65b86 | concurrent-agents-stay-consistent | aligned | `VEC_EMBEDDING_DIM = 1024` | yes | moves vec DDL, no OCC change |
+| 4a65b86 | constraint-occ-prevents-stale-writes | aligned | `VEC_EMBEDDING_DIM = 1024` | yes | same |
+| 167cf9e | example-graph-is-source-of-truth | unclear | `// node + edge insert payloads ...` | yes | the spec parser reads markdown into the graph. A real tension with this node |
+| 6079853 | code-changes-raise-drift | unclear | `// Skill-side incremental parse cache.` | yes | three new files, diff cut |
+| c74bdc9 | example-graph-is-source-of-truth | aligned | comment quoting the json-as-export rule | yes | the quote was not found in the diff, verdict still right |
+| c74bdc9 | json-is-export-only | unclear | `_version: 1,` | yes | diff cut before the end of toGraphJson |
+| ce8ecd4 | example-drift-is-detectable | aligned | `// Every Intent has at least one realizes edge` | yes | the coverage verifier serves the node |
+| 1a0e4de | developers-stay-in-their-editor | aligned | `void loadGraphFromJson();` | yes | in-editor webview |
+| 1a0e4de | json-is-export-only | aligned | `EXPECTED_FORMAT = 'intentgraph-l0-export'` | yes | read-only loader, which the node allows |
+| 17e5065 | json-is-export-only | aligned | `publicDir: resolve(... '.intentgraph')` | yes | serves the export to read, never writes it |
+| 3e66020 | json-is-export-only | aligned | `nodeKindById = new Map(...)` | yes | display-only change |
+| 7f8e87f | json-is-export-only | unclear | `skeleton_symbols: result.summary...` | no | adds a summary field to the export, harmless. Should be aligned |
+| 7f8e87f | example-drift-is-detectable | aligned | `extractUnknownSkeletons(...)` | yes | adds skeleton symbols, breaks nothing |
+| 7f8e87f | code-changes-raise-drift | aligned (hash) | none | yes | grammar-registry.ts got 7 comment lines only |
+
+I agree with 19 of 21. Both disagreements are over-cautious `unclear`s, not false drifts. `main` has no known breaking commit, so this run measures false flags only, not catching. The seeded cases cover catching.
 
 ## Builder notes
 
-(builder: anything the next lane must know, in a few lines)
+- Code: `packages/skill/src/drift/` (pure: anchors, unified-diff, link, judge. glue: git, claude-cli, run, cases, cli). The hash is in `parser/diff/signature-hash.ts`. Numbers are in `drift/tuning.ts`. The schema is `packages/shared/src/schemas/drift.ts`.
+- PASS/FAIL: a range FAILs on any drift, judge error or budget stop, and `unclear` does not fail it. The cases FAIL on any miss, false flag or error. Report: `.runs/drift/<ts>/report.json`.
+- The judge's `confidence` (`high|medium|low`) is its own certainty, not ADR-0022's provenance vocabulary. Rename it or make an ADR call before it reaches a user surface.
+- On Windows the `claude` npm shim is a `.cmd`, so `claude-cli.ts` finds `claude.exe` itself. `DRIFT_CLAUDE_BIN` overrides that.
+- Windows file copies keep their mtime, so a same-size edit looked unchanged to git. The case runner drops the index before staging the after side.
+- Hash blind spots, by design: anonymous `;` and `,` are dropped, so `[a,,b]` hashes like `[a,b]`. Quote style is normalised.
+- The judge sees at most 12k chars of diff. Big scaffold commits get cut and come back `unclear`. Raise the cap or send per-symbol hunks.
+- The anchors in `tests/fixtures/drift-real/anchors.json` are my guesses and need Quinn's confirm. None carries `@sig`.
