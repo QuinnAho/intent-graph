@@ -23,7 +23,7 @@ export function WireEdge(props: EdgeProps): JSX.Element {
   const lit = hover || selected === true || endSelected || hoverNode === source || hoverNode === target;
   const { path } = wirePath(sourceX, sourceY, targetX, targetY, WIRE_TUNING);
   return (
-    <g data-wire-kind={kind} data-wire-lit={lit ? 'true' : 'false'} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <g data-wire-kind={kind} data-wire-src={source} data-wire-dst={target} data-wire-selected={selected === true ? 'true' : 'false'} data-wire-lit={lit ? 'true' : 'false'} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <BaseEdge
         id={id}
         path={path}

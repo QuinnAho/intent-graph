@@ -98,4 +98,26 @@ export const PANEL_TUNING = {
   minZoom: 0.1,
   // wait for the layout to settle after a selection before moving the view, ms
   settleMs: 250,
+  // a new selection waits this long before the panel opens, so a double-click lands on the node twice, ms
+  doubleClickMs: 250,
+} as const;
+
+// matching the second click of a double-click to the title the first one hit
+export const EDIT_TIMING = {
+  doubleClickMs: 500,
+  samePointPx: 6,
+} as const;
+
+// editing by wire
+export const WIRE_EDIT_TUNING = {
+  // a press has to move this far before it counts as a drag, so a click stays a click, px
+  dragThresholdPx: 5,
+  // how near a pin a dragged wire snaps to it, px
+  connectRadiusPx: 28,
+  // how long a notice stays up, ms. it also goes on the next click or key
+  noticeMs: 6000,
+  // a graph update waits this long at most for a held node to be let go, ms
+  dragHoldMaxMs: 15000,
+  // a refused drop's notice is shorter, it has no button, ms
+  refusedNoticeMs: 6000,
 } as const;

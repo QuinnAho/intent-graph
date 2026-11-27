@@ -6,9 +6,12 @@
 
 import { Handle, Position, useNodeId } from '@xyflow/react';
 import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
-import { useContext, type CSSProperties, type ReactNode } from 'react';
+import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
+import { useUiStore } from '../../../store/ui-slice.js';
+import { SPEC_KINDS } from '../../../transport/live-source.js';
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
+import { RenameField } from './RenameField.js';
 import { PinContext } from '../../edges/wire-context.js';
 import { pinLabel, type PinSide } from '../../edges/wire-plan.js';
 import { wireStyle } from '../../edges/WireEdge.js';
@@ -232,8 +235,9 @@ function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Element {
   );
 }
 
-// one input pin west, one output pin east. not connectable until editing exists.
-function Pins(): JSX.Element {
+// one input pin west, one output pin east. on a spec node a wire starts at the output pin and ends
+// at an input pin, and only when the canvas takes connections (writes on). code pins never connect.
+function Pins(props: { spec: boolean }): JSX.Element {
   const id = useNodeId();
   const info = useContext(PinContext).get(id ?? '');
   const inSide = info?.in ?? EMPTY_SIDE;
@@ -242,16 +246,44 @@ function Pins(): JSX.Element {
   const outLabel = pinLabel(outSide.hidden);
   return (
     <>
-      <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
-      <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+      {props.spec ? (
+        <>
+          <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} style={{ ...pinStyle(inSide), pointerEvents: 'auto' }} title="Drop a wire here to hang it under this node" />
+          <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} style={{ ...pinStyle(outSide), pointerEvents: 'auto' }} title="Drag from here to hang this node under another" />
+        </>
+      ) : (
+        <>
+          <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
+          <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+        </>
+      )}
       {inLabel ? <PinCount side="in" label={inLabel} /> : null}
       {outLabel ? <PinCount side="out" label={outLabel} /> : null}
     </>
   );
 }
 
-export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
+// a title just saved from the canvas stays on screen until the live update brings it
+const PENDING_TITLE_MS = 5000;
+
+export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNode }): JSX.Element {
   const { data } = props;
+  const nodeId = useNodeId();
+  const renaming = useUiStore((s) => nodeId !== null && s.renameId === nodeId);
+  // a title can be renamed in place only on a spec node and only when the server takes writes
+  const renamable = useUiStore((s) => s.editConfig.write) && SPEC_KINDS.has(data.kind);
+  const pending = useUiStore((s) => (nodeId !== null ? s.pendingTitles[nodeId] : undefined));
+  const setPendingTitle = useUiStore((s) => s.setPendingTitle);
+  const shown = pending ?? data.label;
+  useEffect(() => {
+    if (nodeId === null || pending === undefined) return undefined;
+    if (data.label === pending) {
+      setPendingTitle(nodeId, null);
+      return undefined;
+    }
+    const t = window.setTimeout(() => setPendingTitle(nodeId, null), PENDING_TITLE_MS);
+    return () => window.clearTimeout(t);
+  }, [nodeId, pending, data.label, setPendingTitle]);
   const Icon = getNodeIcon(data.kind);
   const surface = pickSurface(data);
   const border = pickBorder(data);
@@ -268,7 +300,7 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
         overflow: 'visible',
       }}
     >
-      {showHandles ? <Pins /> : null}
+      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind)} /> : null}
       <div
         className="ig-node-body"
         style={{
@@ -310,14 +342,19 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
               overflowWrap: 'anywhere',
               lineHeight: '18px',
               flex: 1,
+              position: 'relative',
             }}
             data-node-title=""
+            {...(renamable && !renaming ? { 'data-renamable': '', title: 'Double-click or F2 to rename' } : {})}
           >
-            {data.label}
+            {/* while the rename field is open the text stays, hidden, so the box does not change */}
+            <span style={renaming ? { visibility: 'hidden' } : undefined}>{shown}</span>
+            {renaming && nodeId ? <RenameField id={nodeId} label={data.label} /> : null}
           </span>
           {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
           {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
           {data.drift ? <DriftMark drift={data.drift} /> : null}
+          {props.headerAction}
           {showPip && data.health ? (
             <div
               style={{

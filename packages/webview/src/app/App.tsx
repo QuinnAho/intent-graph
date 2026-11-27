@@ -11,7 +11,14 @@ import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
+import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-edit-actions.js';
+import { directKey } from './direct-edit-model.js';
+import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
+import { Notice } from './Notice.js';
+import { deleteWire, undoLast } from './wire-edit-actions.js';
+import { isUndoKey } from '../graph/wire-edit-model.js';
+import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
 import {
@@ -25,6 +32,7 @@ import {
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { readEditConfig } from '../transport/edit-api.js';
+import { dragHold } from '../graph/drag-hold.js';
 import { applyGraphUpdate, fetchGraphJson, loadGraphFromJson } from '../transport/graph-json-loader.js';
 import { pickInitialFit, readFocus, readLiveSource, type LiveSource } from '../transport/live-source.js';
 
@@ -67,6 +75,7 @@ function useLiveUpdates(live: LiveSource | null): void {
       busy = true;
       try {
         await waitForLayout();
+        await dragHold.whenFree();
         const envelope = await fetchGraphJson(live.graphUrl);
         if (!stopped && (await applyGraphUpdate(envelope))) {
           const v = (envelope as unknown as { _live_version?: number })._live_version;
@@ -102,6 +111,56 @@ function onSelectionChange(changes: NodeChange[]): void {
   if (select.length === 0) return;
   const s = useGraphStore.getState();
   s.setGraph(applyNodeChanges(select, [...s.nodes] as Node[]), s.edges);
+}
+
+// F2 renames, Enter opens details, the menu key opens the menu. read in the capture phase,
+// so a node that the same Enter is about to select is not yet selected when this looks.
+function useDirectEditKeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"]') != null;
+      const ui = useUiStore.getState();
+      const picked = pickEditNode(useGraphStore.getState().nodes);
+      const action = directKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, selectedKind: picked?.type ?? null, write: ui.editConfig.write }, e);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'rename' && picked) renameNode(picked.id);
+      else if (action === 'details' && picked) openDetails(picked.id);
+      else if (action === 'menu') {
+        if (picked && picked.type) {
+          const el = Array.from(document.querySelectorAll('.react-flow__node')).find((n) => n.getAttribute('data-id') === picked.id);
+          const r = el?.getBoundingClientRect();
+          openNodeMenu(picked.id, picked.type, { x: (r?.left ?? 0) + MENU_TUNING.nodeInset, y: (r?.top ?? 0) + MENU_TUNING.nodeInset });
+        } else openPaneMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+}
+
+// ctrl+z or cmd+z undoes the newest write when no text field has the focus. inside one it stays the
+// browser's own text undo. delete or backspace removes the wire picked with a click.
+function useWireEditKeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]') != null;
+      if (isUndoKey(e, typing)) {
+        e.preventDefault();
+        void undoLast();
+        return;
+      }
+      const wire = useUiStore.getState().selectedWire;
+      if (!typing && wire && (e.key === 'Delete' || e.key === 'Backspace') && !target?.closest('[role="menu"]')) {
+        e.preventDefault();
+        deleteWire(wire);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 }
 
 // the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
@@ -140,7 +199,7 @@ export function App(): JSX.Element {
   const live = useMemo(() => readLiveSource(window.location.search, window.__INTENTGRAPH_LIVE__), []);
   const focus = useMemo(() => readFocus(window.location.search), []);
   const pendingSelect = useUiStore((s) => s.pendingSelect);
-  const editNodeId = useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null);
+  const editNodeId = useSettledId(useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null));
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
 
@@ -168,6 +227,8 @@ export function App(): JSX.Element {
   }, [nodes, pendingSelect]);
 
   useLiveUpdates(live);
+  useDirectEditKeys();
+  useWireEditKeys();
   const handleNodesChange = useCallback(onSelectionChange, []);
 
   if (status === 'error' && errorMessage) {
@@ -194,6 +255,7 @@ export function App(): JSX.Element {
       />
       <EditPanel />
       </div>
+      <Notice />
       <ProblemsPanel />
     </div>
   );

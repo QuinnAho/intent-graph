@@ -125,6 +125,19 @@ describe('loadGraphFromJson — sub-flow parenting (p2-t09)', () => {
     expect((orphan as { parentId?: string }).parentId).toBeUndefined();
   });
 
+  it('puts nodes of a parent loop at top level and still loads', async () => {
+    const mk = (id: string, parent_id: string | null) => ({ id, kind: 'concept', title: id, body: {}, confidence: 'asserted', parent_id });
+    const loopEnvelope = { ...validEnvelope, nodes: [mk('concept-p', 'concept-q'), mk('concept-q', 'concept-p'), mk('concept-r', 'concept-q')], edges: [] };
+    await loadGraphFromJson({ payload: loopEnvelope });
+    const state = useGraphStore.getState();
+    expect(state.status).toBe('ready');
+    const parentOf = (id: string) => (state.nodes.find((n) => n.id === id) as { parentId?: string } | undefined)?.parentId;
+    expect(state.nodes).toHaveLength(3);
+    expect(parentOf('concept-p')).toBeUndefined();
+    expect(parentOf('concept-q')).toBeUndefined();
+    expect(parentOf('concept-r')).toBe('concept-q');
+  });
+
   it('does NOT set parentId when parent_id is null', async () => {
     await loadGraphFromJson({ payload: validEnvelope });
     const root = useGraphStore.getState().nodes.find((n) => n.id === 'intent-foo');
