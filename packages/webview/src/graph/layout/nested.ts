@@ -41,6 +41,11 @@ export async function layoutNested(
       childrenOf.set(parent, list);
     } else top.push(n);
   }
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const parentOf = (id: string): string | undefined => {
+    const p = byId.get(id)?.parentId;
+    return p !== undefined && ids.has(p) ? p : undefined;
+  };
   const out = new Map<string, Placement>();
   const sizes = new Map<string, { width: number; height: number }>();
 
@@ -55,9 +60,7 @@ export async function layoutNested(
     }
     const memberIds = new Set(members.map((m) => m.id));
     const layoutNodes = members.map((m) => ({ id: m.id, ...(sizes.get(m.id) ?? sizeOf(m)) }));
-    const layoutEdges = edges
-      .filter((e) => memberIds.has(e.source) && memberIds.has(e.target))
-      .map((e) => ({ id: e.id, source: e.source, target: e.target }));
+    const layoutEdges = hoistEdges(memberIds, edges, parentOf);
     const placed = await run(layoutNodes, layoutEdges);
     const nested = depth > 0;
     let width = 0;
@@ -74,6 +77,38 @@ export async function layoutNested(
   };
 
   await level(top, 0);
+  return out;
+}
+
+/**
+ * the edges one level lays out. an end inside a box is replaced by the box that is a
+ * member of this level, so a wire that leaves a box still places the boxes in columns.
+ * edges whose ends meet in one member, or that leave the level, are dropped. one per pair.
+ */
+export function hoistEdges(
+  members: ReadonlySet<string>,
+  edges: ReadonlyArray<Edge>,
+  parentOf: (id: string) => string | undefined,
+): LayoutEdgeInput[] {
+  const lift = (id: string): string | undefined => {
+    let cur: string | undefined = id;
+    for (let i = 0; cur !== undefined && i <= members.size + edges.length; i++) {
+      if (members.has(cur)) return cur;
+      cur = parentOf(cur);
+    }
+    return undefined;
+  };
+  const seen = new Set<string>();
+  const out: LayoutEdgeInput[] = [];
+  for (const e of edges) {
+    const source = lift(e.source);
+    const target = lift(e.target);
+    if (source === undefined || target === undefined || source === target) continue;
+    const key = `${source}\u0000${target}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ id: e.id, source, target });
+  }
   return out;
 }
 

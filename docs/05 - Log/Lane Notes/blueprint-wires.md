@@ -63,8 +63,47 @@ Stop and report after 50 minutes, if the gate cannot be made green in two tries,
 
 ## Reuse record
 
-(the builder fills this in: what was looked at, and adopt, borrow or skip for each)
+- React Flow `getBezierPath` (read in the installed `@xyflow/system` 12.10.2 source): borrow the shape family, a cubic with horizontal control points. Own offsets in `graph/edges/wire-path.ts`, numbers in `WIRE_TUNING`.
+- React Flow `BaseEdge`, `Handle`, `useNodeId`, `useStore`, `zIndexMode`: adopt, they are the API.
+- ELK `hierarchyHandling: INCLUDE_CHILDREN`: skip for now. Hoisting cross-box edges per level brought crossings to 0, so the trial in scope step 5 was not needed.
+- ELK ports and routed edge sections: skip, as the recipe says. Curves come from React Flow.
+- litegraph.js, Rete.js, Flume, blueprintUE: not opened. The recipe's verdicts stand (ideas only, no code).
+- `graph/edges/{Realizes,Constrains,Supersedes}Edge.tsx`: looked at. They are unused placeholders with no component, so they were left as they are and `WireEdge` reads the kind from edge data.
 
 ## Builder notes
 
+- `@xyflow/react` installed is 12.10.2. `zIndexMode` exists (`'basic'` default, `'auto'`, `'manual'`). In basic mode an edge that touches a child node takes the child's z, which is why those wires render above the box (read in `@xyflow/system` `getElevatedEdgeZIndex`).
+- The measure counts a pin only when its handle is visible (opacity above 0). Distances are in flow units (screen px divided by zoom). Crossing samples skip the wire's own end nodes and the boxes that hold them.
+- "Hidden" here means the other layout block: the code block is laid out below the spec block and is off screen at first (`onlyRenderVisibleElements`), so the 1,127 code nodes are not in the DOM on the first view.
+- Which edges are drawn (`graph/edges/wire-plan.ts`, tested): a wire is drawn only when both ends are in the same block. A wire to the other block is counted on the pin it would use ("1 code" on the intent's input pin, "1 spec" on the symbol's output pin). Builder's call: an edge from a node to the box that holds it (12 in this repo, 4 in the fixture) is neither drawn nor counted, because the nesting already shows it and a pin-to-pin wire to your own box can only loop back over your siblings.
+- The count sits above the node corner on the pin's side. Next to the pin it overlapped the concept box border. It is not clickable: there is no expand action in the app yet.
+- Layout: `elk.direction` is `RIGHT` in both layout files, between-layers gap 120, `portConstraints` removed. `layoutNested` now runs every level's edges through `hoistEdges` (tested), so a constraint to an intent inside a box lays out as constraint to box. The loader in `transport/` was not touched.
+- Z-order: `zIndexMode="manual"`, boxes 0, wires 1, other nodes 2. Checked in the browser: a wire into a box runs over the box padding and stops at the child's pin. The script also checks that no wire sample is the top element inside a leaf node or any header strip.
+- Header strip: tinted by node kind. A node without a body is all header, so intents and constraints read as one tinted bar.
+- Selection outline comes from `styles/wires.css` on React Flow's `.selected` class, because nothing sets `data.isSelected` today.
+- Left open: two constraint wires in this repo cross each other (not a node) between the constraint column and the "Agent orchestration" box. One pin per node gives ELK no way to order them. Ports (later step 4) would fix it.
+- Load time is noisy on this PC: five runs after the change gave 1749 to 2685 ms. ELK alone on the 1,347 code nodes is as fast with `RIGHT` as with `DOWN` (603 to 805 ms against 744 to 1422 ms), so the direction is not the cost.
+
 ## Results
+
+Before, on `blueprint-wires` at `c1b70e5` (same as `night-1`), `node tools/e2e-wires.mjs`, viewport 1280 x 800, first view:
+
+| Page | Wires drawn / in graph | Crossing samples | Wires with a crossing | Loose ends | Left to right | Laid out |
+|---|---|---|---|---|---|---|
+| fixture | 6 / 8 | 40 | 5 (83%) | 12 | 1 of 6 (17%) | 321 ms |
+| this repo | 16 / 1094 | 105 | 9 (56%) | 32 | 1 of 16 (6%) | 1908 ms (median of 3) |
+
+Result line: `FAIL e2e-wires (35.5s) - fixture has 40 crossing samples; fixture has 12 loose ends; ...`. Every end is loose because the four-side handles are invisible (opacity 0), so no end sits on a visible pin.
+After, at `4fafaeb`, same script and viewport:
+
+| Page | Wires drawn / in graph | Crossing samples | Wires with a crossing | Loose ends | Left to right | Laid out |
+|---|---|---|---|---|---|---|
+| fixture | 0 / 8 (2 counted as "1 code" on two intents) | 0 | 0 | 0 | 100% | 437 ms |
+| this repo | 4 / 1123 | 0 (was 105, cut 100%) | 0 (0%) | 0 | 4 of 4 (100%) | 2547 ms, 1.33x (runs: 1749 to 2685 ms) |
+| this repo zoomed to 1.66 | 3 on screen | | | 0 on screen | | |
+
+Hover and select on a constraint light its one wire and no other. No console errors on either page.
+Gate: `PASS all (71.4s) - 4 steps, 263 tests` (was 249). `PASS e2e-live`, `PASS e2e-edit`.
+Frames: `.runs/e2e-wires/2026-11-27T12-35-27-301Z/` (a repo at fit, b repo zoomed, c fixture marks, d fixture node selected, e repo constraint selected).
+
+Edge mix: this repo has 12 intent to own concept, 4 constraint to intent, 1078 code symbol to code module. The fixture has 4 node to own concept and 2 code symbol to intent.
