@@ -18,6 +18,7 @@ import {
   slugFromTitle,
   writeSpecFileAtomic,
 } from '../parser/spec-md/writer.js';
+import { checkParentChange, type ParentNode } from './parent-rules.js';
 
 export type EditErrorCode =
   | 'read-only'
@@ -165,6 +166,50 @@ export function saveEdit(root: string, target: EditTarget, input: SaveInput, tod
   if (!edit.changed) return { status: 200, body: { ok: true, changed: false, hash: input.hash } };
   writeSpecFileAtomic(target.file, edit.text);
   return { status: 200, body: { ok: true, changed: true, hash: hashSpecSource(edit.text) }, written: relPath(root, target.file) };
+}
+
+export interface ParentInput {
+  /** the new parent id, or null to take the node out of its parent */
+  readonly parent?: unknown;
+  /** the parent the page saw, so a move on a stale graph is a conflict */
+  readonly from?: unknown;
+}
+
+/** set or remove parent in a spec file, after the parent table and the loop check say yes */
+export function setParent(
+  root: string,
+  target: EditTarget | null,
+  childId: string,
+  input: ParentInput,
+  nodes: ReadonlyArray<ParentNode>,
+  today: string,
+): ApiReply & { readonly written?: string } {
+  if (input.parent !== null && typeof input.parent !== 'string') return apiError(400, 'bad-request', 'parent must be a node id or null');
+  if (input.from !== undefined && input.from !== null && typeof input.from !== 'string') return apiError(400, 'bad-request', 'from must be a node id or null');
+  const no = checkParentChange(nodes, childId, input.parent);
+  if (no) return apiError(no.status, no.error, no.message);
+  if (!target || !isInsideSpec(root, target.file)) return apiError(422, 'invalid', `${childId} has no spec file to write`);
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(target.file);
+  } catch {
+    return apiError(409, 'conflict', `${relPath(root, target.file)} was removed on disk`);
+  }
+  const source = bytes.toString('utf8');
+  let current: string | null;
+  try {
+    current = readSpecForEdit(target.file, source).raw['parent'] as string | null;
+  } catch (err) {
+    return apiError(422, 'rejected', (err as Error).message);
+  }
+  if (input.from !== undefined && (input.from ?? null) !== (current ?? null)) {
+    return apiError(409, 'conflict', `${childId} moved on disk since the graph was drawn. Nothing was written.`);
+  }
+  const edit = editSpecSource(target.file, source, { parent: input.parent }, today);
+  if (!edit.ok) return apiError(422, edit.code === 'invalid' ? 'invalid' : 'rejected', edit.reason);
+  if (!edit.changed) return { status: 200, body: { ok: true, changed: false } };
+  writeSpecFileAtomic(target.file, edit.text);
+  return { status: 200, body: { ok: true, changed: true, parent: input.parent, was: current ?? null }, written: relPath(root, target.file) };
 }
 
 export interface CreateInput {
