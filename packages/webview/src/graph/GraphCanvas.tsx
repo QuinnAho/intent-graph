@@ -19,7 +19,10 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
+import { openNodeMenu, openPaneMenu, renameNode } from '../app/direct-edit-actions.js';
+import { useUiStore } from '../store/ui-slice.js';
 import { SPEC_KINDS } from '../transport/live-source.js';
+import { ContextMenu } from './ContextMenu.js';
 import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
@@ -180,6 +183,42 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   );
   const handleNodeLeave = useCallback<NodeMouseHandler>(() => setHoverNode(null), []);
 
+  // a double-click on a node never zooms. on a spec node's title it renames. on empty canvas it zooms as before.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const drawn = graphLoaded && layoutReady;
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const onDouble = (e: globalThis.MouseEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const nodeEl = target?.closest('.react-flow__node');
+      if (!target || !nodeEl) return;
+      e.stopPropagation();
+      if (target.closest('textarea, input, button') || !target.closest('[data-node-title]')) return;
+      const id = nodeEl.getAttribute('data-id');
+      const type = nodesRef.current.find((n) => n.id === id)?.type;
+      if (id && type && SPEC_KINDS.has(type)) renameNode(id);
+    };
+    el.addEventListener('dblclick', onDouble, true);
+    return () => el.removeEventListener('dblclick', onDouble, true);
+  }, [drawn]);
+
+  const handleNodeContext = useCallback<NodeMouseHandler>((event, node) => {
+    if (!node.type || !SPEC_KINDS.has(node.type)) return;
+    event.preventDefault();
+    openNodeMenu(node.id, node.type, { x: event.clientX, y: event.clientY });
+  }, []);
+  const handlePaneContext = useCallback((event: MouseEvent | globalThis.MouseEvent): void => {
+    event.preventDefault();
+    openPaneMenu({ x: event.clientX, y: event.clientY });
+  }, []);
+  // only a move the person makes closes the menu, not the page keeping a node clear of the panel
+  const handleMoveStart = useCallback((event: unknown): void => {
+    if (event) useUiStore.getState().closeMenu();
+  }, []);
+
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
   const graphReady = graphLoaded && layoutReady;
   const hasMountedGraphRef = useRef(false);
@@ -210,7 +249,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   return (
     <PinContext.Provider value={plan.pins}>
     <HoverNodeContext.Provider value={hoverNode}>
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div ref={wrapRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <ReactFlow
         nodes={stacked}
         edges={wires}
@@ -226,6 +265,9 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         zoomOnScroll
         zoomOnPinch
         zoomOnDoubleClick={!interactionLocked}
+        onNodeContextMenu={handleNodeContext}
+        onPaneContextMenu={handlePaneContext}
+        onMoveStart={handleMoveStart}
         elementsSelectable={!interactionLocked}
         selectionOnDrag={!interactionLocked}
         onlyRenderVisibleElements
@@ -245,6 +287,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       >
         <Background color="var(--ig-edge)" gap={40} size={1} />
         <KeepInView nodeId={clearPanelFor} nodes={nodes} />
+        <ContextMenu fitViewOptions={FIT_VIEW_OPTIONS} />
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>

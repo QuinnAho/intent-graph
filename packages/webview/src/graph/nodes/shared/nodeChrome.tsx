@@ -6,9 +6,11 @@
 
 import { Handle, Position, useNodeId } from '@xyflow/react';
 import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
-import { useContext, type CSSProperties, type ReactNode } from 'react';
+import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
+import { useUiStore } from '../../../store/ui-slice.js';
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
+import { RenameField } from './RenameField.js';
 import { PinContext } from '../../edges/wire-context.js';
 import { pinLabel, type PinSide } from '../../edges/wire-plan.js';
 import { wireStyle } from '../../edges/WireEdge.js';
@@ -250,8 +252,25 @@ function Pins(): JSX.Element {
   );
 }
 
-export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
+// a title just saved from the canvas stays on screen until the live update brings it
+const PENDING_TITLE_MS = 5000;
+
+export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNode }): JSX.Element {
   const { data } = props;
+  const nodeId = useNodeId();
+  const renaming = useUiStore((s) => nodeId !== null && s.renameId === nodeId);
+  const pending = useUiStore((s) => (nodeId !== null ? s.pendingTitles[nodeId] : undefined));
+  const setPendingTitle = useUiStore((s) => s.setPendingTitle);
+  const shown = pending ?? data.label;
+  useEffect(() => {
+    if (nodeId === null || pending === undefined) return undefined;
+    if (data.label === pending) {
+      setPendingTitle(nodeId, null);
+      return undefined;
+    }
+    const t = window.setTimeout(() => setPendingTitle(nodeId, null), PENDING_TITLE_MS);
+    return () => window.clearTimeout(t);
+  }, [nodeId, pending, data.label, setPendingTitle]);
   const Icon = getNodeIcon(data.kind);
   const surface = pickSurface(data);
   const border = pickBorder(data);
@@ -310,14 +329,18 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
               overflowWrap: 'anywhere',
               lineHeight: '18px',
               flex: 1,
+              position: 'relative',
             }}
             data-node-title=""
           >
-            {data.label}
+            {/* while the rename field is open the text stays, hidden, so the box does not change */}
+            <span style={renaming ? { visibility: 'hidden' } : undefined}>{shown}</span>
+            {renaming && nodeId ? <RenameField id={nodeId} label={data.label} /> : null}
           </span>
           {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
           {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
           {data.drift ? <DriftMark drift={data.drift} /> : null}
+          {props.headerAction}
           {showPip && data.health ? (
             <div
               style={{

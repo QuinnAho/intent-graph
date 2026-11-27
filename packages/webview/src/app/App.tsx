@@ -11,6 +11,9 @@ import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
+import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-edit-actions.js';
+import { directKey } from './direct-edit-model.js';
+import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
@@ -104,6 +107,33 @@ function onSelectionChange(changes: NodeChange[]): void {
   s.setGraph(applyNodeChanges(select, [...s.nodes] as Node[]), s.edges);
 }
 
+// F2 renames, Enter opens details, the menu key opens the menu. read in the capture phase,
+// so a node that the same Enter is about to select is not yet selected when this looks.
+function useDirectEditKeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"]') != null;
+      const ui = useUiStore.getState();
+      const picked = pickEditNode(useGraphStore.getState().nodes);
+      const action = directKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, selectedKind: picked?.type ?? null, write: ui.editConfig.write }, e);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'rename' && picked) renameNode(picked.id);
+      else if (action === 'details' && picked) openDetails(picked.id);
+      else if (action === 'menu') {
+        if (picked && picked.type) {
+          const el = Array.from(document.querySelectorAll('.react-flow__node')).find((n) => n.getAttribute('data-id') === picked.id);
+          const r = el?.getBoundingClientRect();
+          openNodeMenu(picked.id, picked.type, { x: (r?.left ?? 0) + MENU_TUNING.nodeInset, y: (r?.top ?? 0) + MENU_TUNING.nodeInset });
+        } else openPaneMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+}
+
 // the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
 const SHELL_STYLE: CSSProperties = {
   position: 'absolute',
@@ -168,6 +198,7 @@ export function App(): JSX.Element {
   }, [nodes, pendingSelect]);
 
   useLiveUpdates(live);
+  useDirectEditKeys();
   const handleNodesChange = useCallback(onSelectionChange, []);
 
   if (status === 'error' && errorMessage) {

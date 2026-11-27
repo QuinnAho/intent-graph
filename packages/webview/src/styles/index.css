@@ -4,3 +4,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* a visible ring on everything the keyboard can reach */
+.react-flow__node:focus-visible { outline: none; }
+.react-flow__node:focus-visible .ig-node-body { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 2px; }
+.ig-add-intent:hover { background: rgba(120, 169, 255, 0.2) !important; }
+.ig-add-intent:focus-visible, [data-edit-panel] button:focus-visible, [data-create-form] button:focus-visible, [data-edit-panel] input:focus-visible, [data-edit-panel] textarea:focus-visible, [data-create-form] input:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 1px; }
+[data-context-menu]:focus-visible { outline: none; }

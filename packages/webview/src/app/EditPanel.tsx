@@ -12,6 +12,7 @@ import { DriftMark, StatusMark, type CheckStatus, type DriftInfo } from '../grap
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
+import { escapeLayer } from './direct-edit-model.js';
 import { isDirty, isSaveKey, kindsProblem, pickEditNode, titleProblem, toggleKind, type Draft } from './edit-model.js';
 import { CREATE_TUNING } from './edit-tuning.js';
 import { PANEL_TUNING } from '../graph/view-tuning.js';
@@ -89,6 +90,12 @@ function NoteBox(props: { note: Note }): JSX.Element | null {
       {text}
     </div>
   );
+}
+
+// whether a menu or a rename field is open right now
+function openLayers(): { menuOpen: boolean; renameOpen: boolean } {
+  const ui = useUiStore.getState();
+  return { menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null };
 }
 
 function clearSelection(): void {
@@ -214,7 +221,30 @@ function NodeEditor(props: { node: Node }): JSX.Element {
     void load(false);
   };
 
-  useEditKeys(() => void save(), cancel);
+  // Esc undoes unsaved text first, then closes the panel. a menu or a rename field on top takes it first.
+  const escape = (): void => {
+    const layer = escapeLayer({ ...openLayers(), createOpen: false, panelOpen: true, panelDirty: dirtyRef.current });
+    if (layer === 'panel-revert') cancel();
+    else if (layer === 'panel-close') clearSelection();
+  };
+  useEditKeys(() => void save(), escape);
+
+  // the canvas knows whether this panel holds unsaved text, so a rename keeps it
+  useEffect(() => {
+    useUiStore.getState().setPanelDirtyId(dirty ? node.id : null);
+    return () => useUiStore.getState().setPanelDirtyId(null);
+  }, [dirty, node.id]);
+
+  // F2 with unsaved text, Enter and "Edit details" put the cursor in the title
+  const titleField = useRef<HTMLInputElement>(null);
+  const focusId = useUiStore((s) => s.panelFocusId);
+  useEffect(() => {
+    if (focusId !== node.id || !canEdit || !titleField.current) return;
+    titleField.current.focus();
+    titleField.current.select();
+    useUiStore.getState().setPanelFocusId(null);
+  }, [focusId, canEdit, node.id]);
+  useEffect(() => () => useUiStore.getState().setPanelFocusId(null), [node.id]);
 
   const onSubmit = (e: FormEvent): void => {
     e.preventDefault();
@@ -234,7 +264,7 @@ function NodeEditor(props: { node: Node }): JSX.Element {
           <>
             <label style={LABEL}>
               Title
-              <input data-edit-title="" style={FIELD} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+              <input ref={titleField} data-edit-title="" style={FIELD} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
             </label>
             <label style={LABEL}>
               Body
@@ -380,7 +410,12 @@ function CreateForm(props: { parent: string }): JSX.Element {
     close();
   };
 
-  useEditKeys(() => void create(), close);
+  useEditKeys(
+    () => void create(),
+    () => {
+      if (escapeLayer({ ...openLayers(), createOpen: true, panelOpen: false, panelDirty: false }) === 'create') close();
+    },
+  );
 
   const onSubmit = (e: FormEvent): void => {
     e.preventDefault();
