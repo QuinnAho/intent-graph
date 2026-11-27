@@ -173,3 +173,41 @@ Vague: skill/src/mcp (title reads as working tools, the body says the handlers a
 | webview/src/store | Shows the person which spec files were rejected, since a rejected file has no graph node | none | none | right |
 | webview/src/store | Planned: shows drift events and in-flight task progress in the webview | none | none | right |
 | webview/src/transport | The webview shows the live graph and sends edits to the server in the order made | none | none | right |
+
+### After the fix
+
+A review found five faults and each is fixed with a test. Full run on this repo with the fixed prompt (p3), the model run once for all 42 folders:
+
+- 66 proposals from 42 folders, 0 errors, 0 anchors dropped.
+- 21 are planned (every file they cite is a placeholder). The script works this out from the stub marking, not from the model, and puts "Planned: " on the front of a planned title and body when the model left it off.
+- 6 of 235 anchors are a bare path. All six are files with no top-level symbol (index barrels and one type re-export file), which is allowed.
+- 14 proposals name a restated intent, up from 9. The proposal for skill/src/db/utils now names intent-graph-state-survives-crashes.
+- No prompt is over 12,000 characters, the cut note included (tested by a sweep of folder sizes).
+- The cache key now also covers the declared ids and titles and a hash of the prompt. A change in code comments or formatting alone still costs nothing.
+- Cost of the whole-repo run: $0.0614. All model runs in this fix together: about $0.13.
+
+The 21 planned proposals, by folder and title:
+
+- packages/extension/src/codelens | Planned: Developers will see intent and obligation hints inline in their source files
+- packages/extension/src/controllers | Planned: VS Code users will reach IntentGraph's commands, drift inbox, and main panel
+- packages/extension/src/diagnostics | Planned: Drift events will show in the editor's Problems panel beside compiler errors
+- packages/extension/src/diff-provider | Planned: Users review proposed code patches in a side-by-side diff before applying
+- packages/extension/src/skill-process | Planned: the extension keeps its skill subprocess running and restarts it after crashes
+- packages/extension/src/statusbar | Planned: Developers see skill health and pending drift in their editor status bar
+- packages/extension/src/transport | Planned: the editor UI will reach the IntentGraph skill through typed messages
+- packages/skill/src/agent-runner | Planned: every model call is recorded in a trace with its concrete artifacts
+- packages/skill/src/agent-runner | Planned: model requests are sent to a cheaper or faster tier by task kind
+- packages/skill/src/graph | Planned: graph reads and writes will all pass through one traced, version-checked path
+- packages/skill/src/orchestrator | Planned: Concurrent agent runs cannot silently overwrite each other's graph changes
+- packages/skill/src/orchestrator | Planned: Each agent task is dispatched to the handler declared for its kind
+- packages/skill/src/retrieval | Planned: Users search graph nodes by meaning or keyword, and every query is logged
+- packages/skill/src/retrieval/embeddings | Planned: retrieval will embed code offline with Qwen3 or online with Voyage AI
+- packages/skill/src/trace | Planned: Graph state can be rebuilt from the event log with its hash chain verified
+- packages/skill/src/trace | Planned: Every trace entry is appended in a hash chain so tampering is detectable
+- packages/skill/src/trace | Planned: A cheap monitor model gates each commit and flags risky model activity
+- packages/skill/src/verifiers/builtin | Planned: type-shape obligations are checked against TypeScript compiler diagnostics
+- packages/skill/src/verifiers/plugins | Planned: Extra code verifiers will plug in over MCP so new checkers need no core changes
+- packages/skill/src/watcher | Planned: Code saved in the editor or changed on disk gets checked for drift automatically
+- packages/webview/src/editors | Planned: Users will edit intent text in a rich editor with typed links to graph items
+
+Every one of them starts with "Planned:". Some still use the present tense after the marker, and the marker is what tells the reader it is a plan.
