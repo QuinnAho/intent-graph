@@ -1,0 +1,4 @@
+{
+  "expect": "drift",
+  "about": "the loop keeps going while the last attempt failed, so retries are unbounded"
+}

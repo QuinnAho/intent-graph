@@ -1,0 +1,4 @@
+{
+  "expect": "drift",
+  "about": "the comparator is flipped, so the oldest item comes first"
+}

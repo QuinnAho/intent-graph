@@ -3,13 +3,13 @@ lane: live-graph
 branch: live-graph
 worktree: .wt/live-graph
 status: ready
-go: Quinn, 2026-11-27
+go: owner, 2026-11-27
 ---
 # Lane 1: live graph with status
 
-## Quinn's ask
+## The ask
 
-"Live graph with status": edit a `/spec` file and the graph updates in about 2 seconds, and nodes show verified, failed or pending from their linked tests. Quinn on direction: "I do think visual is the way to go for me personally". On reuse: "use the best things of open source stuff rather than rewrite from scratch, we can cherry pick".
+"Live graph with status": edit a `/spec` file and the graph updates in about 2 seconds, and nodes show verified, failed or pending from their linked tests. On direction: visual first. On reuse: use the best open source parts and cherry-pick, never rewrite from scratch.
 
 ## What exists (read these, not the whole tree)
 

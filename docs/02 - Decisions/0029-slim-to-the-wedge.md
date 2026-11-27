@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted. Decided by Quinn on 2026-11-27.
+Accepted. Decided by the owner on 2026-11-27.
 
 Parks ADR 0004 (agent orchestration through Inngest and AgentRunner). Supersedes ADR 0006, 0007, 0008, 0010, 0013 and 0014 (the Codex mirror, the Ralph loop and the Codex audit). Narrows ADR 0001 (the VS Code extension is deferred, the plugin comes first).
 
 ## Context
 
-The project stopped on 2026-05-20 with the static graph (L0) signed off and Phase 3 blocked on an MCP design. The May plan was sized for two or three senior engineers over 9 to 11 months. Quinn is one developer.
+The project stopped on 2026-05-20 with the static graph (L0) signed off and Phase 3 blocked on an MCP design. The May plan was sized for two or three senior engineers over 9 to 11 months. The owner is one developer.
 
 Research on 2026-11-27 (see `docs/03 - Research/2026-11-27 Direction - Approaches.md`) found:
 
@@ -17,17 +17,17 @@ Research on 2026-11-27 (see `docs/03 - Research/2026-11-27 Direction - Approache
 - Spec writing and task breakdown are crowded (Spec Kit, OpenSpec, Kiro, Traycer).
 - Nobody found ships typed intent, constraint and decision nodes with obligations bound to executable checks, or drift judged at the level of intent.
 
-Quinn's words:
+The owner's calls, paraphrased. The exact words are kept in the owner's private notes.
 
-- On direction: "we can slim refacotr is fine, however I do think visual is the way to go for me personally".
-- On Codex: "Drop Codex".
-- On the old loop: "yes cleanup that is not needed".
-- On reuse: "I would like to use the best things of open source stuff rather than rewrite from scratch, we can cherry pick".
+- On direction: slimming and refactoring is fine, and the product stays visual first.
+- On Codex: drop it.
+- On the old loop: clean up what is not needed.
+- On reuse: use the best open source parts and cherry-pick, never rewrite from scratch.
 
 ## Decision
 
 1. **The source of truth is the typed markdown under `/spec`.** One node per file: intent, constraint, concept, decision. SQLite stays a projection of those files and the code.
-2. **The graph is the main surface.** It shows the spec and the code it binds to, and it is where Quinn edits. A graph edit writes clean markdown, so `git diff` stays readable.
+2. **The graph is the main surface.** It shows the spec and the code it binds to, and it is where the owner edits. A graph edit writes clean markdown, so `git diff` stays readable.
 3. **Build obligations tied to real checks.** A node names the tests or commands that prove it. The graph shows verified, failed or pending per node.
 4. **Build an intent-level drift check.** When code changes, a model that did not write the change compares it with the linked nodes and says whether the intent still holds.
 5. **An agent never changes a spec by itself.** It proposes, and a human confirms.

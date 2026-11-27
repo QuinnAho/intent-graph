@@ -3,15 +3,15 @@ lane: visual-edit
 branch: visual-edit
 worktree: .wt/visual-edit
 status: ready, waits for lane 1 to merge
-go: Quinn, 2026-11-27
+go: owner, 2026-11-27
 ---
 # Lane 3: visual editing, first cut
 
-## Quinn's ask
+## The ask
 
-"Visual editing, first cut": create and edit an intent on the canvas, saved as clean markdown. Quinn judges it from frames before anything merges. On direction: "I do think visual is the way to go for me personally". On reuse: "use the best things of open source stuff rather than rewrite from scratch, we can cherry pick".
+"Visual editing, first cut": create and edit an intent on the canvas, saved as clean markdown. The owner judges it from frames before anything merges. On direction: visual first. On reuse: use the best open source parts and cherry-pick, never rewrite from scratch.
 
-This lane does not merge on a green gate. It ends with frames for Quinn.
+This lane does not merge on a green gate. It ends with frames for the owner.
 
 ## What exists (read these, not the whole tree)
 
@@ -34,7 +34,7 @@ This lane does not merge on a green gate. It ends with frames for Quinn.
 6. **Errors on screen**: an empty title, a title whose slug already exists, a conflict, or a refused write each show a plain message. Nothing is written.
 7. **An end-to-end script** `tools/e2e-edit.mjs` in the style of `tools/e2e-live.mjs`, on a temp copy of the fixture: prove acceptance checks 2 to 6 and save the frames listed below.
 
-## Frames to take (for Quinn)
+## Frames to take (for the owner)
 
 JPEG, 1280 wide, quality 82: the panel open on a node, the title being edited with the unsaved mark, the graph after the save, the create form, the graph with the new intent, and one error message.
 

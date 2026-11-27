@@ -1,0 +1,15 @@
+{
+  "constraint-no-direct-model-imports-outside-runner": ["eslint.config.mjs", "packages/skill/src/agent-runner/index.ts"],
+  "intent-agent-runs-are-traceable": ["packages/skill/src/agent-runner/trace-recorder.ts", "packages/shared/src/schemas/trace.ts", "packages/shared/src/types/trace.ts"],
+  "intent-graph-state-survives-crashes": ["packages/skill/src/db/init.ts#initDatabase", "packages/skill/src/db/client.ts"],
+  "constraint-occ-prevents-stale-writes": ["packages/skill/src/db/schema.ts"],
+  "constraint-event-log-projection-is-deterministic": ["packages/skill/src/verifiers/builtin/fast-check.ts"],
+  "intent-concurrent-agents-stay-consistent": ["packages/shared/src/schemas/lease.ts", "packages/skill/src/db/schema.ts"],
+  "intent-json-is-export-only": ["packages/skill/src/build-graph.ts#toGraphJson", "packages/webview/src/transport/graph-json-loader.ts", "packages/webview/vite.config.ts"],
+  "intent-example-graph-is-source-of-truth": ["packages/skill/src/build-graph.ts#writeToDatabase", "packages/skill/src/parser/spec-md/index.ts#parseSpecTree"],
+  "intent-code-changes-raise-drift": ["packages/skill/src/parser/tree-sitter.ts", "packages/skill/src/parser/grammar-registry.ts", "packages/skill/src/parser/cache.ts", "packages/skill/src/parser/diff/ladder.ts"],
+  "intent-example-drift-is-detectable": ["packages/skill/src/parser/error-nodes.ts", "packages/skill/src/verifiers/builtin/coverage.ts"],
+  "intent-one-skill-three-clients": ["packages/skill/src/mcp/server.ts"],
+  "intent-monitor-gates-every-commit": ["packages/skill/src/trace/monitor-llm.ts"],
+  "intent-developers-stay-in-their-editor": ["packages/extension/src/extension.ts", "packages/webview/src/app/App.tsx"]
+}
