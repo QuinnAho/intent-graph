@@ -3,7 +3,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import { describe, expect, it } from 'vitest';
 
-import { boxUnder, changeNotice, deletableWire, dropOutcome, endsOf, isUndoKey, whyNotParent } from '../src/graph/wire-edit-model.js';
+import { boxUnder, changeNotice, deletableWire, dropOutcome, endsOf, isUndoKey, lightedBox, whyNotParent } from '../src/graph/wire-edit-model.js';
 
 const n = (id: string, type: string, parentId?: string): Node => ({ id, type, position: { x: 0, y: 0 }, data: { label: id.toUpperCase() }, ...(parentId ? { parentId } : {}) });
 const e = (source: string, target: string, kind = 'realizes'): Edge => ({ id: `${source}>${target}`, source, target, data: { kind } });
@@ -64,5 +64,20 @@ describe('wire edit rules', () => {
     expect(isUndoKey(k, true)).toBe(false);
     expect(isUndoKey({ ...k, shiftKey: true }, false)).toBe(false);
     expect(isUndoKey({ ...k, key: 'y' }, false)).toBe(false);
+  });
+});
+
+describe('the box that lights up under a held node', () => {
+  it('lights a concept box that would take the node, and nothing else', () => {
+    expect(lightedBox(ends, 'constraint-k', 'concept-b', true)).toBe('concept-b');
+    expect(lightedBox(ends, 'intent-x', 'concept-b', true)).toBe('concept-b');
+    // its own box, a refused pair and no box light nothing
+    expect(lightedBox(ends, 'intent-x', 'concept-a', true)).toBeNull();
+    expect(lightedBox(ends, 'concept-a', 'concept-inner', true)).toBeNull();
+    expect(lightedBox(ends, 'intent-x', null, true)).toBeNull();
+  });
+
+  it('lights nothing in read only mode', () => {
+    expect(lightedBox(ends, 'intent-x', 'concept-b', false)).toBeNull();
   });
 });

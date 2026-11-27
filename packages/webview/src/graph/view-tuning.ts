@@ -114,10 +114,10 @@ export const WIRE_EDIT_TUNING = {
   dragThresholdPx: 5,
   // how near a pin a dragged wire snaps to it, px
   connectRadiusPx: 28,
-  // how long the notice after a change stays up, ms
-  noticeMs: 8000,
+  // how long a notice stays up, ms. it also goes on the next click or key
+  noticeMs: 6000,
   // a graph update waits this long at most for a held node to be let go, ms
   dragHoldMaxMs: 15000,
   // a refused drop's notice is shorter, it has no button, ms
-  refusedNoticeMs: 5000,
+  refusedNoticeMs: 6000,
 } as const;

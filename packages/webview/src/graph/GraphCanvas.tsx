@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 
 import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
 import { changeParent, refuseEdit } from '../app/wire-edit-actions.js';
-import { boxUnder, dropOutcome, endsOf, whyNotParent, type Box } from './wire-edit-model.js';
+import { boxUnder, dropOutcome, endsOf, lightedBox, whyNotParent, type Box } from './wire-edit-model.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { SPEC_KINDS } from '../transport/live-source.js';
 import { ContextMenu } from './ContextMenu.js';
@@ -36,6 +36,7 @@ import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
 import { dragHold } from './drag-hold.js';
+import { calmHoverUntilMove } from './drop-calm.js';
 import { EDIT_TIMING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
@@ -188,6 +189,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   // where a dragged node is drawn while the pointer holds it. dropping clears it, so the node
   // goes back to its laid-out place and only a write followed by a live update moves it for good.
   const [dragAt, setDragAt] = useState<{ id: string; position: XYPosition } | null>(null);
+  // the concept box a held node would land in, lit while it is over it
+  const [dropBox, setDropBox] = useState<string | null>(null);
   const ends = useMemo(() => endsOf(nodes, edges), [nodes, edges]);
   const rfRef = useRef<ReactFlowInstance | null>(null);
 
@@ -210,11 +213,12 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         out.zIndex = WIRE_TUNING.zNode + 1;
         out.className = 'ig-held';
       }
+      if (dropBox === n.id) out.className = 'ig-drop-ok';
       if (connectFrom && connectFrom !== n.id) out.className = whyNotParent(ends, connectFrom, n.id) === null ? 'ig-drop-ok' : 'ig-drop-dim';
       else if (connectFrom === n.id) out.className = 'ig-drop-from';
       return out;
     });
-  }, [nodes, dragAt, connectFrom, ends]);
+  }, [nodes, dragAt, connectFrom, dropBox, ends]);
 
   // only position changes of the held node are kept here, the rest go to the store as before
   const handleNodesChange = useCallback<OnNodesChange>(
@@ -232,7 +236,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   // so it is right while the view pans under a held node and while a graph update has the nodes
   // hidden for a moment (a hit test skips them, their rects stay true)
   const boxAt = useCallback(
-    (event: MouseEvent, dragged: string): { box: string | null } => {
+    (event: { clientX: number; clientY: number }, dragged: string): { box: string | null } => {
       const boxes: Box[] = [];
       for (const nodeEl of document.querySelectorAll('.react-flow__node')) {
         const id = nodeEl.getAttribute('data-id');
@@ -245,9 +249,19 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     [ends],
   );
   const handleDragStart = useCallback((): void => dragHold.begin(), []);
+  // while a node is held, light the box it would land in. the pointer is read on the window,
+  // so this follows a pan under the pointer too
+  const heldId = dragAt?.id ?? null;
+  useEffect(() => {
+    if (!heldId) return undefined;
+    const onMove = (e: PointerEvent): void => setDropBox(lightedBox(ends, heldId, boxAt(e, heldId).box, write));
+    window.addEventListener('pointermove', onMove, true);
+    return () => window.removeEventListener('pointermove', onMove, true);
+  }, [heldId, ends, boxAt, write]);
   const handleDragStop = useCallback(
     (event: MouseEvent, node: Node): void => {
       setDragAt(null);
+      setDropBox(null);
       const at = boxAt(event, node.id);
 
       const outcome = dropOutcome(ends, node.id, at.box);
@@ -255,6 +269,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       else if (outcome.kind === 'move') void changeParent(node.id, outcome.parent);
       // the request is on its way, a graph update held back during the drag may land now
       dragHold.end();
+      calmHoverUntilMove();
     },
     [boxAt, ends],
   );
@@ -276,6 +291,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     (event: globalThis.MouseEvent | TouchEvent, state: FinalConnectionState): void => {
       const from = connectFromRef.current;
       setConnectFrom(null);
+      calmHoverUntilMove();
       if (!from || state.isValid) return;
       const p = 'changedTouches' in event ? event.changedTouches[0] : event;
       if (!p) return;

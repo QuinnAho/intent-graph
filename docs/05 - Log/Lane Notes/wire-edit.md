@@ -90,7 +90,11 @@ Which kind may have which parent (from the spec kind readmes and the files that 
 - Concept boxes do not drag. Dragging one would carry everything inside it along.
 - Right-click no longer selects the node, so the panel and the view shift stay out of it (scope step 9). The lane 7 check "Esc closes the menu first, the panel after" now opens the panel with a click first and then right-clicks. The check itself is unchanged.
 - Found while testing: on Windows a rename over a spec file failed with EPERM while another process held the file. That crashed the server. Writes now retry the rename a few times (`renameRetries` and `renameRetryMs` in write-tuning), and a request that throws answers 500 instead of stopping the server.
-- Left undone: lighting the concept box a held node would land in. Its drag handler never fired in the e2e run, so the feature and its check were taken out.
+- Earlier, lighting the concept box a held node would land in was left undone. It is done in the fix round below.
+- Fix round after the independent check. Loop: every write the server makes (save, create, parent, undo) runs one at a time in arrival order, and the loop check walks `parent` read from the spec files on disk at that moment (`parentsOnDisk`), not the cached graph. A loop already on disk shows as one problem naming its files, and the page draws those nodes at top level so nothing recurses.
+- Fix round: a bare `parent:` line gets a space before the new value (`setKey` in the writer). Why a file with no `parent` key is not a node: ADR 0009 makes `parent` a required key, the frontmatter schema fails without it, so the file is a problem and gets no node, and the endpoint answers 404 not in this graph.
+- Fix round: the page sends every write through one line (`transport/write-queue.ts`). The move after a rename was lost because a graph update landed while the node was held, the hit test at the pointer found no box, and the drop counted as empty canvas. The drop now reads the rects of the drawn nodes, and a graph update waits while a node is held (`graph/drag-hold.ts`).
+- Fix round: the box a held node would land in lights up (it was left undone above). Nothing lights in read only mode. Notices sit in a strip under the canvas, one at a time, and go after 6 seconds or on the next click or key. The rename hover hint stays off after a drop until the pointer moves.
 
 ## Results
 

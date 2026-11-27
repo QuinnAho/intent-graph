@@ -120,3 +120,9 @@ export function changeNotice(ends: Ends, child: string, parent: string | null, w
 export function isUndoKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }, typing: boolean): boolean {
   return !typing && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z';
 }
+
+/** the box to light while a node is held over it: only a box that would take the node, and never in read only mode */
+export function lightedBox(ends: Ends, dragged: string, box: string | null, write: boolean): string | null {
+  if (!write || !box) return null;
+  return dropOutcome(ends, dragged, box).kind === 'move' ? box : null;
+}

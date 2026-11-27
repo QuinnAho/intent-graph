@@ -35,3 +35,7 @@
 .react-flow__node.draggable { cursor: grab; }
 .react-flow__node.dragging { cursor: grabbing; }
 .ig-notice-undo:focus-visible { outline: 3px solid #cfe0ff; outline-offset: 2px; }
+/* a node that was lit goes back at once, a fade would leave an outline behind a refused drop */
+.react-flow__node > div > .ig-node-body { transition: opacity 180ms ease !important; }
+/* no input-looking highlight on a title right after a drop */
+body.ig-after-drop [data-node-title][data-renamable]:hover { background-color: transparent; box-shadow: none; }

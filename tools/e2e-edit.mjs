@@ -324,12 +324,27 @@ async function wireChecks(page, w, nodeSel) {
   await dragMouse(page, grab, await centreOf(page, nodeSel('concept-shapes')), {
     hold: async () => {
       await page.waitForTimeout(150);
+      // the box that would take the node is lit while the node is over it
+      const lit = await page.evaluate(() => [...document.querySelectorAll('.react-flow__node.ig-drop-ok')].map((n) => n.getAttribute('data-id')));
+      if (lit.join() !== 'concept-shapes') await fail(`the box under a held node is not the one lit: ${JSON.stringify(lit)}`);
       await page.screenshot({ path: join(runDir, 'wire-3-moving-into-concept.jpg'), ...FRAME });
     },
   });
   await expectParentOnly(gfile, g0, 'concept-shapes');
+  await page.waitForTimeout(700);
+  const lingerLit = await page.evaluate(() => document.querySelectorAll('[class*="ig-drop-"]').length);
+  if (lingerLit !== 0) await fail(`${lingerLit} nodes still lit after a move`);
+  const titleShadow = await page.evaluate(() => getComputedStyle(document.querySelector('.react-flow__node[data-id="concept-shapes"] [data-node-title]')).boxShadow);
+  if (titleShadow !== 'none') await fail(`the target concept's title still has a highlight after a move: ${titleShadow}`);
+  await page.screenshot({ path: join(runDir, 'wire-5-after-move.jpg'), ...FRAME });
   const n3 = await noticeOf(page);
   if (!/^Moved .+ into Shapes\./.test(n3?.text ?? '') || !n3.undo) await fail(`move notice is ${JSON.stringify(n3)}`);
+  // the notice sits in the strip under the canvas and covers no node
+  const noticeBox = await page.locator('[data-notice]').boundingBox();
+  const canvasBottom = await page.evaluate(() => document.querySelector('.react-flow').getBoundingClientRect().bottom);
+  if (!noticeBox || noticeBox.y < canvasBottom - 1) await fail(`the notice is not under the canvas: ${JSON.stringify(noticeBox)} canvas bottom ${canvasBottom}`);
+  await page.screenshot({ path: join(runDir, 'wire-6-notice-strip.jpg'), ...FRAME });
+  if ((await page.locator('[data-notice]').count()) !== 1) await fail('more than one notice on screen');
   await page.waitForTimeout(300);
   await page.locator('[data-notice-undo]').click();
   await expectBytes(gfile, g0, 'undo of a move');
@@ -470,7 +485,21 @@ async function readOnlyWireChecks(rpage, r, nodeSel) {
   });
   const gid = 'intent-greets-by-name';
   const before = await rpage.locator(nodeSel(gid)).boundingBox();
-  await dragMouse(rpage, { x: before.x + 40, y: before.y + 14 }, { x: before.x + 240, y: before.y + 160 });
+  const concept = await centreOf(rpage, nodeSel('concept-calculator'));
+  await dragMouse(rpage, { x: before.x + 40, y: before.y + 14 }, { x: before.x + 240, y: before.y + 160 }, {
+    hold: async () => {
+      if ((await rpage.locator('[class*="ig-drop-"]').count()) !== 0) await fail('something lit up while a node was dragged on a read-only page');
+    },
+  });
+  // and over the middle of a concept box, where a writable page lights it
+  await rpage.waitForTimeout(600);
+  const before2 = await rpage.locator(nodeSel(gid)).boundingBox();
+  await dragMouse(rpage, { x: before2.x + 40, y: before2.y + 14 }, concept, {
+    hold: async () => {
+      await rpage.waitForTimeout(150);
+      if ((await rpage.locator('[class*="ig-drop-"]').count()) !== 0) await fail('a concept box lit up under a dragged node on a read-only page');
+    },
+  });
   await rpage.waitForTimeout(400);
   const after = await rpage.locator(nodeSel(gid)).boundingBox();
   if (Math.abs(after.x - before.x) > 1 || Math.abs(after.y - before.y) > 1) await fail('a dragged node did not go back on a read-only page');

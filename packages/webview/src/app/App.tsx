@@ -254,8 +254,8 @@ export function App(): JSX.Element {
         clearPanelFor={editNodeId}
       />
       <EditPanel />
-      <Notice />
       </div>
+      <Notice />
       <ProblemsPanel />
     </div>
   );
