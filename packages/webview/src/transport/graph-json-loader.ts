@@ -41,6 +41,7 @@ interface GraphJsonNode {
   readonly parent_id: string | null;
   // set by the live server (packages/skill/src/live/compose.ts)
   readonly status?: 'verified' | 'failed' | 'pending';
+  readonly status_reasons?: ReadonlyArray<string>;
   readonly warnings?: ReadonlyArray<string>;
 }
 
@@ -174,6 +175,7 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
       confidence: n.confidence,
     };
     if (n.status !== undefined) baseData['checkStatus'] = n.status;
+    if (n.status_reasons !== undefined && n.status_reasons.length > 0) baseData['statusReasons'] = n.status_reasons;
     if (n.warnings !== undefined && n.warnings.length > 0) baseData['warnings'] = n.warnings;
     const node: Node = {
       id: n.id,

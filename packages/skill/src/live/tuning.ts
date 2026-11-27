@@ -12,6 +12,8 @@ export const LIVE_TUNING = {
   keepAliveMs: 15_000,
   // browser reconnect delay sent in the sse retry field
   retryMs: 1000,
+  // largest json body a save or create may send
+  maxRequestBytes: 256 * 1024,
 } as const;
 
 export type LiveTuning = { readonly [K in keyof typeof LIVE_TUNING]: number };
