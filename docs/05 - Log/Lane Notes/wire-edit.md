@@ -66,8 +66,35 @@ Stop and report after 50 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
-(the builder fills this in)
+- Writer: reused `setKey`, `trailingComment` and the parse-again check in `writer.ts`. The parent edit is one more key on the same path as the title edit, no new yaml code.
+- Server: reused `checkWriteRequest`, `isInsideSpec`, `writeSpecFileAtomic` and `hashSpecSource`. New: `live/parent-rules.ts` (table and loop check) and `live/undo-log.ts`.
+- Page: React Flow 12.10.2 built-ins only, checked in the installed types: `onConnectStart`, `onConnect`, `onConnectEnd` (with `FinalConnectionState`), `isValidConnection`, `connectionRadius`, `onNodeDragStop`, `nodeDragThreshold`, `selectNodesOnDrag`, `onEdgeClick`, `onEdgeContextMenu`, `deleteKeyCode={null}`. Reused the lane 7 right-click menu for "Delete wire".
 
 ## Builder notes
 
+Which kind may have which parent (from the spec kind readmes and the files that exist):
+
+| kind | parent may be |
+|---|---|
+| intent | concept |
+| constraint | intent or concept |
+| decision | intent or concept |
+| concept | concept (nesting), or none |
+| code nodes | never a child, never a parent |
+
+- Removing a parent writes `parent: null`. ADR 0009 makes `parent` a required key, so deleting the line would break the file.
+- The page and the server each hold the table: `graph/wire-edit-model.ts` decides what lights up, `live/parent-rules.ts` decides what is written. Change both together.
+- A connect sends the parent the page saw as `from`. If the file moved on since, the server answers 409 and writes nothing.
+- Undo keeps the bytes before each write and the hash after it. It refuses when the file's hash no longer matches.
+- Drag a wire from a node's right pin. A drop on the left pin or anywhere on a node's body counts. The node's current parent dims, since dropping there changes nothing.
+- Concept boxes do not drag. Dragging one would carry everything inside it along.
+- Right-click no longer selects the node, so the panel and the view shift stay out of it (scope step 9). The lane 7 check "Esc closes the menu first, the panel after" now opens the panel with a click first and then right-clicks. The check itself is unchanged.
+- Found while testing: on Windows a rename over a spec file failed with EPERM while another process held the file. That crashed the server. Writes now retry the rename a few times (`renameRetries` and `renameRetryMs` in write-tuning), and a request that throws answers 500 instead of stopping the server.
+- Left undone: lighting the concept box a held node would land in. Its drag handler never fired in the e2e run, so the feature and its check were taken out.
+
 ## Results
+
+- `node tools/verify.mjs all`: PASS all, 356 tests in 43 files (was 329 in 40).
+- New tests: `spec-writer-parent.test.ts`, `live-parent-edit.test.ts` (skill) and `wire-edit.test.ts` (webview). They failed first and pass now.
+- `tools/e2e-edit.mjs` new lines: `ok wires` (right-click opens only the menu, a constraint wired to an intent, the wire deleted with Delete and with the menu, an intent moved into another concept, two snap-backs, a refused drop, a drop on empty canvas, each change undone byte for byte, direct requests refused 422 x5 and 403 without the token) and `ok read-only wires`.
+- Frames: `.runs/e2e-edit/<stamp>/wire-1-dragging-valid-lit.jpg`, `wire-2-notice-undo.jpg`, `wire-3-moving-into-concept.jpg`, `wire-4-refused-drop.jpg`.

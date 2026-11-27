@@ -6,6 +6,9 @@ import { useReactFlow, type FitViewOptions } from '@xyflow/react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { addIntentTo, focusNode, openDetails, renameNode } from '../app/direct-edit-actions.js';
+import { currentEnds, deleteWire } from '../app/wire-edit-actions.js';
+import { NOT_A_PARENT_WIRE, deletableWire } from './wire-edit-model.js';
+import { useGraphStore } from '../store/graph-slice.js';
 import { clampMenu, menuItems, stepMenu, type MenuItem } from '../app/direct-edit-model.js';
 import { MENU_TUNING } from '../app/direct-edit-tuning.js';
 import { useUiStore } from '../store/ui-slice.js';
@@ -50,7 +53,9 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
-  const items: MenuItem[] = menu ? menuItems(menu.kind, { write: config.write, reason: config.readOnlyReason }) : [];
+  const wire = useGraphStore((s) => (menu?.wireId ? s.edges.find((e) => e.id === menu.wireId) : undefined));
+  const wireRefusal = menu?.kind === 'wire' && (!wire || !deletableWire(wire, currentEnds())) ? NOT_A_PARENT_WIRE : null;
+  const items: MenuItem[] = menu ? menuItems(menu.kind, { write: config.write, reason: config.readOnlyReason }, wireRefusal) : [];
   const nodeId = menu?.nodeId ?? null;
 
   // measure, then place inside the window before the first paint
@@ -88,6 +93,9 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
     if (item.disabled) return;
     closeMenu();
     if (item.id === 'fit-view') void rf.fitView(props.fitViewOptions);
+    else if (item.id === 'delete-wire') {
+      if (menu.wireId) deleteWire(menu.wireId);
+    }
     else if (nodeId === null) return;
     else if (item.id === 'rename') renameNode(nodeId);
     else if (item.id === 'edit-details') openDetails(nodeId);
@@ -126,6 +134,7 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
       tabIndex={-1}
       data-context-menu={menu.kind ?? 'pane'}
       aria-label={menu.kind ? `${menu.kind} menu` : 'canvas menu'}
+      {...(menu.wireId ? { 'data-menu-wire': menu.wireId } : {})}
       {...(items[active] ? { 'aria-activedescendant': `ig-menu-${items[active].id}` } : {})}
       style={{ ...BOX, left: at?.x ?? menu.x, top: at?.y ?? menu.y, visibility: at ? 'visible' : 'hidden' }}
       onKeyDown={onKeyDown}

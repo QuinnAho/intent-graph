@@ -235,8 +235,9 @@ function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Element {
   );
 }
 
-// one input pin west, one output pin east. not connectable until editing exists.
-function Pins(): JSX.Element {
+// one input pin west, one output pin east. on a spec node a wire starts at the output pin and ends
+// at an input pin, and only when the canvas takes connections (writes on). code pins never connect.
+function Pins(props: { spec: boolean }): JSX.Element {
   const id = useNodeId();
   const info = useContext(PinContext).get(id ?? '');
   const inSide = info?.in ?? EMPTY_SIDE;
@@ -245,8 +246,17 @@ function Pins(): JSX.Element {
   const outLabel = pinLabel(outSide.hidden);
   return (
     <>
-      <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
-      <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+      {props.spec ? (
+        <>
+          <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} style={{ ...pinStyle(inSide), pointerEvents: 'auto' }} title="Drop a wire here to hang it under this node" />
+          <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} style={{ ...pinStyle(outSide), pointerEvents: 'auto' }} title="Drag from here to hang this node under another" />
+        </>
+      ) : (
+        <>
+          <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
+          <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+        </>
+      )}
       {inLabel ? <PinCount side="in" label={inLabel} /> : null}
       {outLabel ? <PinCount side="out" label={outLabel} /> : null}
     </>
@@ -290,7 +300,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
         overflow: 'visible',
       }}
     >
-      {showHandles ? <Pins /> : null}
+      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind)} /> : null}
       <div
         className="ig-node-body"
         style={{

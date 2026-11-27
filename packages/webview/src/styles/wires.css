@@ -3,3 +3,35 @@
   border-color: rgba(120, 169, 255, 0.85) !important;
   box-shadow: 0 0 0 1px rgba(120, 169, 255, 0.55), 0 10px 24px rgba(120, 169, 255, 0.14) !important;
 }
+
+/* editing by wire: while a wire is dragged the nodes that can take it light up, the rest dim */
+.react-flow__node.ig-drop-ok > div > .ig-node-body {
+  border-color: rgba(86, 211, 100, 0.95) !important;
+  box-shadow: 0 0 0 2px rgba(86, 211, 100, 0.55), 0 0 22px rgba(86, 211, 100, 0.22) !important;
+}
+.react-flow__node.ig-drop-ok .react-flow__handle[data-handlepos='left'] {
+  transform: translate(-50%, -50%) scale(1.5);
+  background: rgb(86, 211, 100) !important;
+  border-color: rgb(86, 211, 100) !important;
+}
+.react-flow__node.ig-drop-dim { opacity: 0.32; transition: opacity 0.12s ease; }
+.react-flow__node.ig-drop-from > div > .ig-node-body {
+  border-color: rgba(120, 169, 255, 0.95) !important;
+}
+/* the wire being dragged */
+.react-flow__connection-path {
+  stroke: rgb(120, 169, 255);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 5;
+}
+.react-flow__connection.valid .react-flow__connection-path { stroke: rgb(86, 211, 100); stroke-dasharray: none; }
+/* a pin that starts a wire says so under the pointer */
+.react-flow__handle.connectablestart { cursor: crosshair; }
+.react-flow__handle.connectablestart:hover { transform: translate(50%, -50%) scale(1.5); }
+/* a node held by the pointer floats above the rest */
+.react-flow__node.ig-held > div > .ig-node-body {
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(120, 169, 255, 0.7) !important;
+}
+.react-flow__node.draggable { cursor: grab; }
+.react-flow__node.dragging { cursor: grabbing; }
+.ig-notice-undo:focus-visible { outline: 3px solid #cfe0ff; outline-offset: 2px; }

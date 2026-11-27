@@ -160,6 +160,277 @@ function changedLines(a, b) {
   return out;
 }
 
+// lane 8 helpers: real mouse drags, a file that must change in exactly the parent and updated lines
+const centreOf = async (page, sel) => {
+  const b = await page.locator(sel).first().boundingBox();
+  if (!b) await fail(`${sel} is not on screen`);
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+};
+async function dragMouse(page, from, to, { hold } = {}) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  const steps = 16;
+  for (let i = 1; i <= steps; i++) await page.mouse.move(from.x + ((to.x - from.x) * i) / steps, from.y + ((to.y - from.y) * i) / steps);
+  if (hold) await hold();
+  await page.mouse.up();
+}
+async function waitForFile(file, test, ms = 4000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const t = readFileSync(file, 'utf8');
+    if (test(t)) return t;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+// the screen point half way along a drawn wire, where a click lands on it
+const wireMid = (page, src, dst) => page.evaluate(([s, d]) => {
+  const g = document.querySelector(`[data-wire-src="${s}"][data-wire-dst="${d}"]`);
+  const p = g?.querySelector('path.react-flow__edge-path') ?? g?.querySelector('path');
+  if (!p) return null;
+  const pt = p.getPointAtLength(p.getTotalLength() / 2);
+  const m = p.getScreenCTM();
+  return { x: m.a * pt.x + m.c * pt.y + m.e, y: m.b * pt.x + m.d * pt.y + m.f };
+}, [src, dst]);
+const pinSel = (nodeSel, id, side) => `${nodeSel(id)} .react-flow__handle[data-handlepos="${side}"]`;
+const noticeOf = (page) => page.evaluate(() => {
+  const n = document.querySelector('[data-notice]');
+  return n ? { tone: n.getAttribute('data-notice'), text: n.textContent, undo: !!n.querySelector('[data-notice-undo]') } : null;
+});
+async function expectParentOnly(file, before, parent) {
+  const after = await waitForFile(file, (t) => t !== before && t.includes(`parent: ${parent}`));
+  if (!after) await fail(`${file} did not get parent: ${parent}`);
+  // every line but parent and updated, with its line ending, stays as it was
+  const rest = (t) => t.split('\n').filter((l) => !/^(parent|updated):/.test(l)).join('\n');
+  if (rest(after) !== rest(before)) await fail(`the parent change moved other lines: ${JSON.stringify(changedLines(before, after).slice(0, 4))}`);
+  return after;
+}
+async function expectBytes(file, want, what) {
+  if (!(await waitForFile(file, (t) => t === want))) await fail(`${what}: the file is not byte for byte as before`);
+}
+
+async function graphHas(s, needle, ms = 10000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if ((await (await fetch(`${s.url}graph.json`)).text()).includes(needle)) return true;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return false;
+}
+
+async function wireChecks(page, w, nodeSel) {
+  // a second concept to move into, written straight into the workspace the way a person would
+  writeFileSync(join(w.work, 'spec', 'concepts', 'shapes.md'), '---\nid: concept-shapes\ntitle: Shapes\nparent: null\nconfidence: asserted\n---\n\n# Shapes\n\nA second box for the move checks.\n');
+  if (!(await graphHas(w, 'concept-shapes'))) await fail('the live graph never showed the new concept');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  await page.mouse.click(200, 300, { button: 'right' });
+  await page.locator('[data-menu-item="fit-view"]').click();
+  await page.waitForTimeout(700);
+  await page.locator(nodeSel('concept-shapes')).waitFor({ timeout: 5000 });
+  const done = [];
+
+  // a right-click opens the menu and nothing else: no panel, no view shift
+  const viewOf = () => page.evaluate(() => document.querySelector('.react-flow__viewport').style.transform);
+  if ((await page.locator('[data-edit-panel]').count()) !== 0) await page.locator('[data-edit-panel] button[aria-label="Close panel"]').click();
+  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 });
+  await page.waitForTimeout(400);
+  const v0 = await viewOf();
+  await page.locator(nodeSel('intent-adds-numbers')).click({ button: 'right', position: { x: 80, y: 16 } });
+  await page.locator('[data-context-menu="intent"]').waitFor({ timeout: 3000 });
+  await page.waitForTimeout(700);
+  if ((await page.locator('[data-edit-panel]').count()) !== 0) await fail('a right-click opened the side panel');
+  if ((await viewOf()) !== v0) await fail('the view moved under the open menu');
+  await page.keyboard.press('Escape');
+  done.push('right-click opens only the menu');
+
+  // connect: drag from the constraint's output pin to the intent's input pin
+  const kid = 'constraint-bad-anchor';
+  const iid = 'intent-adds-numbers';
+  const kfile = join(w.work, 'spec', 'constraints', 'bad-anchor.md');
+  const k0 = readFileSync(kfile, 'utf8');
+  const connect = async (frame) => {
+    const from = await centreOf(page, pinSel(nodeSel, kid, 'right'));
+    const to = await centreOf(page, pinSel(nodeSel, iid, 'left'));
+    await dragMouse(page, from, to, {
+      hold: async () => {
+        const looks = await page.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((n) => [n.getAttribute('data-id'), n.className]));
+        const cls = Object.fromEntries(looks);
+        if (!/ig-drop-ok/.test(cls['intent-adds-numbers'] ?? '') || !/ig-drop-ok/.test(cls['concept-shapes'] ?? '')) await fail(`valid targets are not lit while dragging: ${JSON.stringify(looks)}`);
+        if (!/ig-drop-from/.test(cls[kid] ?? '')) await fail('the node the wire starts at is not marked');
+        // every intent and concept can take it, except the box it already hangs in
+        const wrong = looks.filter(([id, c]) => /ig-drop-dim/.test(c) && /^(intent|concept)-/.test(id) && id !== 'concept-calculator');
+        if (!/ig-drop-dim/.test(cls['concept-calculator'] ?? '')) await fail('the box the constraint already hangs in is lit as a target');
+        if (wrong.length) await fail(`valid targets dimmed: ${wrong.map(([id]) => id).join(', ')}`);
+        if ((await page.locator('.react-flow__connection-path').count()) !== 1) await fail('no wire is drawn while dragging');
+        if (frame) await page.screenshot({ path: join(runDir, frame), ...FRAME });
+      },
+    });
+  };
+  await connect('wire-1-dragging-valid-lit.jpg');
+  const k1 = await expectParentOnly(kfile, k0, iid);
+  await page.locator('[data-notice="done"]').waitFor({ timeout: 3000 });
+  const n1 = await noticeOf(page);
+  if (!/^Connected .+ to .+\./.test(n1.text) || !n1.undo) await fail(`connect notice is ${JSON.stringify(n1)}`);
+  await page.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ timeout: 5000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(runDir, 'wire-2-notice-undo.jpg'), ...FRAME });
+  await page.locator('[data-notice-undo]').click();
+  await expectBytes(kfile, k0, 'undo of a connect');
+  await page.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ state: 'detached', timeout: 5000 });
+  done.push('constraint wired to an intent and undone');
+
+  // disconnect: click the wire and press Delete, then the wire menu, each undone with ctrl+z
+  await page.waitForTimeout(500);
+  await connect(null);
+  await expectParentOnly(kfile, k0, iid);
+  await page.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ timeout: 5000 });
+  await page.waitForTimeout(500);
+  let mid = await wireMid(page, kid, iid);
+  if (!mid) await fail('the new wire is not drawn');
+  await page.mouse.click(mid.x, mid.y);
+  await page.waitForFunction(([s, d]) => document.querySelector(`[data-wire-src="${s}"][data-wire-dst="${d}"]`)?.getAttribute('data-wire-selected') === 'true', [kid, iid], { timeout: 3000 });
+  await page.keyboard.press('Delete');
+  await expectParentOnly(kfile, k1, 'null');
+  const n2 = await noticeOf(page);
+  if (!/^Disconnected /.test(n2?.text ?? '')) await fail(`disconnect notice is ${JSON.stringify(n2)}`);
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Control+z');
+  await expectBytes(kfile, k1, 'ctrl+z after Delete');
+  await page.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ timeout: 5000 });
+  await page.waitForTimeout(500);
+  mid = await wireMid(page, kid, iid);
+  await page.mouse.click(mid.x, mid.y, { button: 'right' });
+  await page.locator('[data-context-menu="wire"]').waitFor({ timeout: 3000 });
+  await page.locator('[data-menu-item="delete-wire"]').click();
+  await expectParentOnly(kfile, k1, 'null');
+  await page.keyboard.press('Control+z');
+  await expectBytes(kfile, k1, 'ctrl+z after Delete wire');
+  await page.keyboard.press('Control+z');
+  await expectBytes(kfile, k0, 'ctrl+z back to the start');
+  done.push('wire deleted by Delete and by the menu, each undone with ctrl+z');
+
+  // move: drag an intent out of its box into the other concept
+  const gid = 'intent-greets-by-name';
+  const gfile = join(w.work, 'spec', 'intents', 'greets-by-name.md');
+  const g0 = readFileSync(gfile, 'utf8');
+  await page.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ state: 'detached', timeout: 5000 });
+  // pan the view down by dragging empty canvas, so the target box is not at the window edge where a held node pans the view
+  await dragMouse(page, { x: 250, y: 300 }, { x: 250, y: 500 });
+  await page.waitForTimeout(600);
+  const gb = await page.locator(nodeSel(gid)).boundingBox();
+  const grab = { x: gb.x + 40, y: gb.y + 14 };
+  await dragMouse(page, grab, await centreOf(page, nodeSel('concept-shapes')), {
+    hold: async () => {
+      await page.waitForTimeout(150);
+      await page.screenshot({ path: join(runDir, 'wire-3-moving-into-concept.jpg'), ...FRAME });
+    },
+  });
+  await expectParentOnly(gfile, g0, 'concept-shapes');
+  const n3 = await noticeOf(page);
+  if (!/^Moved .+ into Shapes\./.test(n3?.text ?? '') || !n3.undo) await fail(`move notice is ${JSON.stringify(n3)}`);
+  await page.waitForTimeout(300);
+  await page.locator('[data-notice-undo]').click();
+  await expectBytes(gfile, g0, 'undo of a move');
+  done.push('intent moved into another concept and undone');
+
+  // snap back: a small move inside its own box, and a drop on empty canvas, write nothing and put it back
+  await page.waitForTimeout(900);
+  for (const [name, dx, dy] of [['small move', 24, 10], ['empty canvas', 0, 0]]) {
+    const before = await page.locator(nodeSel(gid)).boundingBox();
+    const at = { x: before.x + 40, y: before.y + 14 };
+    const to = name === 'empty canvas' ? { x: 250, y: 420 } : { x: at.x + dx, y: at.y + dy };
+    await dragMouse(page, at, to);
+    await page.waitForTimeout(NOTHING_WRITTEN_WAIT_MS);
+    if (readFileSync(gfile, 'utf8') !== g0) await fail(`a ${name} wrote the file`);
+    const after = await page.locator(nodeSel(gid)).boundingBox();
+    if (Math.abs(after.x - before.x) > 1 || Math.abs(after.y - before.y) > 1) await fail(`after a ${name} the node did not go back`);
+  }
+  done.push('a small move and a drop on empty canvas snap back and write nothing');
+
+  // refused drop: an intent's wire dropped on a constraint, and a wire dropped on empty canvas
+  const files = () => [kfile, gfile, join(w.work, 'spec', 'intents', 'adds-numbers.md')].map((f) => readFileSync(f, 'utf8')).join('\n');
+  const f0 = files();
+  await dragMouse(page, await centreOf(page, pinSel(nodeSel, iid, 'right')), await centreOf(page, nodeSel(kid)));
+  await page.locator('[data-notice="refused"]').waitFor({ timeout: 3000 });
+  const n4 = await noticeOf(page);
+  if (!/can only hang under a concept/.test(n4.text) || n4.undo) await fail(`refused drop notice is ${JSON.stringify(n4)}`);
+  const lingering = await page.locator('.ig-drop-ok, .ig-drop-dim, .ig-drop-from').count();
+  if (lingering !== 0) await fail(`${lingering} nodes still lit or dimmed after the drop`);
+  await page.screenshot({ path: join(runDir, 'wire-4-refused-drop.jpg'), ...FRAME });
+  await dragMouse(page, await centreOf(page, pinSel(nodeSel, kid, 'right')), { x: 250, y: 420 });
+  await page.waitForTimeout(NOTHING_WRITTEN_WAIT_MS);
+  if (files() !== f0) await fail('a refused drop or a drop on empty canvas wrote a file');
+  done.push('a refused drop says why, a drop on empty canvas does nothing');
+
+  // direct requests: a loop, a code node and no token are refused and write nothing.
+  // a concept inside shapes gives the loop: shapes cannot hang under its own child.
+  writeFileSync(join(w.work, 'spec', 'concepts', 'shapes-inner.md'), '---\nid: concept-shapes-inner\ntitle: Inner shapes\nparent: concept-shapes\nconfidence: asserted\n---\n');
+  if (!(await graphHas(w, 'concept-shapes-inner'))) await fail('the live graph never showed the inner concept');
+  const shapesFile = join(w.work, 'spec', 'concepts', 'shapes.md');
+  const s0 = readFileSync(shapesFile, 'utf8');
+  const codeId = await page.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((n) => n.getAttribute('data-id')).find((id) => !/^(intent|constraint|decision|concept)-/.test(id ?? '')) ?? null);
+  const token = await page.evaluate(() => window.__INTENTGRAPH_LIVE__.token);
+  const asks = await page.evaluate(async ([t, code]) => {
+    const post = async (id, body, tok = t) => (await fetch(`/api/parent?id=${encodeURIComponent(id)}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': tok }, body: JSON.stringify(body) })).status;
+    return {
+      missing: await post('constraint-bad-anchor', { parent: 'intent-not-here' }),
+      self: await post('intent-adds-numbers', { parent: 'intent-adds-numbers' }),
+      wrongPair: await post('intent-adds-numbers', { parent: 'constraint-bad-anchor' }),
+      loop: await post('concept-shapes', { parent: 'concept-shapes-inner' }),
+      code: code ? await post(code, { parent: 'concept-calculator' }) : 422,
+      noToken: await post('intent-adds-numbers', { parent: 'concept-shapes' }, ''),
+    };
+  }, [token, codeId]);
+  if (asks.noToken !== 403 || Object.entries(asks).some(([k, s]) => k !== 'noToken' && (s < 400 || s >= 500))) await fail(`direct parent requests answered ${JSON.stringify(asks)}`);
+  if (files() !== f0 || readFileSync(shapesFile, 'utf8') !== s0) await fail('a refused parent request wrote a file');
+  done.push(`direct requests refused ${JSON.stringify(asks)}`);
+  return done.join(', ');
+}
+
+async function readOnlyWireChecks(rpage, r, nodeSel) {
+  const kid = 'constraint-bad-anchor';
+  const iid = 'intent-adds-numbers';
+  const kfile = join(r.work, 'spec', 'constraints', 'bad-anchor.md');
+  // a wire to show the menu on, written straight into the workspace, not through the page
+  const k0 = readFileSync(kfile, 'utf8').replace('parent: concept-calculator', `parent: ${iid}`);
+  writeFileSync(kfile, k0);
+  if (!(await graphHas(r, `"src":"${kid}","dst":"${iid}"`))) await fail('the read-only graph never showed the new wire');
+  await rpage.mouse.click(6, 6, { button: 'right' });
+  await rpage.locator('[data-context-menu="pane"]').waitFor({ timeout: 3000 }).catch(async () => { await rpage.screenshot({ path: join(runDir, 'crash-read-only.jpg'), ...FRAME }); await fail('no canvas menu on the read-only page'); });
+  await rpage.locator('[data-menu-item="fit-view"]').click();
+  await rpage.waitForTimeout(700);
+  await rpage.locator(`[data-wire-src="${kid}"][data-wire-dst="${iid}"]`).waitFor({ timeout: 10000 });
+  await rpage.waitForTimeout(500);
+  const from = await centreOf(rpage, pinSel(nodeSel, iid, 'right'));
+  await dragMouse(rpage, from, await centreOf(rpage, pinSel(nodeSel, kid, 'left')), {
+    hold: async () => {
+      if ((await rpage.locator('.react-flow__connection-path').count()) !== 0) await fail('a pin started a wire on a read-only page');
+    },
+  });
+  const gid = 'intent-greets-by-name';
+  const before = await rpage.locator(nodeSel(gid)).boundingBox();
+  await dragMouse(rpage, { x: before.x + 40, y: before.y + 14 }, { x: before.x + 240, y: before.y + 160 });
+  await rpage.waitForTimeout(400);
+  const after = await rpage.locator(nodeSel(gid)).boundingBox();
+  if (Math.abs(after.x - before.x) > 1 || Math.abs(after.y - before.y) > 1) await fail('a dragged node did not go back on a read-only page');
+  const mid = await wireMid(rpage, kid, iid);
+  await rpage.mouse.click(mid.x, mid.y, { button: 'right' });
+  await rpage.locator('[data-context-menu="wire"]').waitFor({ timeout: 3000 });
+  const item = await rpage.locator('[data-menu-item="delete-wire"]').getAttribute('aria-disabled');
+  const reason = await rpage.locator('[data-menu-reason]').innerText();
+  if (item !== 'true' || !/--write/.test(reason)) await fail(`read-only wire menu: disabled ${item}, reason "${reason}"`);
+  await rpage.locator('[data-menu-item="delete-wire"]').click({ force: true });
+  await rpage.keyboard.press('Escape');
+  await rpage.mouse.click(mid.x, mid.y);
+  await rpage.keyboard.press('Delete');
+  await rpage.keyboard.press('Control+z');
+  await rpage.waitForTimeout(NOTHING_WRITTEN_WAIT_MS);
+  if (readFileSync(kfile, 'utf8') !== k0) await fail('a read-only page changed a file');
+  return 'no wire from a pin, the dragged node went back, Delete wire disabled with the reason, Delete and ctrl+z sent nothing';
+}
+
 let livePage = null;
 try {
   // 1 the page the server serves
@@ -619,6 +890,10 @@ try {
   // the right-click menu on a concept
   await page.keyboard.press('Escape');
   await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
+  // lane 8: a right-click opens the menu and nothing else, so the concept's panel is opened by a click first
+  await page.locator(nodeSel('concept-calculator')).click({ position: { x: 60, y: 20 } });
+  await page.locator('[data-edit-panel="concept-calculator"]').waitFor({ timeout: 3000 });
+  await page.waitForTimeout(500);
   await page.locator(nodeSel('concept-calculator')).click({ button: 'right', position: { x: 60, y: 20 } });
   const menu = page.locator('[data-context-menu="concept"]');
   await menu.waitFor({ timeout: 3000 });
@@ -695,6 +970,10 @@ try {
   await page.waitForFunction(() => document.activeElement?.hasAttribute('data-edit-title'), null, { timeout: 3000 });
   console.log(`ok keyboard (${secs()}s) - Enter selects, F2, type, Enter saved "${kTitle}", menu key, arrow, Enter put the cursor in the panel title`);
 
+  // 7e lane 8, editing by wire: connect, disconnect, move, refuse, snap back, undo, all with real drags
+  const wire = await wireChecks(page, w, nodeSel);
+  console.log(`ok wires (${secs()}s) - ${wire}`);
+
   // 7c a write without the page token is refused
   const noToken = await page.evaluate(async () => (await fetch('/api/intents', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ parent: 'concept-calculator', title: 'No token' }) })).status);
   if (noToken !== 403) await fail(`a write without the token got ${noToken}`);
@@ -743,7 +1022,10 @@ try {
   await rpage.waitForTimeout(300);
   if ((await rpage.locator('[data-rename-field], [data-create-form]').count()) !== 0) await fail('a disabled menu entry did something');
   await rpage.keyboard.press('Escape');
+  // lane 8: in read only a pin does not connect, a dragged node goes back, the wire menu says why
+  const roWire = await readOnlyWireChecks(rpage, r, nodeSel);
   if (sent.length !== 0) await fail(`read-only page sent ${sent.join(', ')}`);
+  console.log(`ok read-only wires (${secs()}s) - ${roWire}`);
   console.log(`ok read-only menu (${secs()}s) - no rename field, ${roItems.length} edit entries disabled, "${roReason.slice(0, 40)}", nothing sent`);
   const node = await (await fetch(`${r.url}api/node?id=intent-has-no-checks`)).json();
   const status = await rpage.evaluate(async (hash) => {

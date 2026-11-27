@@ -334,12 +334,27 @@ function tempName(file: string): string {
   return join(dirname(file), `.${basename(file)}.${process.pid}-${Date.now()}.tmp`);
 }
 
+// on windows a rename over a file that a watcher or a scanner holds open for a moment fails
+// with EPERM, EACCES or EBUSY. it frees up within milliseconds, so wait and try again.
+const BUSY = new Set(['EPERM', 'EACCES', 'EBUSY']);
+function renameWithRetry(from: string, to: string): void {
+  for (let i = 0; ; i++) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (err) {
+      if (i >= SPEC_WRITE_TUNING.renameRetries || !BUSY.has((err as NodeJS.ErrnoException).code ?? '')) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SPEC_WRITE_TUNING.renameRetryMs);
+    }
+  }
+}
+
 /** write next to the file, then rename over it, so a reader sees the old or the new text */
 export function writeSpecFileAtomic(file: string, text: string | Buffer): void {
   const tmp = tempName(file);
   writeFileSync(tmp, text);
   try {
-    renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   } catch (err) {
     try {
       unlinkSync(tmp);

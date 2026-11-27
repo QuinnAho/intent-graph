@@ -83,6 +83,18 @@ export function saveNode(config: EditConfig, id: string, edit: { title: string; 
   return call(`${config.api}/node?id=${encodeURIComponent(id)}`, writeInit(config, edit));
 }
 
+/** set a node's parent, or null to take it out. from is the parent the page saw, so a stale move is refused. */
+export function setNodeParent(config: EditConfig, id: string, parent: string | null, from: string | null): Promise<ApiResult<{ changed: boolean }>> {
+  if (!config.api || !config.write) return Promise.resolve({ ok: false, error: 'read-only', message: config.readOnlyReason ?? NO_WRITE_REASON });
+  return call(`${config.api}/parent?id=${encodeURIComponent(id)}`, writeInit(config, { parent, from }));
+}
+
+/** take back the newest write the server made */
+export function undoLastWrite(config: EditConfig): Promise<ApiResult<{ undone: string; file: string }>> {
+  if (!config.api || !config.write) return Promise.resolve({ ok: false, error: 'read-only', message: config.readOnlyReason ?? NO_WRITE_REASON });
+  return call(`${config.api}/undo`, writeInit(config, {}));
+}
+
 export function createIntent(config: EditConfig, parent: string, title: string, targetKinds: ReadonlyArray<string>): Promise<ApiResult<{ id: string; file: string }>> {
   if (!config.api || !config.write) return Promise.resolve({ ok: false, error: 'read-only', message: config.readOnlyReason ?? NO_WRITE_REASON });
   return call(`${config.api}/intents`, writeInit(config, { parent, title, target_kinds: targetKinds }));

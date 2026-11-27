@@ -15,6 +15,9 @@ import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-ed
 import { directKey } from './direct-edit-model.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
+import { Notice } from './Notice.js';
+import { deleteWire, undoLast } from './wire-edit-actions.js';
+import { isUndoKey } from '../graph/wire-edit-model.js';
 import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
@@ -135,6 +138,29 @@ function useDirectEditKeys(): void {
   }, []);
 }
 
+// ctrl+z or cmd+z undoes the newest write when no text field has the focus. inside one it stays the
+// browser's own text undo. delete or backspace removes the wire picked with a click.
+function useWireEditKeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]') != null;
+      if (isUndoKey(e, typing)) {
+        e.preventDefault();
+        void undoLast();
+        return;
+      }
+      const wire = useUiStore.getState().selectedWire;
+      if (!typing && wire && (e.key === 'Delete' || e.key === 'Backspace') && !target?.closest('[role="menu"]')) {
+        e.preventDefault();
+        deleteWire(wire);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
+
 // the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
 const SHELL_STYLE: CSSProperties = {
   position: 'absolute',
@@ -200,6 +226,7 @@ export function App(): JSX.Element {
 
   useLiveUpdates(live);
   useDirectEditKeys();
+  useWireEditKeys();
   const handleNodesChange = useCallback(onSelectionChange, []);
 
   if (status === 'error' && errorMessage) {
@@ -225,6 +252,7 @@ export function App(): JSX.Element {
         clearPanelFor={editNodeId}
       />
       <EditPanel />
+      <Notice />
       </div>
       <ProblemsPanel />
     </div>

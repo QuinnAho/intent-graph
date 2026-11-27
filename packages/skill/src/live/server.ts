@@ -247,8 +247,13 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   await new Promise<void>((ok) => watcher.once('ready', () => ok()));
   ready = true;
 
+  // a request that throws (a file the os would not let go of) answers 500 and the server keeps running
   const server = createServer((req, res) => {
-    void handle(req, res);
+    handle(req, res).catch((err: unknown) => {
+      log(`request failed: ${(err as Error).message}`);
+      if (!res.headersSent) sendJson(res, apiError(500, 'rejected', 'The server could not finish that write. Check the file and try again.'));
+      else res.end();
+    });
   });
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {

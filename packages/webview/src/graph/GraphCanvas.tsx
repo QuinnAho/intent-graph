@@ -7,19 +7,27 @@
 import {
   Background,
   ReactFlow,
+  type Connection,
   type Edge,
   type EdgeTypes,
+  type FinalConnectionState,
   type Node,
+  type NodeChange,
   type NodeTypes,
+  type OnConnectStartParams,
   type OnNodesChange,
+  type ReactFlowInstance,
   useReactFlow,
   useStore,
   type Viewport,
+  type XYPosition,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
-import { openNodeMenu, openPaneMenu, renameNode } from '../app/direct-edit-actions.js';
+import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
+import { changeParent, refuseEdit } from '../app/wire-edit-actions.js';
+import { boxUnder, dropOutcome, endsOf, whyNotParent, type Box } from './wire-edit-model.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { SPEC_KINDS } from '../transport/live-source.js';
 import { ContextMenu } from './ContextMenu.js';
@@ -27,7 +35,7 @@ import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
-import { EDIT_TIMING, PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -63,6 +71,10 @@ const NODE_TYPES: NodeTypes = {
   counterexample: CounterexampleNode,
   task: TaskNode,
 };
+
+// spec nodes that can be dragged into another concept box. a concept box itself stays put,
+// dragging one would carry everything inside it along.
+const MOVABLE_KINDS: ReadonlySet<string> = new Set(['intent', 'constraint', 'decision']);
 
 // one wire component for every edge kind, colour and dash come from the kind
 const EDGE_TYPES: EdgeTypes = { wire: WireEdge };
@@ -166,13 +178,128 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     [fitNodeIds],
   );
 
+  const write = useUiStore((s) => s.editConfig.write);
+  const selectedWire = useUiStore((s) => s.selectedWire);
+  // the node a wire is being dragged from, so valid targets light up and the rest dim
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const connectFromRef = useRef<string | null>(null);
+  connectFromRef.current = connectFrom;
+  // where a dragged node is drawn while the pointer holds it. dropping clears it, so the node
+  // goes back to its laid-out place and only a write followed by a live update moves it for good.
+  const [dragAt, setDragAt] = useState<{ id: string; position: XYPosition } | null>(null);
+  const ends = useMemo(() => endsOf(nodes, edges), [nodes, edges]);
+  const rfRef = useRef<ReactFlowInstance | null>(null);
+
   // wires run under node bodies: boxes at the bottom, then wires, then the nodes in them
   const plan = useMemo(() => planWires(nodes, edges, viewBlock), [nodes, edges]);
-  const wires = useMemo(() => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire })), [plan]);
+  const wires = useMemo(
+    () => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire, selected: w.id === selectedWire })),
+    [plan, selectedWire],
+  );
   const stacked = useMemo(() => {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
-    return nodes.map((n) => ({ ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode }));
-  }, [nodes]);
+    return nodes.map((n) => {
+      const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
+      const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type);
+      out.draggable = movable;
+      // a node held by the pointer may leave its box, the drop decides where it belongs
+      if (movable) delete out.extent;
+      if (dragAt && dragAt.id === n.id) {
+        out.position = dragAt.position;
+        out.zIndex = WIRE_TUNING.zNode + 1;
+        out.className = 'ig-held';
+      }
+      if (connectFrom && connectFrom !== n.id) out.className = whyNotParent(ends, connectFrom, n.id) === null ? 'ig-drop-ok' : 'ig-drop-dim';
+      else if (connectFrom === n.id) out.className = 'ig-drop-from';
+      return out;
+    });
+  }, [nodes, dragAt, connectFrom, ends]);
+
+  // only position changes of the held node are kept here, the rest go to the store as before
+  const handleNodesChange = useCallback<OnNodesChange>(
+    (changes: NodeChange[]) => {
+      for (const c of changes) {
+        if (c.type === 'position' && c.position && c.dragging) setDragAt({ id: c.id, position: c.position });
+      }
+      const rest = changes.filter((c) => c.type !== 'position');
+      if (rest.length > 0) onNodesChange?.(rest);
+    },
+    [onNodesChange],
+  );
+
+  // the concept box under the pointer, read from the drawn boxes in screen space, so it is
+  // right while the view pans under a held node
+  const boxAt = useCallback(
+    (event: MouseEvent, dragged: string): { box: string | null } => {
+      const boxes: Box[] = [];
+      const seen = new Set<string>();
+      for (const el of document.elementsFromPoint(event.clientX, event.clientY)) {
+        const nodeEl = el.closest('.react-flow__node');
+        const id = nodeEl?.getAttribute('data-id');
+        if (!nodeEl || !id || seen.has(id)) continue;
+        seen.add(id);
+        const r = nodeEl.getBoundingClientRect();
+        boxes.push({ id, x: r.left, y: r.top, width: r.width, height: r.height });
+      }
+      return { box: boxUnder({ x: event.clientX, y: event.clientY }, boxes, dragged, ends) };
+    },
+    [ends],
+  );
+  const handleDragStop = useCallback(
+    (event: MouseEvent, node: Node): void => {
+      setDragAt(null);
+      const at = boxAt(event, node.id);
+
+      const outcome = dropOutcome(ends, node.id, at.box);
+      if (outcome.kind === 'refuse') refuseEdit(outcome.reason);
+      else if (outcome.kind === 'move') void changeParent(node.id, outcome.parent);
+    },
+    [boxAt, ends],
+  );
+
+  const isValidConnection = useCallback(
+    (c: Connection | Edge): boolean => c.source !== c.target && whyNotParent(ends, c.source, c.target) === null,
+    [ends],
+  );
+  const handleConnectStart = useCallback((_: unknown, params: OnConnectStartParams): void => {
+    useUiStore.getState().closeMenu();
+    if (params.handleType === 'source' && params.nodeId) setConnectFrom(params.nodeId);
+  }, []);
+  const handleConnect = useCallback((c: Connection): void => {
+    void changeParent(c.source, c.target);
+  }, []);
+  // a drop on a pin that takes the wire went to handleConnect. a drop on a node's body counts
+  // the same as its pin, a node that cannot take it says why, and empty canvas writes nothing.
+  const handleConnectEnd = useCallback(
+    (event: globalThis.MouseEvent | TouchEvent, state: FinalConnectionState): void => {
+      const from = connectFromRef.current;
+      setConnectFrom(null);
+      if (!from || state.isValid) return;
+      const p = 'changedTouches' in event ? event.changedTouches[0] : event;
+      if (!p) return;
+      const el = document.elementFromPoint(p.clientX, p.clientY)?.closest('.react-flow__node');
+      const to = el?.getAttribute('data-id');
+      if (!to || to === from) return;
+      const why = whyNotParent(ends, from, to);
+      if (why) refuseEdit(why);
+      else void changeParent(from, to);
+    },
+    [ends],
+  );
+  const handleEdgeClick = useCallback((_: MouseEvent, edge: Edge): void => {
+    useUiStore.getState().setSelectedWire(edge.id);
+  }, []);
+  const handleEdgeContext = useCallback((event: MouseEvent, edge: Edge): void => {
+    event.preventDefault();
+    openWireMenu(edge.id, { x: event.clientX, y: event.clientY });
+  }, []);
+  const handlePaneClick = useCallback(
+    (event: MouseEvent): void => {
+      useUiStore.getState().setSelectedWire(null);
+      onPaneClick?.(event);
+    },
+    [onPaneClick],
+  );
   const [hoverNode, setHoverNode] = useState<string | null>(null);
   const handleNodeEnter = useCallback<NodeMouseHandler>(
     (event, node) => {
@@ -274,8 +401,24 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         edgeTypes={EDGE_TYPES}
         fitView={fitView}
         fitViewOptions={fitViewOptions}
-        nodesDraggable={false}
-        nodesConnectable={false}
+        nodesDraggable={!interactionLocked}
+        nodesConnectable={write && !interactionLocked}
+        nodeDragThreshold={WIRE_EDIT_TUNING.dragThresholdPx}
+        connectionRadius={WIRE_EDIT_TUNING.connectRadiusPx}
+        selectNodesOnDrag={false}
+        deleteKeyCode={null}
+        onInit={(rf) => {
+          rfRef.current = rf as unknown as ReactFlowInstance;
+        }}
+        onNodesChange={handleNodesChange}
+        onNodeDragStop={handleDragStop}
+        isValidConnection={isValidConnection}
+        onConnectStart={handleConnectStart}
+        onConnect={handleConnect}
+        onConnectEnd={handleConnectEnd}
+        onEdgeClick={handleEdgeClick}
+        onEdgeContextMenu={handleEdgeContext}
+        onPaneClick={handlePaneClick}
         panOnScroll={false}
         panOnDrag
         zoomOnScroll
@@ -289,11 +432,9 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         onlyRenderVisibleElements
         onViewportChange={handleViewportChange}
         {...(onNodeClick ? { onNodeClick } : {})}
-        {...(onNodesChange ? { onNodesChange } : {})}
         onNodeMouseEnter={handleNodeEnter}
         onNodeMouseLeave={handleNodeLeave}
         {...(onPaneMouseMove ? { onPaneMouseMove } : {})}
-        {...(onPaneClick ? { onPaneClick } : {})}
         proOptions={{ hideAttribution: true }}
         style={{
           backgroundColor: 'var(--ig-canvas)',
