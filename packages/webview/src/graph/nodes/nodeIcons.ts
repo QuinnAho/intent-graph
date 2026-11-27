@@ -1,7 +1,7 @@
 // Lifted from claudemap/app/src/components/graph/nodeIcons.js @ claudemap@vendored.
 // Adapted: TS strict, typed map keyed by IntentGraph node kind (not by free-form
 // icon name string). License: MIT (see /claudemap/LICENSE).
-// See LIFT_LOG.md for the full lift record.
+// See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import {
   Code,

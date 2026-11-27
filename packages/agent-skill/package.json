@@ -1,10 +1,10 @@
 {
   "name": "@intentgraph/agent-skill",
   "version": "0.0.0",
-  "description": "Agent Skills package for IntentGraph. Consumed identically by Claude Code (.claude/skills/) and Codex (.codex/skills/).",
+  "description": "Agent Skills package for IntentGraph, consumed by Claude Code (.claude/skills/).",
   "license": "MIT",
   "type": "module",
-  "files": ["SKILL.md", "agents", "bin", "README.md"],
+  "files": ["SKILL.md", "bin", "README.md"],
   "bin": {
     "intentgraph-skill": "./bin/intentgraph-skill.js"
   },

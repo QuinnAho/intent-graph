@@ -1,7 +1,7 @@
 // Lifted from claudemap/app/src/lib/layoutEngine.js @ claudemap@vendored.
 // Adapted: TS strict. Public API is a single `runLayout(nodes, edges, options)`
 // returning a positions array.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 //
 // Worker posture (phase 2): runLayout calls ELK on the main thread. The
 // elkjs bundled module ships its own GWT-compiled worker that it tries to
@@ -23,16 +23,17 @@ import {
   type LayoutOptions,
   type LayoutPosition,
 } from './layout-protocol.js';
+import { LAYOUT_TUNING } from '../view-tuning.js';
 
 export type { LayoutEdgeInput, LayoutNodeInput, LayoutOptions, LayoutPosition };
 
+// left to right, per adr 0031. numbers live in view-tuning.
 const DEFAULT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
-  'elk.direction': 'DOWN',
-  'elk.spacing.nodeNode': '64',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '84',
-  'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-  'org.eclipse.elk.portConstraints': 'FIXED_ORDER',
+  'elk.direction': LAYOUT_TUNING.direction,
+  'elk.spacing.nodeNode': String(LAYOUT_TUNING.nodeNode),
+  'elk.layered.spacing.nodeNodeBetweenLayers': String(LAYOUT_TUNING.betweenLayers),
+  'elk.padding': `[top=${LAYOUT_TUNING.padding},left=${LAYOUT_TUNING.padding},bottom=${LAYOUT_TUNING.padding},right=${LAYOUT_TUNING.padding}]`,
 };
 
 let elkSingleton: InstanceType<typeof ELK> | null = null;

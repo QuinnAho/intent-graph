@@ -4,7 +4,7 @@
 // (graph.*, retrieval.*, task.*, verify.*, trace.*) instead of ClaudeMap's
 // monolithic handlers.js. The handler implementations are stubs at this stage
 // — this lift wires only the bootstrap and the registration loop.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';

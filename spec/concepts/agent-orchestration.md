@@ -28,6 +28,6 @@ This concept groups intents about *how AI work is scheduled, traced, and made co
 
 References:
 - ADR-0004 (agent orchestration)
-- tech-spec.md §2 Pillar 4, §3.6 Orchestrator
+- docs/01 - Product/Tech Spec.md §2 Pillar 4, §3.6 Orchestrator
 - CLAUDE.md "five architectural pillars" §4
 - CLAUDE.md hard rule: AgentRunner-only model calls

@@ -4,7 +4,7 @@
 // Tech-spec §7-C and the p2-t12 task notes: "a runner that invokes the ELK
 // worker from p2-t08 against it. Output is the script + harness only — no
 // measurements yet." Measurement (p50 / p95 / p99) and the keep-vs-escalate
-// recommendation land in p2-t13 and write to docs/spikes/elk-5k-results.md.
+// recommendation land in p2-t13 and write to docs/03 - Research/Spikes/elk-5k-results.md.
 //
 // Posture:
 //   - The runner imports `runLayout` from the webview package directly. That

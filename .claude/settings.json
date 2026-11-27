@@ -94,22 +94,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash automation/hooks/guard-eslint-config.sh"
+            "command": "bash tools/hooks/guard-eslint-config.sh"
           },
           {
             "type": "command",
-            "command": "bash automation/hooks/guard-agent-runner-chokepoint.sh"
+            "command": "bash tools/hooks/guard-agent-runner-chokepoint.sh"
           }
         ]
       }
     ]
   },
   "_intentgraph_notes": {
-    "mcp_servers_location": "MCP server registrations live in /.mcp.json at the repo root, not here. Claude Code's settings.json schema does not include mcpServers; entries placed here are silently ignored. See ADR-0028 for the move from .claude/settings.json to .mcp.json and the reason ADR-0027's split-rejection was wrong. The .codex/ mirror is .codex/config.toml [mcp.*]; scripts/check-agent-config.ts enforces parity.",
+    "mcp_servers_location": "MCP server registrations live in /.mcp.json at the repo root, not here. Claude Code's settings.json schema does not include mcpServers; entries placed here are silently ignored. See ADR-0028 for the move from .claude/settings.json to .mcp.json and the reason ADR-0027's split-rejection was wrong. scripts/check-agent-config.ts checks that /.mcp.json parses and that this file has no mcpServers key.",
     "future_mcp_servers": "When IntentGraph's own MCP server ships in Phase 3, register it in /.mcp.json as `intentgraph` with command pointing at packages/skill/dist/index.js over stdio.",
     "playwright_scoping": "Playwright MCP is scoped per ADR-0027: local Vite dev server (http://localhost:5173) and the packaged extension's webview only. No external URLs, credentials, or production systems without explicit per-invocation human approval. Requires `npx playwright install chromium` once per machine.",
     "github_scoping": "github MCP is optional in early phases, load-bearing in Phase 6. Requires GITHUB_PERSONAL_ACCESS_TOKEN in the parent env for ${VAR} expansion to resolve.",
-    "agent_runner_chokepoint": "ESLint enforces packages/skill/src/agent-runner as the only path to model calls. See eslint.config.mjs. PreToolUse hooks at automation/hooks/ enforce the same chokepoint earlier — at edit time — so violating diffs are never written.",
+    "agent_runner_chokepoint": "ESLint enforces packages/skill/src/agent-runner as the only path to model calls. See eslint.config.mjs. PreToolUse hooks at tools/hooks/ enforce the same chokepoint earlier — at edit time — so violating diffs are never written.",
     "pretool_hooks": "guard-eslint-config.sh blocks edits to eslint.config.* without an ADR reference. guard-agent-runner-chokepoint.sh blocks edits outside packages/skill/src/agent-runner/ that introduce model-call imports from `ai`. Phase 1 may extend this list before merge to main."
   }
 }

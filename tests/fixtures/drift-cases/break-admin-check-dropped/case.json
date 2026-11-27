@@ -1,0 +1,4 @@
+{
+  "expect": "drift",
+  "about": "the throw becomes a warning, so a member can delete a project"
+}

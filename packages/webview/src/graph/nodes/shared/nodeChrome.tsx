@@ -4,13 +4,33 @@
 // plus their per-kind body. This is the "chrome, health backgrounds, dim/ghost/
 // highlight states, hidden handles" surface called out in the lift plan.
 
-import { Handle, Position } from '@xyflow/react';
-import type { CSSProperties, ReactNode } from 'react';
+import { Handle, Position, useNodeId } from '@xyflow/react';
+import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { useContext, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
+import { PinContext } from '../../edges/wire-context.js';
+import { pinLabel, type PinSide } from '../../edges/wire-plan.js';
+import { wireStyle } from '../../edges/WireEdge.js';
+import { HEADER_COLORS, WIRE_TUNING } from '../../view-tuning.js';
 
 export type NodeHealth = 'green' | 'yellow' | 'red';
 export type NodeHighlight = 'none' | 'subtle' | 'lead';
+/** check status from verified_by, per adr 0030 */
+export type CheckStatus = 'verified' | 'failed' | 'pending';
+export type DriftVerdict = 'aligned' | 'drift' | 'unclear';
+/** the drift check's verdict for a spec node, from the newest report (live server only) */
+export interface DriftInfo {
+  verdict: DriftVerdict;
+  evidence: string;
+  suggested_action: string;
+  commit: string;
+  decided_by: string;
+  reported_at: string;
+  entries: number;
+  /** a bound source file changed after the report was written */
+  stale: boolean;
+}
 
 export interface NodeChromeData {
   /** Node kind drives the icon + default sizing. */
@@ -29,11 +49,15 @@ export interface NodeChromeData {
   /** Visibility states — drive opacity. */
   isDimmed?: boolean;
   isGhosted?: boolean;
-  /** Hide the four React Flow handles. Default true; only edges in IntentGraph. */
+  /** Check status of a spec node. Absence means no mark (code nodes). */
+  checkStatus?: CheckStatus;
+  /** Drift verdict of a spec node. Absence means the report has no entry for it. */
+  drift?: DriftInfo;
+  /** Anchor warnings for this node, shown as a count with the text on hover. */
+  warnings?: ReadonlyArray<string>;
+  /** Render the in and out pins. Default true. */
   handlesHidden?: boolean;
 }
-
-const HIDDEN_HANDLE_STYLE: CSSProperties = { opacity: 0, pointerEvents: 'none' };
 
 const HEALTH_BACKGROUND: Record<NodeHealth, string> = {
   green: 'rgba(63, 185, 80, 0.05)',
@@ -46,6 +70,98 @@ const HEALTH_PIP: Record<NodeHealth, string> = {
   yellow: '#d29922',
   red: '#f85149',
 };
+
+// icon, word and colour together, so the mark reads without colour
+const CHECK_MARK: Record<CheckStatus, { Icon: typeof CircleCheck; color: string; border: string }> = {
+  verified: { Icon: CircleCheck, color: '#3fb950', border: 'rgba(63, 185, 80, 0.55)' },
+  failed: { Icon: CircleX, color: '#f85149', border: 'rgba(248, 81, 73, 0.65)' },
+  pending: { Icon: CircleDashed, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)' },
+};
+
+export function StatusMark(props: { status: CheckStatus }): JSX.Element {
+  const { Icon, color, border } = CHECK_MARK[props.status];
+  return (
+    <span
+      data-check-status={props.status}
+      aria-label={`checks ${props.status}`}
+      title={`checks ${props.status}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 7px 2px 5px',
+        borderRadius: '999px',
+        border: `1px solid ${border}`,
+        color,
+        fontSize: '11px',
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
+    >
+      <Icon size={13} strokeWidth={props.status === 'failed' ? 2.6 : 2.2} />
+      {props.status}
+    </span>
+  );
+}
+
+// aligned is quiet, unclear is a caution, drift is loud. icon and word on every one.
+const DRIFT_MARK: Record<DriftVerdict, { Icon: typeof CircleCheck; color: string; border: string; background: string }> = {
+  aligned: { Icon: ShieldCheck, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)', background: 'transparent' },
+  unclear: { Icon: CircleHelp, color: '#d29922', border: 'rgba(210, 153, 34, 0.7)', background: 'rgba(210, 153, 34, 0.12)' },
+  drift: { Icon: OctagonAlert, color: '#fff', border: '#f85149', background: '#da3633' },
+};
+
+export function driftTitle(d: DriftInfo): string {
+  return `drift ${d.verdict}${d.stale ? ', stale: a bound file changed after the report' : ''}`;
+}
+
+export function DriftMark(props: { drift: DriftInfo }): JSX.Element {
+  const { drift } = props;
+  const { Icon, color, border, background } = DRIFT_MARK[drift.verdict];
+  return (
+    <span
+      data-drift={drift.verdict}
+      data-drift-stale={drift.stale ? 'true' : 'false'}
+      aria-label={driftTitle(drift)}
+      title={driftTitle(drift)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 7px 2px 5px',
+        borderRadius: '999px',
+        border: `1px ${drift.stale ? 'dashed' : 'solid'} ${border}`,
+        background,
+        color,
+        fontSize: '11px',
+        fontWeight: drift.verdict === 'drift' ? 700 : 600,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        // a stale mark must not look current
+        opacity: drift.stale ? 0.5 : 1,
+      }}
+    >
+      <Icon size={13} strokeWidth={drift.verdict === 'drift' ? 2.6 : 2.2} />
+      {drift.verdict}
+      {drift.stale ? ' (stale)' : ''}
+    </span>
+  );
+}
+
+function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Element {
+  return (
+    <span
+      data-warnings={props.warnings.length}
+      title={props.warnings.join('\n')}
+      aria-label={`${props.warnings.length} anchor warnings`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#d29922', fontSize: '11px', fontWeight: 600, flexShrink: 0 }}
+    >
+      <TriangleAlert size={13} />
+      {props.warnings.length}
+    </span>
+  );
+}
 
 function pickSurface(data: NodeChromeData): string {
   if (data.healthOverlay && data.health) {
@@ -69,47 +185,67 @@ function pickOpacity(data: NodeChromeData): number {
   return 1;
 }
 
-function HiddenHandles(): JSX.Element {
+const EMPTY_SIDE: PinSide = { drawn: 0, hidden: {}, kinds: [] };
+
+function pinStyle(s: PinSide): CSSProperties {
+  const color = s.kinds.length > 0 ? wireStyle(s.kinds[0]!).color : 'var(--ig-edge)';
+  const connected = s.drawn > 0 || Object.keys(s.hidden).length > 0;
+  return {
+    width: `${WIRE_TUNING.pinSize}px`,
+    height: `${WIRE_TUNING.pinSize}px`,
+    minWidth: 0,
+    minHeight: 0,
+    top: `${WIRE_TUNING.pinTop}px`,
+    boxSizing: 'border-box',
+    borderRadius: '50%',
+    border: `2px solid ${color}`,
+    // a ring only when nothing is connected
+    background: connected ? color : 'var(--ig-canvas)',
+    pointerEvents: 'none',
+  };
+}
+
+// "3 code": wires to the other block are not drawn, the pin says how many there are
+function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Element {
+  // above the node corner on the pin's side, so it never sits on a box border
+  return (
+    <span
+      data-pin-count={props.side}
+      title={`${props.label} not drawn, in the other block`}
+      style={{
+        position: 'absolute',
+        bottom: `calc(100% + ${WIRE_TUNING.countGap}px)`,
+        ...(props.side === 'out' ? { right: 0 } : { left: 0 }),
+        padding: '1px 6px',
+        borderRadius: '999px',
+        border: '1px solid var(--ig-edge)',
+        background: 'var(--ig-canvas)',
+        color: 'var(--ig-text)',
+        opacity: 0.8,
+        fontSize: '10px',
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+      }}
+    >
+      {props.label}
+    </span>
+  );
+}
+
+// one input pin west, one output pin east. not connectable until editing exists.
+function Pins(): JSX.Element {
+  const id = useNodeId();
+  const info = useContext(PinContext).get(id ?? '');
+  const inSide = info?.in ?? EMPTY_SIDE;
+  const outSide = info?.out ?? EMPTY_SIDE;
+  const inLabel = pinLabel(inSide.hidden);
+  const outLabel = pinLabel(outSide.hidden);
   return (
     <>
-      <Handle id="target-top" type="target" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
-      <Handle id="source-top" type="source" position={Position.Top} style={HIDDEN_HANDLE_STYLE} />
-      <Handle
-        id="target-right"
-        type="target"
-        position={Position.Right}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <Handle
-        id="source-right"
-        type="source"
-        position={Position.Right}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <Handle
-        id="target-bottom"
-        type="target"
-        position={Position.Bottom}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <Handle
-        id="source-bottom"
-        type="source"
-        position={Position.Bottom}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <Handle
-        id="target-left"
-        type="target"
-        position={Position.Left}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <Handle
-        id="source-left"
-        type="source"
-        position={Position.Left}
-        style={HIDDEN_HANDLE_STYLE}
-      />
+      <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
+      <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+      {inLabel ? <PinCount side="in" label={inLabel} /> : null}
+      {outLabel ? <PinCount side="out" label={outLabel} /> : null}
     </>
   );
 }
@@ -132,8 +268,9 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
         overflow: 'visible',
       }}
     >
-      {showHandles ? <HiddenHandles /> : null}
+      {showHandles ? <Pins /> : null}
       <div
+        className="ig-node-body"
         style={{
           width: '100%',
           height: '100%',
@@ -152,7 +289,9 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
         }}
       >
         <div
+          data-node-header={data.kind}
           style={{
+            backgroundColor: HEADER_COLORS[data.kind] ?? 'transparent',
             padding: '12px 14px',
             display: 'flex',
             alignItems: 'center',
@@ -167,15 +306,18 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
               fontSize: '13px',
               fontWeight: 600,
               minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              // the whole title shows, on as many lines as it needs (see layout/title-room.ts)
+              overflowWrap: 'anywhere',
+              lineHeight: '18px',
               flex: 1,
             }}
-            title={data.label}
+            data-node-title=""
           >
             {data.label}
           </span>
+          {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
+          {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
+          {data.drift ? <DriftMark drift={data.drift} /> : null}
           {showPip && data.health ? (
             <div
               style={{

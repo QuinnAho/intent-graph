@@ -5,7 +5,7 @@
 // extraction (claudemap's regex pass) — IntentGraph computes references and
 // signatures via tree-sitter, not regex (Tech-Spec §3.2). The output type now
 // lives in @intentgraph/shared/schemas/walker (no inline type).
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

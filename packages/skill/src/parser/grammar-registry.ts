@@ -6,8 +6,8 @@
 // first-class 'unknown skeleton' nodes rather than failing." This module owns
 // the pinning; the ERROR/MISSING tolerance lives in the parser walker.
 //
-// v1 covers TypeScript and JavaScript per the v1 stack decision (tech-spec.md:11
-// "TypeScript everywhere"). Python lands in Phase 7 (tech-spec.md:483); a
+// v1 covers TypeScript and JavaScript per the v1 stack decision (docs/01 - Product/Tech Spec.md:11
+// "TypeScript everywhere"). Python lands in Phase 7 (docs/01 - Product/Tech Spec.md:483); a
 // Python entry here would be premature.
 //
 // The registry is intentionally tiny. Capability descriptors (per tech-spec
@@ -59,7 +59,7 @@ let cachedRegistry: ReadonlyMap<WalkerLanguage, LanguageGrammar> | null = null;
  *
  * Throws if a required grammar package is missing. The skill subprocess refuses
  * to start without grammars rather than degrading silently to a parser that
- * emits zero `code_symbol` rows (tech-spec.md:11 invariant 2: "Every agent
+ * emits zero `code_symbol` rows (docs/01 - Product/Tech Spec.md:11 invariant 2: "Every agent
  * action wraps in a task node and emits a trace event with concrete artifacts"
  * — a parser with no grammars produces no artifacts and breaks the invariant).
  */
