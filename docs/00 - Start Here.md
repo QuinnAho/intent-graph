@@ -9,9 +9,11 @@ This vault is the project's memory. Every session reads this note and [[Board]] 
 
 | | |
 |---|---|
-| Direction | Slim to the wedge, visual first. Decided by Quinn on 2026-11-27, recorded in [[0029-slim-to-the-wedge]]. |
+| Direction | Slim to the wedge, visual first. Decided by the owner on 2026-11-27, recorded in [[0029-slim-to-the-wedge]]. |
 | Built | The static graph (L0): a tree-sitter walk of the code plus the `/spec` markdown, stored in SQLite, shown with React Flow and ELK. Signed off 2026-05-04. |
-| Building | Night 1 lanes on the [[Board]]: live graph with status, a drift check prototype, a first cut of visual editing. |
+| On `night-1`, not yet on `main` | The live graph with status marks from linked tests, and the drift check prototype. Both gated and checked by an independent verifier on 2026-11-27. See [[2026-11-27 Night 1 Report]]. |
+| Waiting for the owner's eyes | A first cut of visual editing, on the branch `visual-edit`. Frames are in the report. |
+| See it | Live graph on a small example: `node tools/e2e-live.mjs --serve`. On this repo: `pnpm exec tsx packages/skill/src/live/cli.ts --root . --port 4777`. Drift check: `node tools/drift.mjs`. |
 | Parked | The May 2026 plan's plumbing: Inngest, AgentRunner, leases, Yjs, retrieval, the VS Code extension. See the ADR for the list. |
 | Repo | `github.com/QuinnAho/intent-graph`. Lanes build in `.wt/<lane>`. Work lands on an integration branch before `main`. |
 | Gate | `node tools/verify.mjs all`. Frames: `node tools/frames.mjs`. |

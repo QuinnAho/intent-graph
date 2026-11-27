@@ -1,11 +1,11 @@
 ---
 type: approaches
-status: waiting for Quinn's pick
+status: decided 2026-11-27, see ADR 0029
 updated: 2026-11-27
 ---
 # Direction after six months: approaches
 
-Written 2026-11-27 by Claude for Quinn. The project was last touched 2026-05-20.
+Written 2026-11-27 by Claude for the owner. The project was last touched 2026-05-20.
 Detail and sources are in the three research notes next to this one: [[2026-11-27 Abstraction Layer]], [[2026-11-27 Graph Libraries]], [[2026-11-27 Landscape]].
 Tags: [O] the research agent opened the page. [S] search snippet only.
 
@@ -66,7 +66,7 @@ A plugin that records decisions from agent sessions into a queryable graph, with
 - **Keep**: SQLite, our tree-sitter walk, React Flow with ELK. Add scip-typescript for symbol identity when it is needed. Sigma 4 for an overview past about 5k nodes.
 - **Note**: React Flow 13 is out (2026-11-23) with breaking changes. Kuzu's successor is LadybugDB, not needed yet.
 
-## State of the repo today (measured 2026-11-27 on quinns-pc)
+## State of the repo today (measured 2026-11-27 on the dev PC)
 
 - `pnpm install`, `typecheck`, `lint` pass. Tests: 90 pass in 11 files.
 - `pnpm build` fails in `packages/skill`: tsup's type build rejects the `incremental` tsconfig option (TS5074).

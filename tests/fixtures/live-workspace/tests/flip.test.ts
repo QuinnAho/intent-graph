@@ -2,5 +2,5 @@
 import { greet } from '../src/greet';
 
 it('greets by name', () => {
-  expect(greet('quinn')).toBe('hello quinn');
+  expect(greet('ada')).toBe('hello ada');
 });

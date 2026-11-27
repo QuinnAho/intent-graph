@@ -3,15 +3,15 @@ updated: 2026-11-27
 ---
 # How We Work
 
-One orchestrator session plans, briefs, gates and merges. Fresh builder agents do the work, one task each, each in its own worktree. Quinn says go on each lane and judges anything visual.
+One orchestrator session plans, briefs, gates and merges. Fresh builder agents do the work, one task each, each in its own worktree. The owner says go on each lane and judges anything visual.
 
-The rules come from Quinn's brain (the `orchestrate`, `dispatch` and `prove` skills) and from the loop research of 2026-11-27 in [[2026-11-27 Orchestration Practice]].
+The rules come from the owner's private workflow notes and from the loop research of 2026-11-27 in [[2026-11-27 Orchestration Practice]].
 
 ## A lane, start to finish
 
-1. Quinn says go.
+1. The owner says go.
 2. The orchestrator writes the lane note in `docs/05 - Log/Lane Notes/<lane>.md`:
-   - Quinn's ask, quoted
+   - the owner's ask, paraphrased
    - the branch and worktree
    - what already exists, with file paths
    - the scope as numbered steps
@@ -27,15 +27,16 @@ The rules come from Quinn's brain (the `orchestrate`, `dispatch` and `prove` ski
    - `node tools/frames.mjs` when the lane changes what is seen
    - the command, exit code and pass line go in the run log
 6. A verifier agent that did not build it gets the lane note, the held-back checks and the running app. It does not get the builder's report. It is told to be sceptical, and it returns pass or fail per check with evidence.
-7. A first failure goes back to the same builder once. A second failure parks the lane for Quinn.
+7. A first failure goes back to the same builder once. A second failure parks the lane for the owner.
 8. Lanes merge to the integration branch one at a time, and the gate runs again on the integration branch after each merge.
-9. The Board and the Devlog are updated in the same turn. Quinn gets frames and a command to see the result.
-10. `main` moves only with Quinn's OK.
+9. The Board and the Devlog are updated in the same turn. The owner gets frames and a command to see the result.
+10. `main` moves only with the owner's OK.
 
 ## Standing rules
 
+- **This repo is public.** Notes, briefs, reports and commits say "the owner". No names, no chat quotes, no machine names, no local paths. Every brief tells its agent the same.
 - **Two or three builders at once at most**, and only on lanes that touch different files. Parallel writers on shared files make conflicting choices.
-- **Reuse before writing.** Quinn: "use the best things of open source stuff rather than rewrite from scratch, we can cherry pick". A new dependency is named in the report with its license and why it was needed.
+- **Reuse before writing.** The owner's rule: use the best open source parts and cherry-pick, never rewrite from scratch. A new dependency is named in the report with its license and why it was needed.
 - **Builders never edit the acceptance checks and never delete or weaken a test.**
 - **"Done" is a claim** until the gate and the verifier agree. Agents report success without evidence often enough that the claim alone is worth nothing.
 - **One task per builder.** A builder that runs out of context mid-feature loses the work, so it commits and pushes after each step.

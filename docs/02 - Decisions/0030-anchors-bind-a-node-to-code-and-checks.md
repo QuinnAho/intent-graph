@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Written by the orchestrator on 2026-11-27 so two lanes could build against one format. Waiting for Quinn's yes. Until then it is used only on fixture specs under `tests/`, never on the real files under `/spec`.
+Proposed. Written by the orchestrator on 2026-11-27 so two lanes could build against one format. Waiting for the owner's yes. Until then it is used only on fixture specs under `tests/`, never on the real files under `/spec`.
 
 Follows up ADR 0009, which left `verified_by` for a later decision.
 

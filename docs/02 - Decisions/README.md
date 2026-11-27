@@ -33,7 +33,7 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0027 | [Playwright MCP as the first UI-driving MCP server](./0027-playwright-mcp-first-ui-driving-server.md) | Proposed (split-rejection clause to be superseded by 0028 on acceptance) |
 | 0028 | [MCP server registrations belong in /.mcp.json, not .claude/settings.json](./0028-mcp-server-registrations-belong-in-mcp-json.md) | Proposed |
 | 0029 | [Slim to the wedge, visual first](./0029-slim-to-the-wedge.md) | Accepted 2026-11-27 |
-| 0030 | [Anchors: how a spec node binds to code and to checks](./0030-anchors-bind-a-node-to-code-and-checks.md) | Proposed, waiting for Quinn |
+| 0030 | [Anchors: how a spec node binds to code and to checks](./0030-anchors-bind-a-node-to-code-and-checks.md) | Proposed, waiting for the owner |
 
 ## Changed by ADR 0029 (2026-11-27)
 

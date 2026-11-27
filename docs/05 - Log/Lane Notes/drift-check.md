@@ -3,13 +3,13 @@ lane: drift-check
 branch: drift-check
 worktree: .wt/drift-check
 status: ready
-go: Quinn, 2026-11-27
+go: owner, 2026-11-27
 ---
 # Lane 2: drift check prototype
 
-## Quinn's ask
+## The ask
 
-"Drift check prototype": a script takes a commit, finds the linked spec nodes, and has a separate cheap model judge whether the intent still holds. Run it on our own last 20 commits and report hits and misses. On reuse: "use the best things of open source stuff rather than rewrite from scratch, we can cherry pick".
+"Drift check prototype": a script takes a commit, finds the linked spec nodes, and has a separate cheap model judge whether the intent still holds. Run it on our own last 20 commits and report hits and misses. On reuse: use the best open source parts and cherry-pick, never rewrite from scratch.
 
 ## Why this lane exists
 
@@ -120,4 +120,4 @@ Real run again, same command: 13 commits, 21 pairs (20 judged, 1 by hash), **1 d
 - Windows file copies keep their mtime, so a same-size edit looked unchanged to git. The case runner drops the index before staging the after side.
 - Hash blind spots, by design: anonymous `;` and `,` are dropped, so `[a,,b]` hashes like `[a,b]`. Quote style is normalised.
 - The judge sees at most 12k chars of diff. Big scaffold commits get cut and come back `unclear`. Raise the cap or send per-symbol hunks.
-- The anchors in `tests/fixtures/drift-real/anchors.json` are my guesses and need Quinn's confirm. None carries `@sig`.
+- The anchors in `tests/fixtures/drift-real/anchors.json` are my guesses and need the owner's confirm. None carries `@sig`.

@@ -74,7 +74,7 @@ Still not built by anyone found: a graph view of intent with a drift check from 
 
 Do not build: a custom language, a compiler, or a regenerate-everything flow. No source opened shows any of these working.
 
-Quinn's change to point 2 (2026-11-27): the graph is not read-only. "I do think visual is the way to go for me personally". Editing on the graph comes early.
+The owner's change to point 2 (2026-11-27): the graph is not read-only. Visual is the owner's preferred way to work, so editing on the graph comes early.
 
 ## Sources
 

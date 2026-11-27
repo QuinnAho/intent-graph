@@ -198,7 +198,7 @@ try {
 
   // 5 flip the test. the mark must turn failed in 15 s.
   const tFlip = Date.now();
-  editFile('tests/flip.test.ts', "toBe('hello quinn')", "toBe('goodbye quinn')");
+  editFile('tests/flip.test.ts', "toBe('hello ada')", "toBe('goodbye ada')");
   try {
     await waitMark('intent-greets-by-name', 'failed', FLIP_LIMIT_MS);
   } catch {
