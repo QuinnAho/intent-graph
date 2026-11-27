@@ -29,3 +29,17 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **See it.** `node tools/e2e-live.mjs --serve`, then open the printed address. Frames: `.runs/night-1/frames/`.
 
 **Not yet.** Edges are drawn through node labels. The anchor format (ADR 0030) is only used on a fixture until Quinn accepts it.
+
+### 2026-11-27, about 6:25 AM  Drift check prototype merged to night-1
+
+**What happened.** Lane 2 landed: a normalised syntax hash for a file or symbol (`packages/skill/src/drift/`), linking from a commit's changes to the spec nodes bound to them, and a cheap judge (haiku through the `claude` CLI, no tools, a budget cap, isolated from the user's own settings) that says aligned, drift or unclear with a quote from the diff. `node tools/drift.mjs` runs it.
+
+**Why it matters.** This is the part nobody ships. The question was whether a cheap model can tell a change that breaks an intent from one that does not, and on seeded cases the answer is yes: 9 of 9 on the builder's cases and 8 of 8 on cases a verifier wrote and the builder never saw, including one-character breaks and a comment that lied. A whole run costs under a cent.
+
+**Evidence.** On `night-1` at `c6a323f`: `PASS all (44.3s) - 4 steps, 207 tests` and `PASS drift (39.2s) - caught 4 of 4 breaking, missed 0, wrongly flagged 0 of 5 harmless, 7 judged pairs, $0.0031`. Verdicts were the same across three runs. On 13 real commits (21 pairs, against anchors the builder proposed): 1 drift, 7 unclear, $0.0236. The one drift looks real: an intent promises a version on every node and edge, and the edge table has none.
+
+**What the verifier caught.** Four faults the builder's own tests had passed: a source file over 32 KB crashed the whole run, a binding to code that did not exist was dropped silently, the judge was reading the user's global CLAUDE.md, and hash-decided rows had empty fields. All fixed, then re-checked by a second verifier.
+
+**Not yet.** A third of real commits come back "unclear", mostly because large diffs are cut. No real breaking commit exists in our history, so catching is proven on seeded cases only. Nothing is shown on the graph yet.
+
+**See it.** `node tools/drift.mjs`. Tokens: builder 232k plus 288k for the retry (opus), verifiers 99k and 61k (sonnet).

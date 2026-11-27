@@ -11,10 +11,9 @@ Integration branch: `night-1`. `main` is still at the May state until Quinn says
 
 | Lane | What | Branch | Status | Evidence |
 |---|---|---|---|---|
-| 2 drift check | Prototype: a commit, its linked spec nodes, and a verdict from a model that did not write the change. Lane note: [[drift-check]] | `drift-check` | builder fixing four verifier findings | builder's cases 9 of 9, verifier's hidden cases 8 of 8 |
 | 3 visual editing | First cut: create and edit an intent on the canvas, saved as clean markdown. Frames to Quinn before any merge. Lane note: [[visual-edit]] | `visual-edit` | building | |
 
-Lane 1 (live graph with status) merged to `night-1` on 2026-11-27. See the [[Devlog]].
+Lanes 1 (live graph with status) and 2 (drift check prototype) merged to `night-1` on 2026-11-27. See the [[Devlog]].
 
 ## Waiting on Quinn
 
@@ -30,9 +29,16 @@ Lane 1 (live graph with status) merged to `night-1` on 2026-11-27. See the [[Dev
 - Decide what happens to the parked scaffolds in `packages/skill/src` (orchestrator, agent-runner, retrieval).
 - React Flow 13 migration. Only if the v12 pin starts to hurt.
 
+## Found by the drift check on our own history (for Quinn to judge)
+
+- `intent-concurrent-agents-stay-consistent` promises a per-row version on every node and edge. The `edge` table has no `version` column (commit `b38e2cd`, still true today). Either the intent or the table is wrong. The code in question belongs to the parked plan, so this may simply mean the intent is parked too.
+
 ## Known
 
-- The graph's "fit" view shows about 83 of 749 nodes, all code. Lane 1 makes the spec nodes visible first.
+- Anchors are parsed twice: `packages/skill/src/parser/spec-md/anchors.ts` (lane 1) and inside `packages/skill/src/drift/` (lane 2). One of them should go.
+- The main parser (`packages/skill/src/parser/tree-sitter.ts`) still has the 32 KB input limit that lane 2 fixed in its own hash code. A source file over 32 KB will not parse in the graph build.
+- The drift judge answers "unclear" on about a third of real commits, mostly when a large diff is cut at 12k characters.
+- Edges are drawn through node labels.
 - ELK layout runs on the main thread today (see [[Code Map]]).
 - The ESLint guard and the two edit hooks still enforce the AgentRunner rule from the May plan. Harmless, but tied to parked code.
 - `claudemap/` is an empty link to the fork source. Nothing can be lifted until it is restored.
