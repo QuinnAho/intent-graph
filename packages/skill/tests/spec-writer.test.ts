@@ -37,7 +37,7 @@ const COMMENTED = [
   'parent: concept-calculator',
   'confidence: asserted',
   '# a comment between keys',
-  'owner: quinn   # owner comment',
+  'owner: ada   # owner comment',
   'target_kinds: [function, module]',
   'description: >-',
   '  a folded block value',
