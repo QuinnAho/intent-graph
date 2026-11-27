@@ -11,9 +11,10 @@ Integration branch: `night-1`. `main` is still at the May state until Quinn says
 
 | Lane | What | Branch | Status | Evidence |
 |---|---|---|---|---|
-| 1 live graph | Edit a `/spec` file and the graph updates in about 2 s. Nodes show verified, failed or pending from their linked tests. Lane note: [[live-graph]] | `live-graph` | building | |
-| 2 drift check | Prototype: a commit, its linked spec nodes, and a verdict from a model that did not write the change. Lane note: [[drift-check]] | `drift-check` | building | |
-| 3 visual editing | First cut: create and edit an intent on the canvas, saved as clean markdown. Frames to Quinn before any merge | `visual-edit` | waiting on lane 1 | |
+| 2 drift check | Prototype: a commit, its linked spec nodes, and a verdict from a model that did not write the change. Lane note: [[drift-check]] | `drift-check` | builder fixing four verifier findings | builder's cases 9 of 9, verifier's hidden cases 8 of 8 |
+| 3 visual editing | First cut: create and edit an intent on the canvas, saved as clean markdown. Frames to Quinn before any merge. Lane note: [[visual-edit]] | `visual-edit` | building | |
+
+Lane 1 (live graph with status) merged to `night-1` on 2026-11-27. See the [[Devlog]].
 
 ## Waiting on Quinn
 
