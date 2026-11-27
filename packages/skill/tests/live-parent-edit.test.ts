@@ -242,31 +242,45 @@ describe('writes that arrive together', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('refuses the second of two requests that would make a loop, however fast it comes', async () => {
+  it('accepts exactly one of two requests that would make a loop, however fast they come', async () => {
     const c0 = readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8');
     const d0 = readFileSync(join(dir, 'spec', 'concepts', 'd.md'), 'utf8');
     for (let round = 0; round < 5; round++) {
+      // two requests sent together have no promised order of arrival, so either may win.
+      // what must hold: one is accepted, one is refused, and the refused one wrote nothing.
       const [a, b] = await Promise.all([post('api/parent?id=concept-c', { parent: 'concept-d' }), post('api/parent?id=concept-d', { parent: 'concept-c' })]);
-      expect([a.status, b.status]).toEqual([200, 422]);
+      expect([a.status, b.status].sort()).toEqual([200, 422]);
       const c = readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8');
       const d = readFileSync(join(dir, 'spec', 'concepts', 'd.md'), 'utf8');
       expect(c.includes('parent: concept-d') && d.includes('parent: concept-c')).toBe(false);
-      expect(d).toBe(d0);
+      if (a.status === 200) expect(d).toBe(d0);
+      else expect(c).toBe(c0);
       expect((await post('api/undo', {})).status).toBe(200);
       expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(c0);
+      expect(readFileSync(join(dir, 'spec', 'concepts', 'd.md'), 'utf8')).toBe(d0);
     }
   });
 
-  it('keeps writes in the order they arrived', async () => {
+  it('applies writes that arrive together one at a time, and undo takes each one back', async () => {
+    const c0 = concept('concept-c', 'null');
+    // three writes to one file, sent together. their order of arrival is not promised, and a
+    // write that would change nothing is refused, so one to three of them are accepted.
     const replies = await Promise.all([
       post('api/parent?id=concept-c', { parent: 'concept-d' }),
       post('api/parent?id=concept-c', { parent: null }),
       post('api/parent?id=concept-c', { parent: 'concept-d' }),
     ]);
-    expect(replies.map((r) => r.status)).toEqual([200, 200, 200]);
-    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toContain('parent: concept-d');
-    for (let i = 0; i < 3; i++) expect((await post('api/undo', {})).status).toBe(200);
-    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(concept('concept-c', 'null'));
+    const statuses = replies.map((r) => r.status);
+    for (const s of statuses) expect([200, 422]).toContain(s);
+    const accepted = statuses.filter((s) => s === 200).length;
+    expect(accepted).toBeGreaterThanOrEqual(1);
+    // whatever the order, the file holds one whole write, never a mix of two
+    const after = readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8');
+    expect(after.match(/^parent:/gm)?.length).toBe(1);
+    expect(/^parent: (concept-d|null)\r?$/m.test(after)).toBe(true);
+    // each accepted write is one undo step, and the last undo is the starting file byte for byte
+    for (let i = 0; i < accepted; i++) expect((await post('api/undo', {})).status).toBe(200);
+    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(c0);
   });
 
   it('checks the loop against the files on disk, not the cached graph', async () => {
