@@ -74,4 +74,8 @@ The gate cannot be made green in two tries. A step needs a change outside "Files
 
 ## Builder notes
 
-(builder: anything the next lane must know, in a few lines)
+- Try it: `node tools/e2e-edit.mjs --serve` starts a `--write` server on a temp copy of the fixture and prints the url. On a real folder: `pnpm exec tsx packages/skill/src/live/cli.ts --root <dir> --port <n> --write`.
+- Writer: `parser/spec-md/writer.ts`. The panel body is the markdown after a heading that mirrors the title, so a title change moves the heading with it. A file with no `updated` line gets one added as the last frontmatter line. Confidence is never touched on an edit (ADR 0024), a new intent is `asserted`.
+- Server: `live/edit-api.ts` holds the rules, `server.ts` only wires them. `GET /api/node?id=` loads, `POST /api/node?id=` saves, `POST /api/intents` creates. The token is in `window.__INTENTGRAPH_LIVE__` only when `--write` is on. `--write` refuses any host but 127.0.0.1.
+- Seen in the frames, not fixed here: a new intent has no `target_kinds`, so the parser's recommended-field warning shows as "1 problem" right after a create. The side panel covers the right edge of the canvas. Selected nodes get no highlight, because the node renderers read `data.isSelected`, which nothing sets (older than this lane).
+- Switching to another node drops unsaved panel text without asking.
