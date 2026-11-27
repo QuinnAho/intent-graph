@@ -19,12 +19,15 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
+import { openNodeMenu, openPaneMenu, renameNode } from '../app/direct-edit-actions.js';
+import { useUiStore } from '../store/ui-slice.js';
 import { SPEC_KINDS } from '../transport/live-source.js';
+import { ContextMenu } from './ContextMenu.js';
 import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
-import { PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -180,6 +183,58 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   );
   const handleNodeLeave = useCallback<NodeMouseHandler>(() => setHoverNode(null), []);
 
+  // a double-click on a node never zooms. on a spec node's title it renames. on empty canvas it zooms as before.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const drawn = graphLoaded && layoutReady;
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    // the first click selects a node and the page redraws it for a moment, so the second click can land
+    // on the box behind it. the title is remembered from the first click and matched by place and time.
+    let lastTitle: { id: string; x: number; y: number; at: number } | null = null;
+    const onClick = (e: globalThis.MouseEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const title = target && !target.closest('textarea, input, button') ? target.closest('[data-node-title]') : null;
+      const id = title?.closest('.react-flow__node')?.getAttribute('data-id');
+      if (id) lastTitle = { id, x: e.clientX, y: e.clientY, at: e.timeStamp };
+    };
+    const onDouble = (e: globalThis.MouseEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const nodeEl = target?.closest('.react-flow__node');
+      if (!target || !nodeEl) return;
+      e.stopPropagation();
+      let id: string | null | undefined;
+      if (target.closest('textarea, input, button')) return;
+      if (target.closest('[data-node-title]')) id = nodeEl.getAttribute('data-id');
+      else if (lastTitle && e.timeStamp - lastTitle.at <= EDIT_TIMING.doubleClickMs && Math.hypot(e.clientX - lastTitle.x, e.clientY - lastTitle.y) <= EDIT_TIMING.samePointPx) id = lastTitle.id;
+      if (!id) return;
+      const type = nodesRef.current.find((n) => n.id === id)?.type;
+      if (type && SPEC_KINDS.has(type)) renameNode(id);
+    };
+    el.addEventListener('click', onClick, true);
+    el.addEventListener('dblclick', onDouble, true);
+    return () => {
+      el.removeEventListener('click', onClick, true);
+      el.removeEventListener('dblclick', onDouble, true);
+    };
+  }, [drawn]);
+
+  const handleNodeContext = useCallback<NodeMouseHandler>((event, node) => {
+    if (!node.type || !SPEC_KINDS.has(node.type)) return;
+    event.preventDefault();
+    openNodeMenu(node.id, node.type, { x: event.clientX, y: event.clientY });
+  }, []);
+  const handlePaneContext = useCallback((event: MouseEvent | globalThis.MouseEvent): void => {
+    event.preventDefault();
+    openPaneMenu({ x: event.clientX, y: event.clientY });
+  }, []);
+  // only a move the person makes closes the menu, not the page keeping a node clear of the panel
+  const handleMoveStart = useCallback((event: unknown): void => {
+    if (event) useUiStore.getState().closeMenu();
+  }, []);
+
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
   const graphReady = graphLoaded && layoutReady;
   const hasMountedGraphRef = useRef(false);
@@ -210,7 +265,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   return (
     <PinContext.Provider value={plan.pins}>
     <HoverNodeContext.Provider value={hoverNode}>
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div ref={wrapRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <ReactFlow
         nodes={stacked}
         edges={wires}
@@ -226,6 +281,9 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         zoomOnScroll
         zoomOnPinch
         zoomOnDoubleClick={!interactionLocked}
+        onNodeContextMenu={handleNodeContext}
+        onPaneContextMenu={handlePaneContext}
+        onMoveStart={handleMoveStart}
         elementsSelectable={!interactionLocked}
         selectionOnDrag={!interactionLocked}
         onlyRenderVisibleElements
@@ -245,6 +303,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       >
         <Background color="var(--ig-edge)" gap={40} size={1} />
         <KeepInView nodeId={clearPanelFor} nodes={nodes} />
+        <ContextMenu fitViewOptions={FIT_VIEW_OPTIONS} />
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>

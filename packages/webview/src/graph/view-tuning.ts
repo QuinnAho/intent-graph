@@ -98,4 +98,12 @@ export const PANEL_TUNING = {
   minZoom: 0.1,
   // wait for the layout to settle after a selection before moving the view, ms
   settleMs: 250,
+  // a new selection waits this long before the panel opens, so a double-click lands on the node twice, ms
+  doubleClickMs: 250,
+} as const;
+
+// matching the second click of a double-click to the title the first one hit
+export const EDIT_TIMING = {
+  doubleClickMs: 500,
+  samePointPx: 6,
 } as const;
