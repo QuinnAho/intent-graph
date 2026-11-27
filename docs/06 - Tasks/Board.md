@@ -15,18 +15,20 @@ None is building. Lane 7 (direct editing: rename in place, a right-click menu, a
 
 ## An experiment, kept or dropped after a look
 
+Declared and inferred intent: the owner said go on 2026-11-27. Options and the recommendation: [[2026-11-27 Layers - Approaches]].
+
 | Lane | What | Branch | Status |
 |---|---|---|---|
-| 9 declared and inferred | A cheap model reads code that no intent claims and proposes what it is for. The page draws the proposals dashed, nested with their code. Enter accepts, a double-click edits, Delete dismisses. It carries the owner's three thoughts: nesting, a layer between intent and code, and inferred intent a person can change easily. Options and a recommendation: [[2026-11-27 Layers - Approaches]] | `inferred` | waits for the owner's go |
+| 9 infer, the script | A cheap model reads source folders that no intent claims and proposes what the code is for, with the symbols it read as evidence. A report under `.runs/infer/`, never a write to `/spec`. The owner reads the proposals for this repo before the next lane starts. Lane note: [[infer]] | `infer` | building |
+| 10 inferred on the graph | The proposals drawn dashed, nested with their code. Enter accepts and writes a spec file, a double-click edits first, Delete dismisses | `inferred-graph` | waits for lane 9 and the owner's read of its proposals |
 
 ## Waiting on the owner
 
-1. **The declared and inferred experiment: go?** Dashed proposals on the canvas, nested with their code, accepted, edited or dismissed with one key each. On a copy, so the real `/spec` is untouched, and a few cents of model use. Recommended: yes.
-2. **ADR 0030, the anchor format.** Accept it? Until then anchors live only on fixtures, so every node of this repo shows pending, no wire runs from a spec node to code, and nesting has nothing real to show.
-3. **Which words are target kinds?** `spec/intents/README.md` and all 12 intents of this repo use `module` and `api`. The code schema (`packages/shared/src/schemas/node.ts:31`) only knows node kinds such as `code_module`, and the new-intent form offers those nine. Recommended: the README's words.
-4. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
-5. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
-6. **Public repo hygiene.** One small call, written up in the owner's private notes.
+1. **ADR 0030, the anchor format.** Accept it? Until then anchors live only on fixtures, so every node of this repo shows pending, no wire runs from a spec node to code, and nesting has nothing real to show.
+2. **Which words are target kinds?** `spec/intents/README.md` and all 12 intents of this repo use `module` and `api`. The code schema (`packages/shared/src/schemas/node.ts:31`) only knows node kinds such as `code_module`, and the new-intent form offers those nine. Recommended: the README's words.
+3. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
+4. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
+5. **Public repo hygiene.** One small call, written up in the owner's private notes.
 
 ## Next, not started (each needs a go)
 
