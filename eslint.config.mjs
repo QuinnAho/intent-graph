@@ -85,6 +85,10 @@ export default [
       'claudemap/**',
       // Build artifacts from the agent-skill packager.
       'artifacts/**',
+      // lane worktrees and run logs live inside the repo (ADR-0029, How We Work).
+      // each worktree is linted from its own root, never through this one.
+      '.wt/**',
+      '.runs/**',
     ],
   },
   {

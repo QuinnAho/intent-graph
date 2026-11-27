@@ -7,3 +7,7 @@ coverage
 *.vsix
 pnpm-lock.yaml
 packages/skill/src/db/migrations/**/*.sql
+
+# lane worktrees and run logs
+.wt/
+.runs/
