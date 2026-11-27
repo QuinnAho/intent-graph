@@ -12,14 +12,16 @@ import { DriftMark, StatusMark, type CheckStatus, type DriftInfo } from '../grap
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
-import { isDirty, pickEditNode, titleProblem, type Draft } from './edit-model.js';
+import { isDirty, isSaveKey, kindsProblem, pickEditNode, titleProblem, toggleKind, type Draft } from './edit-model.js';
+import { CREATE_TUNING } from './edit-tuning.js';
+import { PANEL_TUNING } from '../graph/view-tuning.js';
 
 const PANEL: CSSProperties = {
   position: 'absolute',
-  top: '12px',
-  right: '12px',
-  bottom: '12px',
-  width: 'min(380px, calc(100vw - 24px))',
+  top: `${PANEL_TUNING.margin}px`,
+  right: `${PANEL_TUNING.margin}px`,
+  bottom: `${PANEL_TUNING.margin}px`,
+  width: `min(${PANEL_TUNING.width}px, calc(100vw - ${2 * PANEL_TUNING.margin}px))`,
   zIndex: 20,
   display: 'flex',
   flexDirection: 'column',
@@ -52,6 +54,7 @@ const FIELD: CSSProperties = {
   width: '100%',
 };
 const BODY_FIELD: CSSProperties = { ...FIELD, minHeight: '180px', resize: 'vertical', fontFamily: 'var(--ig-font-mono, monospace)', fontSize: '12px', lineHeight: 1.45 };
+const READ_TEXT: CSSProperties = { fontWeight: 400, letterSpacing: 'normal', textTransform: 'none', color: 'var(--ig-text)', lineHeight: 1.45, overflowWrap: 'anywhere', userSelect: 'text' };
 const ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' };
 const BUTTON: CSSProperties = {
   font: 'inherit',
@@ -99,7 +102,7 @@ function useEditKeys(onSave: () => void, onCancel: () => void): void {
   keys.current = { onSave, onCancel };
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      if (isSaveKey(e)) {
         e.preventDefault();
         keys.current.onSave();
       } else if (e.key === 'Escape') {
@@ -114,10 +117,10 @@ function useEditKeys(onSave: () => void, onCancel: () => void): void {
 function KindHeader(props: { kind: string; file?: string; unsaved?: boolean; onClose: () => void }): JSX.Element {
   const Icon = getNodeIcon(props.kind as NodeKind);
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
     <div style={HEADER}>
       <Icon size={18} />
       <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{props.kind}</span>
-      {props.file ? <span style={{ ...MUTED, fontFamily: 'var(--ig-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} title={props.file}>{props.file}</span> : null}
       {props.unsaved ? (
         <span style={UNSAVED} data-unsaved="true" aria-label="unsaved changes">
           ● Unsaved
@@ -126,6 +129,13 @@ function KindHeader(props: { kind: string; file?: string; unsaved?: boolean; onC
       <button type="button" style={ICON_BUTTON} aria-label="Close panel" onClick={props.onClose}>
         <X size={16} />
       </button>
+    </div>
+    {props.file ? (
+      // the whole path, wrapped at slashes, never cut
+      <div style={{ ...MUTED, fontFamily: 'var(--ig-font-mono, monospace)', overflowWrap: 'anywhere' }} data-edit-file="">
+        {props.file}
+      </div>
+    ) : null}
     </div>
   );
 }
@@ -220,36 +230,43 @@ function NodeEditor(props: { node: Node }): JSX.Element {
         </div>
       ) : null}
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <label style={LABEL}>
-          Title
-          <input
-            data-edit-title=""
-            style={FIELD}
-            value={draft.title}
-            disabled={!canEdit}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-          />
-        </label>
-        <label style={LABEL}>
-          Body
-          <textarea
-            data-edit-body=""
-            style={BODY_FIELD}
-            value={draft.body}
-            disabled={!canEdit}
-            spellCheck
-            onChange={(e) => setDraft({ ...draft, body: e.target.value })}
-          />
-        </label>
-        <div style={ROW}>
-          <button type="submit" style={{ ...PRIMARY, opacity: canEdit && dirty && !busy ? 1 : 0.5 }} disabled={!canEdit || !dirty || busy} data-edit-save="">
-            {busy ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" style={{ ...BUTTON, opacity: canEdit && dirty ? 1 : 0.5 }} disabled={!canEdit || !dirty} onClick={cancel} data-edit-cancel="">
-            Cancel
-          </button>
-          <span style={MUTED}>Ctrl+S saves, Esc cancels</span>
-        </div>
+        {canEdit ? (
+          <>
+            <label style={LABEL}>
+              Title
+              <input data-edit-title="" style={FIELD} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+            </label>
+            <label style={LABEL}>
+              Body
+              <textarea data-edit-body="" style={BODY_FIELD} value={draft.body} spellCheck onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+            </label>
+            <div style={ROW}>
+              <button type="submit" style={{ ...PRIMARY, opacity: dirty && !busy ? 1 : 0.5 }} disabled={!dirty || busy} data-edit-save="">
+                {busy ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" style={{ ...BUTTON, opacity: dirty ? 1 : 0.5 }} disabled={!dirty} onClick={cancel} data-edit-cancel="">
+                Cancel
+              </button>
+              <span style={MUTED}>Ctrl+S or Cmd+S saves, Esc cancels</span>
+            </div>
+          </>
+        ) : (
+          // read only: plain text, no field that looks like it takes input
+          <>
+            <div style={LABEL}>
+              Title
+              <div style={READ_TEXT} data-read-title="">
+                {draft.title}
+              </div>
+            </div>
+            <div style={LABEL}>
+              Body
+              <div style={{ ...READ_TEXT, fontFamily: 'var(--ig-font-mono, monospace)', fontSize: '12px', whiteSpace: 'pre-wrap' }} data-read-body="">
+                {draft.body}
+              </div>
+            </div>
+          </>
+        )}
       </form>
       <NoteBox note={note} />
       <section>
@@ -331,6 +348,7 @@ function CreateForm(props: { parent: string }): JSX.Element {
   const setPendingSelect = useUiStore((s) => s.setPendingSelect);
   const parentTitle = useGraphStore((s) => (s.nodes.find((n) => n.id === props.parent)?.data as { label?: string } | undefined)?.label ?? props.parent);
   const [title, setTitle] = useState('');
+  const [kinds, setKinds] = useState<string[]>([...CREATE_TUNING.defaultTargetKinds]);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const field = useRef<HTMLInputElement>(null);
@@ -346,8 +364,13 @@ function CreateForm(props: { parent: string }): JSX.Element {
       setNote({ kind: 'error', text: problem });
       return;
     }
+    const kindProblem = kindsProblem(kinds);
+    if (kindProblem) {
+      setNote({ kind: 'error', text: kindProblem });
+      return;
+    }
     setBusy(true);
-    const r = await createIntent(config, props.parent, title.trim());
+    const r = await createIntent(config, props.parent, title.trim(), kinds);
     setBusy(false);
     if (!r.ok) {
       setNote({ kind: 'error', text: r.message });
@@ -380,6 +403,16 @@ function CreateForm(props: { parent: string }): JSX.Element {
           Title
           <input ref={field} data-create-title="" style={FIELD} value={title} disabled={!config.write || busy} onChange={(e) => setTitle(e.target.value)} />
         </label>
+        <fieldset style={{ border: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }} data-create-kinds="">
+          <legend style={{ ...LABEL, padding: 0, marginBottom: '4px' }}>Target kinds</legend>
+          <div style={MUTED}>What this intent shapes. Pick at least one.</div>
+          {CREATE_TUNING.targetKinds.map((k) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+              <input type="checkbox" data-create-kind={k} checked={kinds.includes(k)} disabled={!config.write || busy} onChange={() => setKinds(toggleKind(kinds, k))} />
+              {k}
+            </label>
+          ))}
+        </fieldset>
         <div style={ROW}>
           <button type="submit" style={{ ...PRIMARY, opacity: config.write && !busy ? 1 : 0.5 }} disabled={!config.write || busy} data-create-save="">
             {busy ? 'Creating…' : 'Create'}

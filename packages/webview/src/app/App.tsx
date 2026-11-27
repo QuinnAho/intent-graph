@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
 import { EditPanel } from './EditPanel.js';
-import { selectOnly } from './edit-model.js';
+import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
 import {
   useGraphEdges,
@@ -104,12 +104,17 @@ function onSelectionChange(changes: NodeChange[]): void {
   s.setGraph(applyNodeChanges(select, [...s.nodes] as Node[]), s.edges);
 }
 
+// the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
 const SHELL_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,
   width: '100vw',
   height: '100vh',
+  display: 'flex',
+  flexDirection: 'column',
 };
+
+const CANVAS_AREA_STYLE: CSSProperties = { position: 'relative', flex: '1 1 auto', minHeight: 0 };
 
 const ERROR_STYLE: CSSProperties = {
   position: 'absolute',
@@ -135,6 +140,7 @@ export function App(): JSX.Element {
   const live = useMemo(() => readLiveSource(window.location.search, window.__INTENTGRAPH_LIVE__), []);
   const focus = useMemo(() => readFocus(window.location.search), []);
   const pendingSelect = useUiStore((s) => s.pendingSelect);
+  const editNodeId = useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null);
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
 
@@ -176,6 +182,7 @@ export function App(): JSX.Element {
 
   return (
     <div style={SHELL_STYLE}>
+      <div style={CANVAS_AREA_STYLE}>
       <GraphCanvas
         nodes={nodes as Parameters<typeof GraphCanvas>[0]['nodes']}
         edges={edges as Parameters<typeof GraphCanvas>[0]['edges']}
@@ -183,9 +190,11 @@ export function App(): JSX.Element {
         layoutReady={layoutReady && fitNodeIds !== undefined}
         fitNodeIds={fitNodeIds ?? null}
         onNodesChange={handleNodesChange}
+        clearPanelFor={editNodeId}
       />
-      <ProblemsPanel />
       <EditPanel />
+      </div>
+      <ProblemsPanel />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-// always-visible problem count in the corner, opens a list of file and message.
+// problem count in a strip under the canvas, opens a list of file and message.
+// the strip takes its own room, so the list never sits on a node's title.
 // hidden when there are no problems, so it clears by itself once a file is fixed.
 // severity is a word and an icon, not only a colour.
 
@@ -8,11 +9,11 @@ import { useState, type CSSProperties } from 'react';
 import { problemsLabel, useProblemsStore } from '../store/problems.js';
 
 const BOX: CSSProperties = {
-  position: 'absolute',
-  top: '12px',
-  left: '12px',
+  flex: '0 0 auto',
+  padding: '6px 12px',
+  borderTop: '1px solid var(--ig-edge)',
+  background: 'var(--ig-canvas)',
   zIndex: 20,
-  maxWidth: 'min(560px, calc(100vw - 24px))',
   fontFamily: 'var(--ig-font-mono, monospace)',
   fontSize: '12px',
   color: 'var(--ig-text)',
@@ -34,12 +35,13 @@ const BUTTON: CSSProperties = {
 
 const LIST: CSSProperties = {
   marginTop: '6px',
+  marginBottom: 0,
   padding: '8px 10px',
   borderRadius: '8px',
   border: '1px solid var(--ig-edge)',
   background: 'var(--ig-node)',
   listStyle: 'none',
-  maxHeight: '50vh',
+  maxHeight: '30vh',
   overflowY: 'auto',
 };
 
