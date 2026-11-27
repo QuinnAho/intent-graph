@@ -28,7 +28,7 @@ export const INFER_TUNING = {
   maxAnchors: 8,
   maxProposals: 3,
   /** Bump when the prompt or the schema changes, so old cache entries stop matching. */
-  promptVersion: 'p1',
+  promptVersion: 'p2',
   /**
    * A folder is a source folder when its repo-relative path matches one of these.
    * The first is a package's src subfolders (the src root holds entry files only).

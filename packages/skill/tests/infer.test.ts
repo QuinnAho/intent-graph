@@ -81,6 +81,23 @@ describe('leadingComment and digestFile', () => {
   });
 });
 
+const NL = String.fromCharCode(10);
+
+describe('stub files', () => {
+  const stub = digestFile('src/s/a.ts', ['// Will watch files and emit events.', 'export const WATCHER_PLACEHOLDER = 1;', ''].join(NL));
+  it('a file that exports only placeholder constants is a stub, real code is not', () => {
+    expect(stub.stub).toBe(true);
+    expect(digestFile('src/s/b.ts', 'export function f() { return 1; }').stub).toBe(false);
+    expect(digestFile('src/s/c.ts', ['export const A_PLACEHOLDER = 1;', 'export function g() {}'].join(NL)).stub).toBe(false);
+    expect(digestFile('src/s/d.ts', '// barrel').stub).toBe(false);
+  });
+  it('the prompt marks a stub and the system prompt tells the model to write a plan', () => {
+    const p = buildPrompt(buildFolderInput('src/s', [stub]), declared);
+    expect(p.text).toContain('STUB: this file exports only placeholder constants');
+    expect(INFER_SYSTEM_PROMPT).toContain('Planned:');
+  });
+});
+
 describe('code hash', () => {
   const hashOf = (src: string): string => buildFolderInput('src/x', [digestFile('src/x/a.ts', src)]).codeHash;
   it('ignores a comment edit and a reformat', () => {
@@ -292,8 +309,33 @@ describe('runInfer', () => {
     expect(r.folders.map((f) => f.status)).toEqual(['error', 'error']);
     expect(r.folders[0]!.error).toContain('exit 1');
     expect(r.totals.errors).toBe(2);
-    expect(r.totals.cost_usd).toBeCloseTo(0.004, 6);
+    expect(r.totals.cost_usd).toBeCloseTo(0.006, 6);
     expect(r.incomplete).toBe(false);
+  });
+
+  it('a reply that breaks the limits gets one more try, then an error row', async () => {
+    const bad = reply([good(['src/alpha/queue.ts#enqueue', 'src/alpha/retry.ts#Retrier'], { title: 'x'.repeat(91) })]);
+    let n = 0;
+    const flaky = stub(() => (n++ === 0 ? bad : reply([good(['src/alpha/queue.ts#enqueue', 'src/alpha/retry.ts#Retrier'])])));
+    const r = await runInfer({ root: WS, plans: [plans[0]!], declared, call: flaky, cache: memoryCache(), tuning: TUNING });
+    expect(flaky.calls).toHaveLength(2);
+    expect(r.folders[0]!.status).toBe('proposed');
+    expect(r.folders[0]!.calls).toBe(2);
+    const stuck = stub(() => bad);
+    const r2 = await runInfer({ root: WS, plans: [plans[0]!], declared, call: stuck, cache: memoryCache(), tuning: TUNING });
+    expect(stuck.calls).toHaveLength(2);
+    expect(r2.folders[0]!.status).toBe('error');
+    expect(r2.folders[0]!.error).toContain('first: title');
+  });
+
+  it('does not retry when the budget is spent, and never retries a failed call', async () => {
+    const bad = reply([{ title: 'no body' }], 0.01);
+    const spent = stub(() => bad);
+    await runInfer({ root: WS, plans: [plans[0]!], declared, call: spent, cache: memoryCache(), tuning: { ...TUNING, runBudgetUsd: 0.005 } });
+    expect(spent.calls).toHaveLength(1);
+    const failed = stub(() => ({ reply: null, costUsd: 0, seconds: 1, model: null, error: 'boom' }));
+    await runInfer({ root: WS, plans: [plans[0]!], declared, call: failed, cache: memoryCache(), tuning: TUNING });
+    expect(failed.calls).toHaveLength(1);
   });
 
   it('does not cache a failed folder', async () => {
@@ -379,6 +421,30 @@ describe('inferMain on a copy of the example workspace', () => {
     expect(lines.join('\n')).toContain('src');
     expect(r.note).toContain('2 files already claimed');
     expect(() => statSync(join(dir, '.runs'))).toThrow();
+  });
+
+  it('the fixture workspace parses clean and its claimed file is left out of the prompt', async () => {
+    const dir = temp();
+    cpSync(WS, dir, { recursive: true });
+    const call = stub(() => reply([good(['src/alpha/retry.ts#Retrier', 'src/alpha/retry.ts#MAX_TRIES'])]));
+    const lines: string[] = [];
+    const r = await inferMain(['--root', dir, '--paths', 'src/alpha'], 'REPO', (l) => lines.push(l), call);
+    expect(lines.filter((l) => l.includes('spec warning'))).toEqual([]);
+    expect(r.ok).toBe(true);
+    expect(call.calls[0]).not.toContain('queue.ts');
+    expect(call.calls[0]).toContain('retry.ts');
+    expect(JSON.stringify(r.report)).not.toContain(dir);
+  });
+
+  it('a spec warning never carries a local path', async () => {
+    const dir = temp();
+    cpSync(WS, dir, { recursive: true });
+    writeFileSync(join(dir, 'spec', 'intents', 'broken.md'), ['---', 'id: intent-broken', 'title: Broken', '---', ''].join(NL));
+    const lines: string[] = [];
+    await inferMain(['--root', dir, '--paths', 'src/beta', '--dry-run'], 'REPO', (l) => lines.push(l), stub(() => reply([])));
+    const warn = lines.filter((l) => l.includes('spec warning'));
+    expect(warn.length).toBeGreaterThan(0);
+    for (const l of warn) expect(l).not.toContain(dir);
   });
 
   it('an unknown folder is a FAIL, not a crash', async () => {

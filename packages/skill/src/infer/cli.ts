@@ -11,7 +11,7 @@ import { callClaude } from '../drift/claude-cli.js';
 import { loadSpecNodes } from '../drift/spec-nodes.js';
 import { collectProjectSnapshot } from '../parser/fileWalker.js';
 import { planFolders, type FolderPlan } from './folders.js';
-import { readFolder } from './gather.js';
+import { readFolder, scrubPaths } from './gather.js';
 import { INFER_JSON_SCHEMA, INFER_SYSTEM_PROMPT, type Declared } from './prompt.js';
 import { cacheKey, runInfer, type InferCache, type InferCall } from './run.js';
 import { INFER_TUNING, type InferTuning } from './tuning.js';
@@ -69,7 +69,9 @@ export function loadDeclared(root: string): { declared: Declared[]; nodes: Retur
     const kind = KIND_BY_DIR[n.file.replace(/\\/g, '/').split('/').slice(-2, -1)[0] ?? ''];
     if (kind) declared.push({ id: n.id, kind, title: n.title });
   }
-  return { declared, nodes: loaded.nodes, warnings: loaded.errors.map((e) => `${e.file.replace(/\\/g, '/').split('/').slice(-2).join('/')}: ${e.message}`) };
+  // the parser repeats the file's full path in its message, so any path in it is scrubbed and the short name kept
+  const warnings = loaded.errors.map((e) => `${e.file.replace(/\\/g, '/').split('/').slice(-2).join('/')}: ${scrubPaths(e.message).replace(/^<path>:\s*/, '')}`);
+  return { declared, nodes: loaded.nodes, warnings };
 }
 
 /** The cache file as a plain map, loaded once and saved after the run. */

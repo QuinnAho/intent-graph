@@ -160,16 +160,28 @@ export async function runInfer(opts: RunInferOptions): Promise<InferReport> {
         continue;
       }
       const built = buildPrompt(input, opts.declared, tuning.maxPromptChars, tuning.maxDeclaredTitleChars);
-      const res = await opts.call(built.text, plan.folder);
+      // a reply that breaks the limits gets one more try, a failed call does not
+      const callsBefore = calls;
+      let res = await opts.call(built.text, plan.folder);
       calls += 1;
       spent += res.costUsd;
-      row = { ...base, calls: 1, cost_usd: res.costUsd, seconds: res.seconds, truncated: built.truncated };
-      if (res.error !== null) {
-        folders.push({ ...row, status: 'error', error: res.error });
-        log(`  error   ${plan.folder}: ${res.error.slice(0, 120)}`);
+      let seconds = res.seconds;
+      let reply = res.error === null ? parseReply(res.reply, tuning.maxProposals) : null;
+      if (res.error === null && reply !== null && !reply.ok && spent < tuning.runBudgetUsd) {
+        const again = await opts.call(built.text, plan.folder);
+        calls += 1;
+        spent += again.costUsd;
+        seconds += again.seconds;
+        res = { ...again, costUsd: res.costUsd + again.costUsd };
+        reply = again.error === null ? parseReply(again.reply, tuning.maxProposals) : null;
+      }
+      row = { ...base, calls: calls - callsBefore, cost_usd: res.costUsd, seconds, truncated: built.truncated };
+      if (res.error !== null || reply === null) {
+        const error = res.error ?? 'no reply';
+        folders.push({ ...row, status: 'error', error });
+        log(`  error   ${plan.folder}: ${error.slice(0, 120)}`);
         continue;
       }
-      const reply = parseReply(res.reply, tuning.maxProposals);
       if (!reply.ok) {
         folders.push({ ...row, status: 'error', error: reply.error });
         log(`  error   ${plan.folder}: ${reply.error}`);

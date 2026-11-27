@@ -16,6 +16,7 @@ export const INFER_SYSTEM_PROMPT = [
   'The body is at most 400 characters and says how the code gets that outcome, naming the real mechanism you can see in the signatures and comments.',
   'Give one proposal when the folder has one purpose, which is usual. Give two or three only when it clearly serves separate purposes. Never split by file.',
   'If the folder is plumbing or glue, say what it makes possible for the rest of the product, not that it is glue.',
+  'A file marked STUB has no working code. Its comment says what it is meant to do, so propose that, but write the body as a plan: start it with "Planned:", say that nothing runs yet, and use "semantic". Never describe a stub as if it already works.',
   'Say only what the shown code supports. If you cannot tell what part of it is for, leave that out and use "semantic" as the confidence.',
   'anchors are two to eight places in the shown code that are your evidence. Copy them exactly from the names shown, as path or path#Symbol. Never invent one.',
   'belongs_under is the id of a declared concept this sits under, or null. restates is the id of a declared intent that this proposal says nearly the same thing as, or null. Use ids exactly as listed. Use null when unsure.',
@@ -76,6 +77,7 @@ function declaredBlock(declared: readonly Declared[], maxTitle: number): string[
 function fileBlock(f: FileDigest, symbolRoom: number): string {
   const out = [`### ${f.path}`];
   if (f.comment) out.push(`leading comment: ${f.comment}`);
+  if (f.stub) out.push('STUB: this file exports only placeholder constants. Nothing runs yet, the comment is a plan.');
   if (f.symbols.length > 0) {
     out.push('top-level symbols (cite as path#Name):');
     let used = out.join('\n').length;
@@ -178,13 +180,18 @@ export function parseReply(reply: unknown, maxProposals: number = INFER_TUNING.m
   if (!Array.isArray(list)) return { ok: false, error: 'reply has no proposals array' };
   const proposals: InferProposal[] = [];
   let invalid = 0;
+  let firstIssue = '';
   for (const item of list.slice(0, maxProposals)) {
     const r = InferProposalSchema.safeParse(item);
     if (r.success) proposals.push(r.data);
-    else invalid += 1;
+    else {
+      invalid += 1;
+      const i = r.error.issues[0];
+      firstIssue ||= i ? `${i.path.join('.')}: ${i.message}` : 'unknown';
+    }
   }
   invalid += Math.max(0, list.length - maxProposals);
-  if (proposals.length === 0) return { ok: false, error: `reply has no proposal that fits the schema (${invalid} rejected)` };
+  if (proposals.length === 0) return { ok: false, error: `reply has no proposal that fits the schema (${invalid} rejected, first: ${firstIssue})` };
   return { ok: true, proposals, invalid };
 }
 

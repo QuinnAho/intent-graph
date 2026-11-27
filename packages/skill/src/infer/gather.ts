@@ -18,6 +18,8 @@ export interface FileDigest {
   readonly moreSymbols: number;
   /** Anchor names the model may cite, `path#Name`. */
   readonly anchorNames: readonly string[];
+  /** True when the file only exports placeholder constants, so its comment is a plan and no code runs. */
+  readonly stub: boolean;
   /** Normalised hash of the whole file. */
   readonly hash: string;
 }
@@ -93,9 +95,15 @@ export function digestFile(path: string, content: string, tuning: Pick<InferTuni
     comment,
     symbols: shown.map((s) => `${s.name}: ${signatureLine(lines, s.startLine, tuning.maxSignatureChars)}`),
     moreSymbols: all.length - shown.length,
+    stub: isStub(all.map((s) => s.name)),
     anchorNames: all.map((s) => `${path}#${s.name}`),
     hash,
   };
+}
+
+/** A stub exports nothing but names marked PLACEHOLDER, or no symbol at all besides a barrel. */
+export function isStub(symbolNames: readonly string[]): boolean {
+  return symbolNames.length > 0 && symbolNames.every((n) => /placeholder/i.test(n));
 }
 
 export function folderCodeHash(files: readonly Pick<FileDigest, 'path' | 'hash'>[]): string {

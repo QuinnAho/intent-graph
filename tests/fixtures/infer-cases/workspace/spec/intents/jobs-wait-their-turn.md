@@ -1,6 +1,7 @@
 ---
 id: intent-jobs-wait-their-turn
 title: Jobs wait their turn in the order they arrived
+parent: concept-queues
 confidence: asserted
 status: draft
 realized_by:
