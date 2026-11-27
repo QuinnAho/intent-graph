@@ -67,4 +67,18 @@ Stop and report after 50 minutes, if the gate cannot be made green in two tries,
 
 ## Builder notes
 
+- `@xyflow/react` installed is 12.10.2. `zIndexMode` exists (`'basic'` default, `'auto'`, `'manual'`). In basic mode an edge that touches a child node takes the child's z, which is why those wires render above the box (read in `@xyflow/system` `getElevatedEdgeZIndex`).
+- The measure counts a pin only when its handle is visible (opacity above 0). Distances are in flow units (screen px divided by zoom). Crossing samples skip the wire's own end nodes and the boxes that hold them.
+- "Hidden" here means the other layout block: the code block is laid out below the spec block and is off screen at first (`onlyRenderVisibleElements`), so the 1,127 code nodes are not in the DOM on the first view.
+
 ## Results
+
+Before, on `blueprint-wires` at `c1b70e5` (same as `night-1`), `node tools/e2e-wires.mjs`, viewport 1280 x 800, first view:
+
+| Page | Wires drawn / in graph | Crossing samples | Wires with a crossing | Loose ends | Left to right | Laid out |
+|---|---|---|---|---|---|---|
+| fixture | 6 / 8 | 40 | 5 (83%) | 12 | 1 of 6 (17%) | 321 ms |
+| this repo | 16 / 1094 | 105 | 9 (56%) | 32 | 1 of 16 (6%) | 1908 ms (median of 3) |
+
+Result line: `FAIL e2e-wires (35.5s) - fixture has 40 crossing samples; fixture has 12 loose ends; ...`. Every end is loose because the four-side handles are invisible (opacity 0), so no end sits on a visible pin.
+Edge mix: this repo has 12 intent to own concept, 4 constraint to intent, 1078 code symbol to code module. The fixture has 4 node to own concept and 2 code symbol to intent.
