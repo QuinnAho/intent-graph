@@ -153,7 +153,7 @@ export function saveEdit(root: string, target: EditTarget, input: SaveInput, tod
     return apiError(409, 'conflict', `${relPath(root, target.file)} was removed on disk`);
   }
   if (hashSpecSource(bytes) !== input.hash) {
-    return apiError(409, 'conflict', 'the file changed on disk since you opened it. Cancel loads the new version, then edit again.');
+    return apiError(409, 'conflict', 'The file changed on disk since you opened it. Nothing was saved. Cancel or Esc loads the version on disk.');
   }
   const edit = editSpecSource(target.file, bytes.toString('utf8'), {
     ...(typeof input.title === 'string' ? { title: input.title } : {}),

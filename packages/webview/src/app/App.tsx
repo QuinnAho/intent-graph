@@ -11,6 +11,8 @@ import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
+import { EditPanel } from './EditPanel.js';
+import { selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
 import {
   useGraphEdges,
@@ -21,6 +23,8 @@ import {
   useLayoutReady,
 } from '../store/selectors.js';
 import { useGraphStore } from '../store/graph-slice.js';
+import { useUiStore } from '../store/ui-slice.js';
+import { readEditConfig } from '../transport/edit-api.js';
 import { applyGraphUpdate, fetchGraphJson, loadGraphFromJson } from '../transport/graph-json-loader.js';
 import { pickInitialFit, readFocus, readLiveSource, type LiveSource } from '../transport/live-source.js';
 
@@ -67,6 +71,7 @@ function useLiveUpdates(live: LiveSource | null): void {
         if (!stopped && (await applyGraphUpdate(envelope))) {
           const v = (envelope as unknown as { _live_version?: number })._live_version;
           document.documentElement.dataset['graphVersion'] = String(v ?? '');
+          useUiStore.getState().bumpGraphVersion();
         }
       } catch (err) {
         console.warn('live update failed', err);
@@ -129,6 +134,7 @@ export function App(): JSX.Element {
   const errorMessage = useGraphError();
   const live = useMemo(() => readLiveSource(window.location.search, window.__INTENTGRAPH_LIVE__), []);
   const focus = useMemo(() => readFocus(window.location.search), []);
+  const pendingSelect = useUiStore((s) => s.pendingSelect);
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
 
@@ -141,6 +147,19 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (layoutReady && fitNodeIds === undefined) setFitNodeIds(pickInitialFit(nodes, focus));
   }, [layoutReady, fitNodeIds, nodes, focus]);
+
+  useEffect(() => {
+    useUiStore.getState().setEditConfig(readEditConfig(window.__INTENTGRAPH_LIVE__));
+  }, []);
+
+  // a node the page just created is selected once a live update brings it, so its panel opens
+  useEffect(() => {
+    if (!pendingSelect) return;
+    const next = selectOnly(nodes, pendingSelect);
+    if (!next) return;
+    useGraphStore.getState().setGraph(next, useGraphStore.getState().edges);
+    useUiStore.getState().setPendingSelect(null);
+  }, [nodes, pendingSelect]);
 
   useLiveUpdates(live);
   const handleNodesChange = useCallback(onSelectionChange, []);
@@ -166,6 +185,7 @@ export function App(): JSX.Element {
         onNodesChange={handleNodesChange}
       />
       <ProblemsPanel />
+      <EditPanel />
     </div>
   );
 }
