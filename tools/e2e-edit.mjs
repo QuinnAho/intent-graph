@@ -4,6 +4,9 @@
 // opens the page headless, edits a title in the side panel, creates an intent from a concept,
 // tries the refused cases, then checks a server without --write is read only.
 // --serve only starts a --write server on a fresh copy and prints the url, ctrl+c stops it.
+// lane 6 checks: the selected node shows a selected state, the panel never overlaps it, read only
+// shows text and no inputs, a new intent carries target_kinds and adds no problem, cmd+s saves, and
+// no title is cut while a drift report is loaded.
 // saves six frames for review. prints one line per step, then PASS|FAIL e2e-edit (time) - note.
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -118,6 +121,34 @@ async function startServer(name, write) {
   return s;
 }
 const listing = (work) => readdirSync(join(work, 'spec', 'intents')).sort().join(',');
+// true when two elements share any area
+const overlapOf = async (page, aSel, bSel) => page.evaluate(([a, b]) => {
+  const x = document.querySelector(a)?.getBoundingClientRect();
+  const y = document.querySelector(b)?.getBoundingClientRect();
+  if (!x || !y) return null;
+  return x.left < y.right && y.left < x.right && x.top < y.bottom && y.top < x.bottom;
+}, [aSel, bSel]);
+const inWindow = async (page, sel) => page.evaluate((s) => {
+  const r = document.querySelector(s)?.getBoundingClientRect();
+  return !!r && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
+}, sel);
+// the selected node carries the class and its body draws the outline
+const selectedLook = async (page, sel) => page.evaluate((s) => {
+  const el = document.querySelector(s);
+  const body = el?.querySelector('.ig-node-body');
+  if (!el || !body) return null;
+  const cs = getComputedStyle(body);
+  return { selected: el.classList.contains('selected'), border: cs.borderTopColor, shadow: cs.boxShadow };
+}, sel);
+const isOutlined = (look) => !!look && look.selected && /120, 169, 255/.test(look.border) && look.shadow !== 'none';
+const nodeTitles = async (page) => page.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((n) => {
+  const t = n.querySelector('[data-node-title]');
+  const h = n.querySelector('[data-node-header]');
+  if (!t || !h) return null;
+  const tr = t.getBoundingClientRect();
+  const nr = n.getBoundingClientRect();
+  return { id: n.getAttribute('data-id'), text: t.textContent, w: t.scrollWidth - t.clientWidth, h: t.scrollHeight - t.clientHeight, lines: Math.round(t.offsetHeight / 18), clipped: h.getBoundingClientRect().bottom - nr.bottom, titleBottom: tr.bottom - nr.bottom };
+}).filter(Boolean));
 function changedLines(a, b) {
   const x = a.split('\n');
   const y = b.split('\n');
@@ -173,8 +204,16 @@ try {
   const bodyText = await page.locator('[data-edit-body]').inputValue();
   if (!bodyText.includes('No anchors, so the node shows pending.')) await fail(`panel body is "${bodyText.slice(0, 80)}"`);
   if (await page.locator('[data-edit-title]').isDisabled()) await fail('title is disabled on a --write server');
+  // lane 6: the node is outlined, the panel stays off it, the node is in view, the path shows in full
+  await page.waitForTimeout(700);
+  const look = await selectedLook(page, nodeSel('intent-has-no-checks'));
+  if (!isOutlined(look)) await fail(`selected node has no visible selected state: ${JSON.stringify(look)}`);
+  if ((await overlapOf(page, '[data-edit-panel]', nodeSel('intent-has-no-checks'))) !== false) await fail('the panel overlaps the selected node');
+  if (!(await inWindow(page, nodeSel('intent-has-no-checks')))) await fail('the selected node is not in view');
+  const fileRow = await page.locator('[data-edit-file]').evaluate((e) => ({ text: e.textContent, cut: e.scrollWidth - e.clientWidth }));
+  if (fileRow.text !== rel || fileRow.cut > 0) await fail(`panel path is cut or wrong: ${JSON.stringify(fileRow)}`);
   await page.screenshot({ path: join(runDir, FRAMES[0]), ...FRAME });
-  console.log(`ok panel (${secs()}s) - title and body shown for ${rel}`);
+  console.log(`ok panel (${secs()}s) - title and body shown for ${rel}, outlined, clear of the panel, path whole`);
 
   // 4 edit the title: unsaved mark, ctrl+s, label changes in 3 s
   const newTitle = 'Nothing proves this one, edited in the panel';
@@ -228,6 +267,13 @@ try {
   await add.waitFor({ timeout: 3000 });
   await add.click();
   await page.locator('[data-create-form="concept-calculator"]').waitFor({ timeout: 3000 });
+  await page.waitForTimeout(700);
+  if ((await overlapOf(page, '[data-create-form]', nodeSel('concept-calculator'))) !== false) await fail('the create form overlaps the selected concept');
+  if (!isOutlined(await selectedLook(page, nodeSel('concept-calculator')))) await fail('the selected concept has no visible selected state');
+  // the form asks for target kinds, one preselected
+  const kindState = await page.evaluate(() => [...document.querySelectorAll('[data-create-kind]')].map((c) => [c.getAttribute('data-create-kind'), c.checked]));
+  if (kindState.length < 2 || kindState.filter(([, on]) => on).length !== 1) await fail(`create form kinds: ${JSON.stringify(kindState)}`);
+  const problemsBefore = (await (await fetch(`${w.url}graph.json`)).json()).problems.length;
   const createTitle = 'Dividing by zero gives an error';
   await page.locator('[data-create-title]').fill(createTitle);
   await page.screenshot({ path: join(runDir, FRAMES[3]), ...FRAME });
@@ -248,6 +294,13 @@ try {
   const gnode = graph.nodes.find((n) => n.id === newId);
   if (!gnode || gnode.parent_id !== 'concept-calculator') await fail(`graph has the new node with parent ${gnode && gnode.parent_id}`);
   if (graph.problems.some((p) => p.severity === 'error' && p.file === newRel)) await fail('parser rejected the new file');
+  const created = readFileSync(join(w.work, newRel), 'utf8');
+  if (!/^target_kinds:\r?\n  - code_module\r?\n/m.test(created)) await fail(`new file has no target_kinds: ${JSON.stringify(created.slice(0, 200))}`);
+  if (graph.problems.length !== problemsBefore || graph.problems.some((p) => p.file === newRel)) await fail(`the new intent added a problem: ${JSON.stringify(graph.problems.filter((p) => p.file === newRel))} (${problemsBefore} before, ${graph.problems.length} after)`);
+  await page.locator(`[data-edit-panel="${newId}"]`).waitFor({ timeout: 3000 });
+  await page.waitForTimeout(700);
+  if (!isOutlined(await selectedLook(page, nodeSel(newId)))) await fail('the new node has no visible selected state after the create');
+  if ((await overlapOf(page, '[data-edit-panel]', nodeSel(newId))) !== false) await fail('the panel overlaps the new node after the create');
   const check = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e',
     `import { parseSpecTree } from ${JSON.stringify('file:///' + join(root, 'packages/skill/src/parser/spec-md/index.ts').replace(/\\/g, '/'))};
      const r = parseSpecTree(${JSON.stringify(join(w.work, 'spec'))});
@@ -292,6 +345,27 @@ try {
   await page.keyboard.press('Escape');
   console.log(`ok refused (${secs()}s) - empty: "${emptyMsg.slice(0, 50)}", duplicate: "${dupMsg.slice(0, 60)}", nothing written`);
 
+  // 7a the form refuses no kind, and the server refuses a kind that is not allowed
+  await page.locator(nodeSel('concept-calculator')).click({ position: { x: 60, y: 20 } });
+  await page.locator('[data-add-intent="concept-calculator"]').click();
+  await page.locator('[data-create-form]').waitFor({ timeout: 3000 });
+  const filesKinds = listing(w.work);
+  await page.locator('[data-create-title]').fill('Kinds need one');
+  await page.locator('[data-create-kind="code_module"]').uncheck();
+  await page.locator('[data-create-save]').click();
+  const kindsMsg = await page.locator('[data-create-form] [data-edit-error]').innerText().catch(() => '');
+  if (!/at least one/i.test(kindsMsg)) await fail(`no kinds message: "${kindsMsg}"`);
+  const badKind = await page.evaluate(async () => {
+    const token = window.__INTENTGRAPH_LIVE__.token;
+    const post = async (kinds) => (await fetch('/api/intents', { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': token }, body: JSON.stringify({ parent: 'concept-calculator', title: 'Bad kind intent', target_kinds: kinds }) })).status;
+    return [await post(['nonsense']), await post([]), await post('code_module')];
+  });
+  await page.waitForTimeout(NOTHING_WRITTEN_WAIT_MS);
+  if (badKind.some((s) => s !== 422)) await fail(`a kind that is not allowed got ${badKind.join(' ')}`);
+  if (listing(w.work) !== filesKinds) await fail('a refused kind wrote a file');
+  await page.keyboard.press('Escape');
+  console.log(`ok kinds (${secs()}s) - none picked: "${kindsMsg.slice(0, 40)}", server 422 for a bad kind, an empty list and a non-list`);
+
   // 7b an empty title in the edit panel is refused too
   await page.locator(nodeSel('intent-adds-numbers')).click();
   await page.locator('[data-edit-panel="intent-adds-numbers"]').waitFor({ timeout: 3000 });
@@ -305,6 +379,44 @@ try {
   if (readFileSync(join(w.work, 'spec/intents/adds-numbers.md'), 'utf8') !== addsBefore) await fail('an empty title was written');
   await page.keyboard.press('Escape');
   console.log(`ok empty title in panel (${secs()}s) - refused, file kept`);
+
+  // 7b2 cmd+s saves like ctrl+s
+  await page.locator(nodeSel('intent-adds-numbers')).click();
+  await page.locator('[data-edit-panel="intent-adds-numbers"]').waitFor({ timeout: 3000 });
+  await page.waitForFunction(() => document.querySelector('[data-edit-title]')?.value.length > 0, null, { timeout: 3000 });
+  await page.locator('[data-edit-title]').fill('Adds numbers, saved with cmd');
+  await page.keyboard.press('Meta+s');
+  try {
+    await page.waitForFunction(([sel, t]) => document.querySelector(sel)?.textContent?.includes(t), [nodeSel('intent-adds-numbers'), 'Adds numbers, saved with cmd'], { timeout: LABEL_LIMIT_MS });
+  } catch {
+    await fail('cmd+s did not save');
+  }
+  if (!readFileSync(join(w.work, 'spec/intents/adds-numbers.md'), 'utf8').includes('title: Adds numbers, saved with cmd')) await fail('cmd+s did not write the title');
+  console.log(`ok cmd+s (${secs()}s) - saved`);
+
+  // 7b3 no title is cut, with a drift report loaded and a 40 character title on the page
+  const longTitle = 'Adding two numbers returns the exact sum';
+  const made = await page.evaluate(async (title) => (await fetch('/api/intents', { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': window.__INTENTGRAPH_LIVE__.token }, body: JSON.stringify({ parent: 'concept-calculator', title, target_kinds: ['code_module'] }) })).status, longTitle);
+  if (made !== 201) await fail(`the 40 character intent got ${made}`);
+  const driftDir = join(w.work, '.runs', 'drift', 'run-1');
+  mkdirSync(driftDir, { recursive: true });
+  const pairOf = (node_id, verdict) => ({ commit: 'a1b2c3d', node_id, targets: [], decided_by: 'judge', verdict, confidence: 'inferred', certainty: 'high', evidence: 'canned', evidence_in_diff: true, suggested_action: 'none', truncated: false, diff_chars: 1, cost_usd: 0, seconds: 0, judge_model: null, error: null });
+  writeFileSync(join(driftDir, 'report.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', args: [], report: { mode: 'range', pairs: [pairOf('intent-adds-numbers', 'drift'), pairOf('intent-greets-by-name', 'aligned'), pairOf('intent-has-no-checks', 'unclear'), pairOf('intent-adding-two-numbers-returns-the-exact-sum', 'drift')] } }));
+  writeFileSync(join(w.work, '.runs', 'drift', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: join(driftDir, 'report.json') }));
+  await page.waitForFunction(() => document.querySelectorAll('[data-drift]').length >= 4, null, { timeout: 5000 }).catch(() => {});
+  const marks = await page.locator('[data-drift]').count();
+  if (marks < 4) await fail(`only ${marks} drift marks showed`);
+  await page.locator(nodeSel('intent-adding-two-numbers-returns-the-exact-sum')).waitFor({ timeout: 3000 });
+  await page.waitForTimeout(600);
+  const titles = await nodeTitles(page);
+  const graphNow = await (await fetch(`${w.url}graph.json`)).json();
+  const wanted = new Map(graphNow.nodes.map((n) => [n.id, n.title]));
+  const cut = titles.filter((x) => x.w > 0 || x.h > 1 || x.clipped > 1 || x.titleBottom > 1 || x.text !== wanted.get(x.id));
+  if (cut.length) await fail(`titles cut with a drift report loaded: ${JSON.stringify(cut[0])}`);
+  const longOne = titles.find((x) => x.id === 'intent-adding-two-numbers-returns-the-exact-sum');
+  if (!longOne || longOne.text !== longTitle || longOne.lines > 2) await fail(`the 40 character title is not whole on at most two lines: ${JSON.stringify(longOne)}`);
+  await page.screenshot({ path: join(runDir, 'extra-long-titles-drift.jpg'), ...FRAME });
+  console.log(`ok titles (${secs()}s) - ${titles.length} nodes, none cut, 40 character title whole in ${longOne.lines} line(s), ${marks} drift marks`);
 
   // 7c a write without the page token is refused
   const noToken = await page.evaluate(async () => (await fetch('/api/intents', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ parent: 'concept-calculator', title: 'No token' }) })).status);
@@ -322,7 +434,14 @@ try {
   await rpage.locator('[data-edit-panel] [data-read-only]').waitFor({ timeout: 5000 }).catch(() => {});
   const readOnlyText = await rpage.locator('[data-edit-panel] [data-read-only]').innerText().catch(() => '');
   if (!/--write/.test(readOnlyText)) await fail(`read-only panel note is "${readOnlyText}"`);
-  if (!(await rpage.locator('[data-edit-title]').isDisabled()) || !(await rpage.locator('[data-edit-body]').isDisabled())) await fail('fields are editable on a read-only server');
+  // lane 6: read only is plain text, no input element of any kind (this replaces the older disabled check)
+  const fieldCount = await rpage.locator('[data-edit-panel] input, [data-edit-panel] textarea, [data-edit-panel] select, [data-edit-title], [data-edit-body]').count();
+  if (fieldCount !== 0) await fail(`${fieldCount} input elements in a read-only panel`);
+  await rpage.locator('[data-read-title]').waitFor({ timeout: 3000 });
+  const roTitle = await rpage.locator('[data-read-title]').innerText();
+  const roBody = await rpage.locator('[data-read-body]').innerText();
+  if (roTitle !== 'Nothing proves this one yet' || !roBody.includes('No anchors')) await fail(`read-only text is wrong: "${roTitle}" / "${roBody.slice(0, 40)}"`);
+  if ((await rpage.locator('[data-edit-save], [data-edit-cancel]').count()) !== 0) await fail('save buttons shown on a read-only server');
   await rpage.locator(nodeSel('concept-calculator')).click({ position: { x: 60, y: 20 } });
   await rpage.waitForTimeout(300);
   if ((await rpage.locator('[data-add-intent]').count()) !== 0) await fail('add button shown on a read-only server');
@@ -337,7 +456,7 @@ try {
   if (status[0] !== 403 || status[1] !== 'read-only' || status[2] !== 403) await fail(`read-only server answered ${status.join(' ')}`);
   if (readFileSync(rfile, 'utf8') !== rBefore || listing(r.work) !== listing(fixture)) await fail('read-only server wrote a file');
   await rpage.screenshot({ path: join(runDir, 'extra-read-only.jpg'), ...FRAME });
-  console.log(`ok read only (${secs()}s) - "${readOnlyText}", fields disabled, writes get 403 read-only`);
+  console.log(`ok read only (${secs()}s) - "${readOnlyText}", title and body are text, no inputs, writes get 403 read-only`);
 
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
   await browser.close();

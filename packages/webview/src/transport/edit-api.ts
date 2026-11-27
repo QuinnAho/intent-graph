@@ -83,7 +83,7 @@ export function saveNode(config: EditConfig, id: string, edit: { title: string; 
   return call(`${config.api}/node?id=${encodeURIComponent(id)}`, writeInit(config, edit));
 }
 
-export function createIntent(config: EditConfig, parent: string, title: string): Promise<ApiResult<{ id: string; file: string }>> {
+export function createIntent(config: EditConfig, parent: string, title: string, targetKinds: ReadonlyArray<string>): Promise<ApiResult<{ id: string; file: string }>> {
   if (!config.api || !config.write) return Promise.resolve({ ok: false, error: 'read-only', message: config.readOnlyReason ?? NO_WRITE_REASON });
-  return call(`${config.api}/intents`, writeInit(config, { parent, title }));
+  return call(`${config.api}/intents`, writeInit(config, { parent, title, target_kinds: targetKinds }));
 }

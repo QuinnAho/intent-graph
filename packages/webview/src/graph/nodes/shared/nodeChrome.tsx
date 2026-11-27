@@ -306,12 +306,12 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
               fontSize: '13px',
               fontWeight: 600,
               minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              // the whole title shows, on as many lines as it needs (see layout/title-room.ts)
+              overflowWrap: 'anywhere',
+              lineHeight: '18px',
               flex: 1,
             }}
-            title={data.label}
+            data-node-title=""
           >
             {data.label}
           </span>

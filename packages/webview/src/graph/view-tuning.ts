@@ -2,8 +2,8 @@
 export const VIEW_TUNING = {
   // vertical gap between the spec block and the code block in the layout
   specCodeGap: 240,
-  // fixed width of a spec node, room for a short title and the status mark
-  specNodeWidth: 340,
+  // fixed width of a spec node. a 40 character title wraps to two lines with both marks beside it
+  specNodeWidth: 420,
   // space between a concept's border and the intents inside it
   groupPad: 24,
   // room for the concept's own header above the intents inside it
@@ -69,4 +69,33 @@ export const LAYOUT_TUNING = {
   nodeNode: 64,
   betweenLayers: 120,
   padding: 30,
+} as const;
+
+// room a spec node's title needs, so the layout knows the node's real height.
+// the node reserves room for both marks even when none shows yet, so a drift report
+// arriving later never changes a node's size.
+export const TITLE_TUNING = {
+  // a safe average width of one character at 13px semibold, wider than real
+  charPx: 7.8,
+  lineHeight: 18,
+  // header padding on both sides, the icon and the gaps between icon, title and marks
+  headerChrome: 28 + 18 + 20,
+  statusMarkPx: 100,
+  driftMarkPx: 84,
+  warningMarkPx: 52,
+  // node height with a one line title
+  baseHeight: 76,
+} as const;
+
+// the edit panel, and the room the graph keeps clear of it
+export const PANEL_TUNING = {
+  width: 380,
+  margin: 12,
+  // clear space between the panel and the node it edits
+  gap: 20,
+  // clear space at the other edges of the visible area
+  pad: 24,
+  minZoom: 0.1,
+  // wait for the layout to settle after a selection before moving the view, ms
+  settleMs: 250,
 } as const;

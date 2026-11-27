@@ -3,6 +3,7 @@
 import type { Node } from '@xyflow/react';
 
 import { SPEC_KINDS } from '../transport/live-source.js';
+import { CREATE_TUNING } from './edit-tuning.js';
 
 /** the spec node the panel edits: the one selected spec node, or null */
 export function pickEditNode(nodes: ReadonlyArray<Node>): Node | null {
@@ -34,4 +35,20 @@ export function titleProblem(title: string): string | null {
 export function selectOnly(nodes: ReadonlyArray<Node>, id: string): Node[] | null {
   if (!nodes.some((n) => n.id === id)) return null;
   return nodes.map((n) => (n.id === id ? { ...n, selected: true } : n.selected ? { ...n, selected: false } : n));
+}
+
+/** ctrl+s on windows and linux, cmd+s on mac. the key is matched in either case. */
+export function isSaveKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey?: boolean }): boolean {
+  return (e.ctrlKey || e.metaKey) && e.altKey !== true && e.key.toLowerCase() === 's';
+}
+
+/** the kinds with `kind` switched on or off, in the order the form lists them */
+export function toggleKind(kinds: ReadonlyArray<string>, kind: string): string[] {
+  const on = kinds.includes(kind) ? kinds.filter((k) => k !== kind) : [...kinds, kind];
+  return CREATE_TUNING.targetKinds.filter((k) => on.includes(k));
+}
+
+/** a message for a create the server would refuse for its kinds, checked before anything is sent */
+export function kindsProblem(kinds: ReadonlyArray<string>): string | null {
+  return kinds.length === 0 ? 'Pick at least one target kind. Nothing was saved.' : null;
 }

@@ -12,6 +12,8 @@ import {
   type Node,
   type NodeTypes,
   type OnNodesChange,
+  useReactFlow,
+  useStore,
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -21,7 +23,8 @@ import { SPEC_KINDS } from '../transport/live-source.js';
 import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
-import { WIRE_TUNING } from './view-tuning.js';
+import { viewToClearPanel } from './keep-in-view.js';
+import { PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -64,6 +67,34 @@ const EDGE_TYPES: EdgeTypes = { wire: WireEdge };
 // the layout puts spec nodes and code nodes in two blocks. a wire between blocks is counted, not drawn.
 const viewBlock = (n: Node): string => (n.type !== undefined && SPEC_KINDS.has(n.type) ? 'spec' : 'code');
 
+// pans and zooms the viewport so the node whose panel is open is not under the panel.
+// the box is read from the drawn node, which is the truth for a node inside a concept.
+function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }): null {
+  const rf = useReactFlow();
+  const canvasWidth = useStore((s) => s.width);
+  const canvasHeight = useStore((s) => s.height);
+  const node = props.nodeId ? props.nodes.find((n) => n.id === props.nodeId) : undefined;
+  // the box moves when a live update lays the graph out again, so it is part of the trigger
+  const moved = `${node?.position.x}|${node?.position.y}|${node?.width}|${node?.height}`;
+  useEffect(() => {
+    if (!props.nodeId || canvasWidth === 0) return undefined;
+    const id = props.nodeId;
+    const frame = window.setTimeout(() => {
+      const canvas = document.querySelector('.react-flow');
+      const drawn = Array.from(document.querySelectorAll('.react-flow__node')).find((e) => e.getAttribute('data-id') === id);
+      if (!canvas || !drawn) return;
+      const c = canvas.getBoundingClientRect();
+      const r = drawn.getBoundingClientRect();
+      const view = rf.getViewport();
+      const box = { x: (r.left - c.left - view.x) / view.zoom, y: (r.top - c.top - view.y) / view.zoom, width: r.width / view.zoom, height: r.height / view.zoom };
+      const next = viewToClearPanel(box, view, { width: canvasWidth, height: canvasHeight });
+      if (next) void rf.setViewport(next, { duration: 200 });
+    }, PANEL_TUNING.settleMs);
+    return () => window.clearTimeout(frame);
+  }, [props.nodeId, moved, canvasWidth, canvasHeight, rf]);
+  return null;
+}
+
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 };
 
 const TRANSITIONING_MESSAGE_STYLE: CSSProperties = {
@@ -104,6 +135,8 @@ export interface GraphCanvasProps {
   onZoomLevelChange?: (level: ZoomLevel) => void;
   /** node ids the first view fits to (a focus node, or the spec nodes). null fits everything. */
   fitNodeIds?: ReadonlyArray<string> | null;
+  /** node whose edit panel is open, the view keeps it clear of the panel */
+  clearPanelFor?: string | null;
   /** selection changes, so a live update can keep what the user picked */
   onNodesChange?: OnNodesChange;
 }
@@ -123,6 +156,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     onZoomLevelChange,
     fitNodeIds = null,
     onNodesChange,
+    clearPanelFor = null,
   } = props;
   const fitViewOptions = useMemo(
     () => (fitNodeIds && fitNodeIds.length > 0 ? { ...FIT_VIEW_OPTIONS, nodes: fitNodeIds.map((id) => ({ id })) } : FIT_VIEW_OPTIONS),
@@ -210,6 +244,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         }}
       >
         <Background color="var(--ig-edge)" gap={40} size={1} />
+        <KeepInView nodeId={clearPanelFor} nodes={nodes} />
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>
