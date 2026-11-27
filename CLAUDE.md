@@ -2,7 +2,7 @@
 
 A tool where a developer works in a living graph of intents, constraints, decisions and concepts, and AI keeps the code in line with it. Visual first: the graph is how the owner reads and edits the spec.
 
-Direction since 2026-11-27 (ADR-0029): slim to the wedge. Typed markdown under `/spec` is the source of truth, and the graph is its view and editor. We build the two things nobody ships: obligations tied to real checks, and an intent-level drift check. Everything else comes from Claude Code or open source.
+Direction since 2026-11-27 (ADR-0029): slim to the wedge. Typed markdown under `/spec` is the source of truth, and the graph is its view and editor. We build the two things nobody ships: obligations tied to real checks, and an intent-level drift check. Everything else comes from Claude Code or open source. The graph follows Blueprint conventions (ADR-0031): pins on the sides, wires between pins, left to right.
 
 ## Memory
 
@@ -27,7 +27,7 @@ The vault is `docs/`. Read `docs/00 - Start Here.md`, then `docs/06 - Tasks/Boar
 
 `node tools/verify.mjs all` is the only gate: typecheck, lint, tests, build. It prints one PASS or FAIL line and exits 0 only on pass.
 `node tools/frames.mjs` takes frames of the graph.
-`node tools/e2e-live.mjs` drives the live graph end to end, and `node tools/drift.mjs` runs the drift check on its seeded cases. Both print one PASS or FAIL line.
+The end-to-end scripts are `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs` and `e2e-drift-marks.mjs`. `node tools/drift.mjs` runs the drift check on its seeded cases. Each prints one PASS or FAIL line.
 
 ## Git
 

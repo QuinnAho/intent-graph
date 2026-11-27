@@ -11,12 +11,11 @@ This vault is the project's memory. Every session reads this note and [[Board]] 
 |---|---|
 | Direction | Slim to the wedge, visual first. Decided by the owner on 2026-11-27, recorded in [[0029-slim-to-the-wedge]]. |
 | Built | The static graph (L0): a tree-sitter walk of the code plus the `/spec` markdown, stored in SQLite, shown with React Flow and ELK. Signed off 2026-05-04. |
-| On `night-1`, not yet on `main` | The live graph with status marks from linked tests, and the drift check prototype. Both gated and checked by an independent verifier on 2026-11-27. |
-| Also on `night-1` | A first cut of visual editing: a side panel that edits a node and creates intents. Merged into `night-1` on 2026-11-27. |
-| See it | Live graph on a small example: `node tools/e2e-live.mjs --serve`. On this repo: `pnpm exec tsx packages/skill/src/live/cli.ts --root . --port 4777`. Drift check: `node tools/drift.mjs`. |
+| On `night-1`, not yet on `main` | Six lanes of 2026-11-27: the live graph with status marks from linked tests, the drift check, editing on the canvas, Blueprint-style wires and pins ([[0031-the-graph-follows-blueprint-conventions]]), drift marks on the graph, and editing polish. Each was gated by script and checked by an independent verifier. 304 tests. |
+| See it | Double-click `open-graph.cmd` to view this repo's graph, or `open-graph-edit.cmd` to edit it. A small example with marks and wires to code: `node tools/e2e-live.mjs --serve`. Drift check: `node tools/drift.mjs`. Frames with verdicts: `docs/05 - Log/Frames/2026-11-27 Night 1/README.md`. |
 | Parked | The May 2026 plan's plumbing: Inngest, AgentRunner, leases, Yjs, retrieval, the VS Code extension. See the ADR for the list. |
 | Repo | `github.com/QuinnAho/intent-graph`. Lanes build in `.wt/<lane>`. Work lands on an integration branch before `main`. |
-| Gate | `node tools/verify.mjs all`. Frames: `node tools/frames.mjs`. |
+| Gate | `node tools/verify.mjs all`, then the end-to-end scripts `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs` and `e2e-drift-marks.mjs`. Frames: `node tools/frames.mjs`. |
 | Before the overhaul | Everything as it was on 2026-05-20 is tagged `pre-overhaul-2026-11-27`, including the old Ralph loop and the Codex mirror. |
 
 ## Map of the vault
