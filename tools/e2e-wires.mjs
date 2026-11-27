@@ -268,6 +268,32 @@ try {
   console.log(`ok repo zoomed: ${zm.wires} wires, ${zm.looseEnds} loose ends on screen, ${zm.overLabel} samples over a node at zoom ${zm.zoom.toFixed(2)}`);
   if (zm.looseEnds > 0) problems.push(`zoomed repo has ${zm.looseEnds} loose ends on screen`);
   if (zm.overLabel > 0) problems.push(`zoomed repo has ${zm.overLabel} wire samples drawn over a node`);
+
+  // back at the first view: hovering, then selecting, the source of a drawn wire lights its wires and no other
+  await loadGraph(rp.page, url);
+  await rp.page.waitForTimeout(400);
+  const lit = () => rp.page.evaluate(() => [...document.querySelectorAll('.react-flow__edge')].map((g) => `${g.getAttribute('data-id')}=${g.querySelector('[data-wire-lit]')?.getAttribute('data-wire-lit')}`));
+  const firstWire = await rp.page.evaluate(() => document.querySelector('.react-flow__edge')?.getAttribute('data-id') ?? null);
+  if (firstWire && rp.ends[firstWire]) {
+    const src = rp.ends[firstWire][0];
+    const own = new Set(Object.entries(rp.ends).filter(([, v]) => v[0] === src || v[1] === src).map(([k]) => k));
+    const check = (list, how) => {
+      const wrong = list.filter((s) => { const [id, v] = s.split('='); return (v === 'true') !== own.has(id); });
+      if (wrong.length) problems.push(`${how} ${src}: wires lit wrong ${wrong.slice(0, 3).join(' ')}`);
+    };
+    const idle = (await lit()).filter((s) => s.endsWith('=true'));
+    if (idle.length) problems.push(`${idle.length} wires lit with nothing hovered`);
+    const node = rp.page.locator(`.react-flow__node[data-id="${src}"]`);
+    await node.hover();
+    await rp.page.waitForTimeout(200);
+    check(await lit(), 'hover');
+    await node.click();
+    await rp.page.mouse.move(2, 2);
+    await rp.page.waitForTimeout(400);
+    check(await lit(), 'select');
+    await rp.page.screenshot({ path: join(runDir, 'e-repo-selected.jpg'), type: 'jpeg', quality: 85 });
+    console.log(`ok repo highlight: hover and select on ${src} light its ${own.size} wire(s) and no other`);
+  } else problems.push('no drawn wire on the repo page to check the highlight');
   await rp.page.close();
   if (!(await stopServer())) await fail('repo server did not stop');
 
