@@ -67,7 +67,10 @@ The gate cannot be made green in two tries. A step needs a change outside "Files
 
 ## Reuse record
 
-(builder fills this in)
+- **Frontmatter edit: by hand, no new library.** `yaml` (eemeli) keeps comments and key order in its Document API, but it re-emits the whole block, so spacing, quoting and line folding can move. The check here is "every other byte the same", so the writer edits only the title and `updated` lines and copies the rest. Safety net: the result is parsed again with the existing `js-yaml` parser and refused unless every other field reads back equal.
+- **Body: a plain textarea.** TipTap is installed, but it holds a ProseMirror document and would need a markdown extension to write markdown back, which reformats lists, rules and spacing. A textarea keeps the markdown exactly as typed.
+- **Panel and add button.** The side panel is a plain absolutely placed box in the app shell, like the problems list, so typing and scrolling in it never pan or zoom the canvas (React Flow `Panel` sits inside the flow and needs `nowheel nopan` care). The add control on a concept is React Flow's `NodeToolbar`, shown while the concept is selected.
+- **Atomic write.** `db/utils/atomicWrite.ts` is JSON-only and marked for snapshot files, so the writer has its own small text version (temp file, then rename). A new file is placed with a hard link, which fails if the name is taken, so a create can never overwrite.
 
 ## Builder notes
 
