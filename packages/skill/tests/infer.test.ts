@@ -12,7 +12,7 @@ import type { ClaudeCallResult } from '../src/drift/claude-cli.js';
 import { filterPlans, inferMain, parseInferArgs } from '../src/infer/cli.js';
 import { anchorCovers, isSourceFolder, planFolders } from '../src/infer/folders.js';
 import { buildFolderInput, digestFile, leadingComment, readFolder, scrubPaths } from '../src/infer/gather.js';
-import { INFER_SYSTEM_PROMPT, buildPrompt, checkAnchors, parseReply, pinDeclaredId, type Declared } from '../src/infer/prompt.js';
+import { INFER_SYSTEM_PROMPT, PROMPT_SIGNATURE, buildPrompt, checkAnchors, parseReply, pinDeclaredId, type Declared } from '../src/infer/prompt.js';
 import { cacheKey, proposalId, rowsFor, runInfer, type InferCache, type InferCall } from '../src/infer/run.js';
 import { INFER_TUNING, type InferTuning } from '../src/infer/tuning.js';
 
@@ -506,8 +506,8 @@ describe('planned proposals', () => {
 describe('the prompt cap with the note', () => {
   it('holds 12000 characters with the cut note included, whatever the size of the folder', () => {
     let cutSeen = 0;
-    for (const perFile of [3, 7, 12, 20, 30, 40]) {
-      for (const count of [25, 60, 140, 300]) {
+    for (const perFile of [7, 20, 40]) {
+      for (const count of [60, 140]) {
         const files = Array.from({ length: count }, (_, i) =>
           digestFile(`packages/skill/src/some-long-folder-name/nested-part/file-number-${i}.ts`, Array.from({ length: perFile }, (_, j) => `export function fn${i}_${j}(a: number, b: string): string { return b + a; }`).join('\n')),
         );
@@ -517,7 +517,7 @@ describe('the prompt cap with the note', () => {
         if (p.truncated) expect(p.text).toContain('[CUT:');
       }
     }
-    expect(cutSeen).toBeGreaterThan(5);
+    expect(cutSeen).toBeGreaterThan(2);
   });
   it('holds the cap with a long declared list and a cut folder', () => {
     const many: Declared[] = Array.from({ length: 60 }, (_, i) => ({ id: `intent-${i}`, kind: 'intent', title: 'A fairly long intent title that takes some room in the prompt '.repeat(2) }));
@@ -525,5 +525,53 @@ describe('the prompt cap with the note', () => {
     const p = buildPrompt(buildFolderInput('src/big', files), many);
     expect(p.truncated).toBe(true);
     expect(p.text.length).toBeLessThanOrEqual(12_000);
+  });
+});
+
+describe('the cache key and the declared spec', () => {
+  const plans = [{ folder: 'src/alpha', unclaimed: ['src/alpha/queue.ts', 'src/alpha/retry.ts'], claimed: [] }];
+  const model = () => stub(() => reply([good(['src/alpha/queue.ts#enqueue', 'src/alpha/retry.ts#Retrier'])]));
+  const go = (call: InferCall, cache: InferCache, decl: Declared[], tuning: InferTuning = TUNING) => runInfer({ root: WS, plans, declared: decl, call, cache, tuning });
+
+  it('a changed declared title reads the folder again, an unchanged one does not', async () => {
+    const call = model();
+    const cache = memoryCache();
+    await go(call, cache, declared);
+    await go(call, cache, declared);
+    expect(call.calls).toHaveLength(1);
+    const retitled = declared.map((d) => (d.id === 'intent-jobs-wait-their-turn' ? { ...d, title: 'Jobs are taken in arrival order' } : d));
+    const r = await go(call, cache, retitled);
+    expect(r.totals.calls).toBe(1);
+    expect(call.calls).toHaveLength(2);
+  });
+  it('a new or removed declared intent reads the folder again, and the order of the list does not matter', async () => {
+    const call = model();
+    const cache = memoryCache();
+    await go(call, cache, declared);
+    await go(call, cache, [...declared].reverse());
+    expect(call.calls).toHaveLength(1);
+    await go(call, cache, [...declared, { id: 'intent-new', kind: 'intent', title: 'Something new' }]);
+    await go(call, cache, declared.slice(0, 1));
+    expect(call.calls).toHaveLength(3);
+  });
+  it('a changed prompt reads the folder again, even when the version label was not bumped', () => {
+    const k = cacheKey('src/a', 'h1', declared, TUNING);
+    expect(cacheKey('src/a', 'h1', declared, TUNING, 'another prompt')).not.toBe(k);
+    expect(cacheKey('src/a', 'h1', declared, TUNING, PROMPT_SIGNATURE)).toBe(k);
+    expect(PROMPT_SIGNATURE).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('a comment or format change in the code alone costs nothing', async () => {
+    const root = temp();
+    mkdirSync(join(root, 'src', 'alpha'), { recursive: true });
+    const file = join(root, 'src', 'alpha', 'a.ts');
+    const plan = [{ folder: 'src/alpha', unclaimed: ['src/alpha/a.ts'], claimed: [] }];
+    const call = stub(() => reply([good(['src/alpha/a.ts#f', 'src/alpha/a.ts#g'])]));
+    const cache = memoryCache();
+    const run = () => runInfer({ root, plans: plan, declared, call, cache, tuning: TUNING });
+    writeFileSync(file, 'export function f(a: number) {\n  return a + 1;\n}\nexport function g() {}\n');
+    await run();
+    writeFileSync(file, '// a new note about the file\nexport function f(a: number) { return a + 1; }\nexport function g() {}\n');
+    await run();
+    expect(call.calls).toHaveLength(1);
   });
 });

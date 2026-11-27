@@ -1,6 +1,8 @@
 // The model's side of inferred intent, kept pure: the prompt for one folder, the cut at
 // the character cap, reply parsing and anchor checking. The call itself is callClaude.
 
+import { createHash } from 'node:crypto';
+
 import { InferProposalSchema, type InferProposal } from '@intentgraph/shared/schemas';
 
 import { parseAnchor } from '../drift/anchors.js';
@@ -50,6 +52,9 @@ export const INFER_JSON_SCHEMA = {
   required: ['proposals'],
   additionalProperties: false,
 } as const;
+
+/** Moves with the system prompt and the reply schema, so a prompt edit reads every folder again even if promptVersion was not bumped. */
+export const PROMPT_SIGNATURE = createHash('sha256').update(JSON.stringify([INFER_SYSTEM_PROMPT, INFER_JSON_SCHEMA])).digest('hex');
 
 export interface Declared {
   readonly id: string;

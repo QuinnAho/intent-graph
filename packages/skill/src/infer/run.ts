@@ -9,7 +9,7 @@ import type { InferProposal } from '@intentgraph/shared/schemas';
 import type { ClaudeCallResult } from '../drift/claude-cli.js';
 import { readFolder, type FolderInput } from './gather.js';
 import type { FolderPlan } from './folders.js';
-import { buildPrompt, checkAnchors, parseReply, pinDeclaredId, type Declared } from './prompt.js';
+import { buildPrompt, checkAnchors, parseReply, pinDeclaredId, PROMPT_SIGNATURE, type Declared } from './prompt.js';
 import { INFER_TUNING, type InferTuning } from './tuning.js';
 
 export type InferCall = (prompt: string, folder: string) => Promise<ClaudeCallResult>;
@@ -77,9 +77,9 @@ export function declaredHash(declared: readonly Declared[]): string {
   return sha([...declared].sort((a, b) => a.id.localeCompare(b.id)).map((d) => `${d.kind}\0${d.id}\0${d.title}`).join('\n'));
 }
 
-/** Same folder, same code, same prompt version, model and declared titles: same key. */
-export function cacheKey(folder: string, codeHash: string, declared: readonly Declared[], tuning: Pick<InferTuning, 'promptVersion' | 'model'> = INFER_TUNING): string {
-  return sha([tuning.promptVersion, tuning.model, folder, codeHash, declaredHash(declared)].join('\0'));
+/** Same folder, same code, same prompt, model and declared ids and titles: same key. */
+export function cacheKey(folder: string, codeHash: string, declared: readonly Declared[], tuning: Pick<InferTuning, 'promptVersion' | 'model'> = INFER_TUNING, promptSignature: string = PROMPT_SIGNATURE): string {
+  return sha([tuning.promptVersion, promptSignature, tuning.model, folder, codeHash, declaredHash(declared)].join('\0'));
 }
 
 /** Stable while the folder and the code it was read from stay the same. */
