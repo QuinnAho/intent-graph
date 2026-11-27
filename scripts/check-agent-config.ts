@@ -1,20 +1,21 @@
 // Validates IntentGraph's agent configuration so CI fails fast when a
-// CLAUDE.md / AGENTS.md / .claude/ / .codex/ / /spec/ / /docs/adr/ change drifts
-// from the expected shape. Dependency-free on purpose — runs under `pnpm tsx`
-// and uses only Node built-ins.
+// .claude/ / .mcp.json / /spec/ / /docs/ change drifts from the expected
+// shape. Dependency-free on purpose — runs under `pnpm tsx` and uses only
+// Node built-ins.
 //
 // Checks:
 //   1. Every Markdown link in the repo's load-bearing prose docs resolves to
-//      an existing file (anchors not validated). Scanned files: CLAUDE.md,
-//      AGENTS.md, STRUCTURE.md, docs/architecture.md, automation/README.md,
-//      LIFT_LOG.md, and every file under docs/adr/. Adding a new file to this
+//      an existing file (anchors not validated). Scanned files: README.md,
+//      every file under docs/01 - Product/ and docs/02 - Decisions/, and
+//      docs/04 - Workflow/Lift Log.md. Links may wrap the target in angle
+//      brackets, which is how paths with spaces are written. Adding a new file to this
 //      list catches case-sensitivity hazards that Linux CI would otherwise
 //      surface only on the first contributor pull.
-//   2. Every SKILL.md under .claude/skills/ and .codex/skills/ has a YAML
+//   2. Every SKILL.md under .claude/skills/ has a YAML
 //      frontmatter block with `name` and `description` fields.
-//   3. Every subagent file under .claude/agents/ and .codex/subagents/ has
+//   3. Every subagent file under .claude/agents/ has
 //      YAML frontmatter with `name` and `description`.
-//   4. Every command file under .claude/commands/ and .codex/commands/ has
+//   4. Every command file under .claude/commands/ has
 //      YAML frontmatter with `description`.
 //   5. .claude/settings.json parses as JSON; allowlist and denylist do not
 //      contradict each other (no entry appears in both, ignoring whitespace);
@@ -23,8 +24,7 @@
 //      there are silently ignored. MCP servers belong in /.mcp.json. See
 //      ADR-0028 for the move.
 //   6. /.mcp.json exists and parses as JSON with a top-level `mcpServers`
-//      object. .codex/config.toml exists and contains an [mcp.<name>] table
-//      per server in /.mcp.json (parity mirror).
+//      object.
 //   7. Every spec file under /spec/intents/, /spec/constraints/,
 //      /spec/decisions/, /spec/concepts/ that is not a README has YAML
 //      frontmatter with the required fields (id, title, parent, confidence).
@@ -36,7 +36,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import TOML from '@iarna/toml';
 
 type Issue = { file: string; message: string };
 const issues: Issue[] = [];
@@ -102,7 +101,9 @@ export function findBrokenMarkdownLinks(file: string): string[] {
   while ((match = linkRe.exec(text)) !== null) {
     const captured = match[1];
     if (!captured) continue;
-    const target = captured.split('#')[0];
+    // `[x](<a b.md>)` is the CommonMark form for targets with spaces.
+    const unwrapped = captured.startsWith('<') && captured.endsWith('>') ? captured.slice(1, -1) : captured;
+    const target = unwrapped.split('#')[0];
     if (!target) continue;
     const resolved = resolve(dir, target);
     if (!existsSync(resolved)) {
@@ -183,12 +184,9 @@ function checkClaudeSettings() {
   }
 }
 
-function checkMcpJsonAndCodexParity() {
+function checkMcpJson() {
   const mcpFile = join(repoRoot, '.mcp.json');
-  const codex = join(repoRoot, '.codex', 'config.toml');
-
   if (!existsSync(mcpFile)) return fail(mcpFile, '/.mcp.json missing');
-  if (!existsSync(codex)) return fail(codex, '.codex/config.toml missing');
 
   let mcpParsed: { mcpServers?: Record<string, unknown> };
   try {
@@ -203,63 +201,30 @@ function checkMcpJsonAndCodexParity() {
   ) {
     return fail(mcpFile, 'top-level `mcpServers` object missing or not an object');
   }
-
-  // ADR-0006:32 used a substring match (`codexText.includes('[mcp.<name>]')`)
-  // which incorrectly accepts a commented `# [mcp.foo]` line and would miss
-  // the inline-table form. ADR-0010 supersedes that decision; we now parse
-  // the TOML with @iarna/toml (zero transitive deps). ADR-0028 moves the
-  // source-of-truth from .claude/settings.json mcpServers to /.mcp.json.
-  let codexParsed: Record<string, unknown>;
-  try {
-    codexParsed = TOML.parse(readText(codex)) as Record<string, unknown>;
-  } catch (e) {
-    return fail(codex, `not valid TOML: ${(e as Error).message}`);
-  }
-  const mcpTable = (codexParsed.mcp ?? {}) as Record<string, unknown>;
-
-  for (const name of Object.keys(mcpParsed.mcpServers)) {
-    if (!(name in mcpTable)) {
-      fail(
-        codex,
-        `MCP server "${name}" registered in /.mcp.json but missing from .codex/config.toml [mcp] table`,
-      );
-    }
-  }
-  for (const name of Object.keys(mcpTable)) {
-    if (!(name in mcpParsed.mcpServers)) {
-      fail(
-        mcpFile,
-        `MCP server "${name}" registered in .codex/config.toml but missing from /.mcp.json mcpServers`,
-      );
-    }
-  }
 }
 
 function main() {
-  // Required prose docs at the repo root.
-  for (const f of ['CLAUDE.md', 'AGENTS.md', 'STRUCTURE.md', 'LIFT_LOG.md']) {
-    const p = join(repoRoot, f);
-    if (existsSync(p)) checkMarkdownLinks(p);
-    else fail(p, `${f} missing at repo root`);
-  }
-
-  // Other prose docs whose absence is also a defect.
-  for (const rel of ['docs/architecture.md', 'automation/README.md']) {
+  // Prose docs whose absence is a defect.
+  for (const rel of ['README.md', 'docs/04 - Workflow/Lift Log.md']) {
     const p = join(repoRoot, rel);
     if (existsSync(p)) checkMarkdownLinks(p);
     else fail(p, `${rel} missing`);
   }
 
-  // Every ADR file. Sweeping the directory keeps coverage current as new ADRs
-  // land — no need to update this script per ADR.
-  const adrDir = join(repoRoot, 'docs', 'adr');
-  if (existsSync(adrDir)) {
-    for (const f of listFiles(adrDir, (n) => n.endsWith('.md'))) {
+  // Every product doc and ADR. Sweeping the directories keeps coverage
+  // current as new files land — no need to update this script per file.
+  for (const rel of ['docs/01 - Product', 'docs/02 - Decisions']) {
+    const dir = join(repoRoot, rel);
+    if (!existsSync(dir)) {
+      fail(dir, `${rel}/ missing`);
+      continue;
+    }
+    for (const f of listFiles(dir, (n) => n.endsWith('.md'))) {
       checkMarkdownLinks(f);
     }
   }
 
-  for (const skillsDir of ['.claude/skills', '.codex/skills']) {
+  for (const skillsDir of ['.claude/skills']) {
     const dir = join(repoRoot, skillsDir);
     if (!existsSync(dir)) {
       fail(dir, `${skillsDir}/ missing`);
@@ -276,7 +241,7 @@ function main() {
     }
   }
 
-  for (const subagentDir of ['.claude/agents', '.codex/subagents']) {
+  for (const subagentDir of ['.claude/agents']) {
     const dir = join(repoRoot, subagentDir);
     if (!existsSync(dir)) {
       fail(dir, `${subagentDir}/ missing`);
@@ -287,7 +252,7 @@ function main() {
     }
   }
 
-  for (const commandDir of ['.claude/commands', '.codex/commands']) {
+  for (const commandDir of ['.claude/commands']) {
     const dir = join(repoRoot, commandDir);
     if (!existsSync(dir)) {
       fail(dir, `${commandDir}/ missing`);
@@ -299,7 +264,7 @@ function main() {
   }
 
   checkClaudeSettings();
-  checkMcpJsonAndCodexParity();
+  checkMcpJson();
 
   for (const specDir of ['spec/intents', 'spec/constraints', 'spec/decisions', 'spec/concepts']) {
     const dir = join(repoRoot, specDir);

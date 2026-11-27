@@ -42,7 +42,7 @@ import type { CodeSymbolBody } from '@intentgraph/shared/schemas';
 
 const requireFn = createRequire(import.meta.url);
 
-// Composite-heuristic weights from tech-spec.md:118. Pinned here so any future
+// Composite-heuristic weights from docs/01 - Product/Tech Spec.md:118. Pinned here so any future
 // tuning lands as a tracked code change with grep-able provenance, not as a
 // silent constant drift. ADR-level call to change.
 export const IDENTITY_WEIGHT_SIGNATURE = 0.3;
@@ -56,11 +56,11 @@ export const IDENTITY_WEIGHT_NAME = 0.15;
 // constant being wrong, plus the property test in parser-tree-sitter.test.ts.
 export const IDENTITY_WEIGHT_SUM = 1.0;
 
-// Thresholds from tech-spec.md:118.
+// Thresholds from docs/01 - Product/Tech Spec.md:118.
 export const IDENTITY_THRESHOLD_CONFIDENT = 0.85;
 export const IDENTITY_THRESHOLD_TENTATIVE = 0.65;
 
-// Embedding tiebreaker promotion threshold (tech-spec.md:118). Used only when
+// Embedding tiebreaker promotion threshold (docs/01 - Product/Tech Spec.md:118). Used only when
 // the composite score lands in [TENTATIVE, CONFIDENT). Wired in Phase 5.
 export const IDENTITY_EMBEDDING_PROMOTION_THRESHOLD = 0.92;
 
@@ -164,7 +164,7 @@ export interface IdentityScoreResult {
 /**
  * Composite-heuristic symbol identity score.
  *
- * Weights from tech-spec.md:118: signature 0.30 + body 0.35 + outgoing-call 0.20
+ * Weights from docs/01 - Product/Tech Spec.md:118: signature 0.30 + body 0.35 + outgoing-call 0.20
  * + name 0.15. Each component is a normalized similarity in [0, 1]:
  *   - signature: 1 if signature_hash matches, 0 otherwise. Hash equality is
  *     binary; partial signature similarity is not meaningful at Layer 0.
@@ -173,10 +173,10 @@ export interface IdentityScoreResult {
  *     symbol that calls the same set of functions across reparses is the
  *     same symbol even if its body churned around the calls.
  *   - name: 1 if qualified_name matches, 0 otherwise. Renames are caught by
- *     the LSP-rename hard-override layer (tech-spec.md:118 line tail), not by
+ *     the LSP-rename hard-override layer (docs/01 - Product/Tech Spec.md:118 line tail), not by
  *     this scorer.
  *
- * Output tier per tech-spec.md:118 thresholds:
+ * Output tier per docs/01 - Product/Tech Spec.md:118 thresholds:
  *   - score ≥ 0.85 → 'confident' (commit the rebind)
  *   - 0.65 ≤ score < 0.85 → 'tentative' (caller may invoke embedding tiebreaker
  *     downstream; promotion at cosine ≥ 0.92 is Phase 5 work)

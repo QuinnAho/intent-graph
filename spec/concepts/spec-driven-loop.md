@@ -31,5 +31,5 @@ The user-in-the-loop posture (preview-before-apply, the 5s undo, the drift inbox
 
 References:
 - ADR-0003 (spec-driven loop)
-- tech-spec.md §2 Pillar 3, §3.1 Forward sync, §3.2 Backward sync
+- docs/01 - Product/Tech Spec.md §2 Pillar 3, §3.1 Forward sync, §3.2 Backward sync
 - CLAUDE.md "five architectural pillars" §3

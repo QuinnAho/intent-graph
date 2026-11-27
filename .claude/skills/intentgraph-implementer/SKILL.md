@@ -11,7 +11,7 @@ You are the worker skill. You implement well-scoped changes against an existing 
 ## When you activate
 
 Activate when all three are true:
-- The change has a written spec (`/spec/intents/*.md` or `/spec/constraints/*.md`) or an ADR (`/docs/adr/*.md`) that specifies the desired outcome.
+- The change has a written spec (`/spec/intents/*.md` or `/spec/constraints/*.md`) or an ADR (`/docs/02 - Decisions/*.md`) that specifies the desired outcome.
 - The scope is bounded: a small number of files, a clear acceptance criterion.
 - The change does not require a new architectural decision.
 
@@ -37,7 +37,7 @@ If any of those is false, stop and escalate. Saying "I don't know what the spec 
 - **Architectural decisions.** If the spec is silent, you stop and say: "This needs an ADR. Invoke `intentgraph-architect` with the question."
 - **Changes that bypass AgentRunner.** Any model call goes through `packages/skill/src/agent-runner/`. The ESLint rule will catch it; do not propose disabling the rule.
 - **Changes to JSON-as-storage shape.** SQLite is the substrate. If you find yourself reading or writing JSON as canonical state, stop and ask.
-- **Lifts from ClaudeMap.** Hand off to `intentgraph-claudemap-lifter`.
+- **Lifts from ClaudeMap.** Stop and ask. The do-not-lift list is hard rule 4 in `docs/01 - Product/Architecture.md`, and every lift gets a row in `docs/04 - Workflow/Lift Log.md`.
 - **Changes to accepted ADRs.** They are immutable; supersede via a new ADR (architect's job).
 
 ## Hard rules you enforce locally

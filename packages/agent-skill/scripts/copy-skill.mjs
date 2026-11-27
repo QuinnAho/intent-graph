@@ -1,6 +1,6 @@
 // Build step for @intentgraph/agent-skill. Verifies that the upstream
-// @intentgraph/skill build artifact exists, then leaves SKILL.md, agents/,
-// and bin/ in place for npm publish. No bundling — the bin file is a thin
+// @intentgraph/skill build artifact exists, then leaves SKILL.md and bin/
+// in place for npm publish. No bundling — the bin file is a thin
 // dynamic-import shim and the skill itself ships as its own package.
 
 import { existsSync } from 'node:fs';

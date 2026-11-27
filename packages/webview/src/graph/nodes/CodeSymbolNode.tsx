@@ -3,7 +3,7 @@
 // Adapted: ClaudeMap had separate FileNode + FunctionNode. IntentGraph collapses
 // both into CodeSymbolNode (kind='code_symbol') with a free-form `symbolKind`
 // data field; the visual vocabulary is shared through the chrome component.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import type { NodeProps } from '@xyflow/react';
 

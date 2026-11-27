@@ -13,7 +13,7 @@ Steps:
 
 3. **Identify the parent.** Glob `/spec/intents/*.md` and read frontmatter to surface candidate parent ids. Ask the user which concept this intent belongs under. If a new top-level concept is needed, that's an architect call — escalate to `intentgraph-architect` and stop.
 
-4. **Identify governing ADRs.** Glob `/docs/adr/*.md` and surface ADRs that mention the parent concept. The user picks the relevant numbers.
+4. **Identify governing ADRs.** Glob `/docs/02 - Decisions/*.md` and surface ADRs that mention the parent concept. The user picks the relevant numbers.
 
 5. **Activate the spec-writer skill.** Use the Skill tool to invoke `intentgraph-spec-writer` with:
    - id = `$ARGUMENTS`

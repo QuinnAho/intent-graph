@@ -2,7 +2,7 @@
 // Adapted: TS strict, runs inside a Vite Web Worker (off main thread; ClaudeMap
 // ran ELK on the main thread). Single message protocol: { id, nodes, edges, options }
 // in, { id, positions } or { id, error } out. License: MIT (see /claudemap/LICENSE).
-// See LIFT_LOG.md for the full lift record.
+// See docs/04 - Workflow/Lift Log.md for the full lift record.
 //
 // Worker scope: this file is a Vite-bundled ESM worker — `import.meta.url`
 // resolves under the worker URL, and `self` is the DedicatedWorkerGlobalScope.

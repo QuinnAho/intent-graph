@@ -3,7 +3,7 @@
 // graphs: the 5k synthesized harness (Risk-C scale) and the L0 dogfood seed
 // (current real-world scale).
 //
-// Posture note (also in docs/spikes/elk-5k-results.md): ELK runs on the
+// Posture note (also in docs/03 - Research/Spikes/elk-5k-results.md): ELK runs on the
 // main thread, not in a dedicated worker. The original p2-t13 task notes
 // were written against the worker posture; the recommendation in
 // elk-5k-results.md is reframed against actual L0 posture.

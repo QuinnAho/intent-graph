@@ -1,8 +1,8 @@
 // Regression guard for F-CHECK-CONFIG-COVERAGE: confirms the link scan in
 // scripts/check-agent-config.ts catches broken relative links when invoked
 // against fixture markdown. Each scenario below corresponds to one of the
-// scanned locations called out in qa-report-001 (CLAUDE.md, AGENTS.md,
-// STRUCTURE.md, docs/architecture.md, automation/README.md, docs/adr/*).
+// scanned locations called out in qa-report-001. The scanned set now lives
+// under docs/ (see the header of scripts/check-agent-config.ts).
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -50,17 +50,26 @@ describe('findBrokenMarkdownLinks', () => {
     expect(findBrokenMarkdownLinks(path)).toEqual([]);
   });
 
-  it('catches the case-sensitivity hazard (Tech-Spec.md vs tech-spec.md)', () => {
-    fixture('tech-spec.md', '# spec\n');
-    const path = fixture('doc.md', 'See [the spec](./Tech-Spec.md).\n');
+  it('catches the case-sensitivity hazard (Spec-File.md vs spec-file.md)', () => {
+    fixture('spec-file.md', '# spec\n');
+    const path = fixture('doc.md', 'See [the spec](./Spec-File.md).\n');
     // On Linux, the capitalized link does not resolve to the lowercase file;
     // on Windows existsSync is case-insensitive so this assertion is
     // platform-conditional.
     if (process.platform === 'win32') {
       expect(findBrokenMarkdownLinks(path)).toEqual([]);
     } else {
-      expect(findBrokenMarkdownLinks(path)).toEqual(['./Tech-Spec.md']);
+      expect(findBrokenMarkdownLinks(path)).toEqual(['./Spec-File.md']);
     }
+  });
+
+  it('resolves angle-bracket targets with spaces', () => {
+    fixture('Tech Spec.md', '# spec\n');
+    const path = fixture(
+      'doc.md',
+      'See [ok](<./Tech Spec.md>) and [bad](<./No Such File.md#top>).\n',
+    );
+    expect(findBrokenMarkdownLinks(path)).toEqual(['<./No Such File.md#top>']);
   });
 
   it('reports broken links anywhere in the doc body', () => {

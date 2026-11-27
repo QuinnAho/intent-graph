@@ -1,9 +1,9 @@
 // Lifted from claudemap/scripts/smoke-test-package.js @ claudemap@vendored.
 // Adapted: TS strict, retargeted at the IntentGraph agent-skill artifact.
-// Asserts that both flavors (claude/codex) produce the expected structure
+// Asserts that the claude artifact has the expected structure
 // without exercising the full ClaudeMap install/setup/refresh pipeline (those
 // commands do not exist in IntentGraph).
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -25,7 +25,7 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(readFileSync(filePath, 'utf8')) as T;
 }
 
-function assertArtifactShape(root: string, expectedAssistant: 'claude' | 'codex'): void {
+function assertArtifactShape(root: string, expectedAssistant: 'claude'): void {
   for (const required of ['SKILL.md', 'package.json', 'bin/intentgraph-skill.js', 'skill-dist']) {
     assert(existsSync(join(root, required)), `${expectedAssistant}: missing ${required}`);
   }
@@ -38,13 +38,11 @@ function assertArtifactShape(root: string, expectedAssistant: 'claude' | 'codex'
 
 async function main(): Promise<void> {
   rmSync(SMOKE_OUTPUT, { recursive: true, force: true });
-  const result = await buildAgentSkillArtifact({ outputRoot: SMOKE_OUTPUT, assistant: 'all' });
-  assert(result.artifacts.length === 2, `expected 2 artifacts, got ${result.artifacts.length}`);
+  const result = await buildAgentSkillArtifact({ outputRoot: SMOKE_OUTPUT });
+  assert(result.artifacts.length === 1, `expected 1 artifact, got ${result.artifacts.length}`);
   assertArtifactShape(join(SMOKE_OUTPUT, 'intentgraph'), 'claude');
-  assertArtifactShape(join(SMOKE_OUTPUT, 'intentgraph-codex'), 'codex');
   console.log('agent-skill smoke test passed.');
   console.log(` Claude artifact: ${join(SMOKE_OUTPUT, 'intentgraph')}`);
-  console.log(` Codex artifact:  ${join(SMOKE_OUTPUT, 'intentgraph-codex')}`);
 }
 
 main().catch((error: unknown) => {

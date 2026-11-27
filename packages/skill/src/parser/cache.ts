@@ -27,7 +27,7 @@
 // 3. There is no LRU bound in v1. The skill subprocess restarts on workspace
 //    open per tech-spec §6 phase 3 line 450 ("activation event lazy-starts
 //    skill subprocess"); the cache lives for the session. Phase 6 hardening
-//    (tech-spec.md:478, "performance hardening") may add an LRU bound when
+//    (docs/01 - Product/Tech Spec.md:478, "performance hardening") may add an LRU bound when
 //    we have telemetry on cache size in real workspaces.
 // 4. A `tree` reference in the cache holds native memory through the
 //    tree-sitter binding. `evict(path)` and `clear()` drop the reference so

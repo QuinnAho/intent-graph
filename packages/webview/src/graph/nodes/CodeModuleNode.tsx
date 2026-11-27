@@ -3,7 +3,7 @@
 // Adapted: ClaudeMap split file vs system at the data layer. IntentGraph collapses
 // "module" (the file/directory unit) into a single CodeModuleNode that composes the
 // shared chrome. License: MIT (see /claudemap/LICENSE).
-// See LIFT_LOG.md for the full lift record.
+// See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import type { NodeProps } from '@xyflow/react';
 
