@@ -32,6 +32,7 @@ import {
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { readEditConfig } from '../transport/edit-api.js';
+import { dragHold } from '../graph/drag-hold.js';
 import { applyGraphUpdate, fetchGraphJson, loadGraphFromJson } from '../transport/graph-json-loader.js';
 import { pickInitialFit, readFocus, readLiveSource, type LiveSource } from '../transport/live-source.js';
 
@@ -74,6 +75,7 @@ function useLiveUpdates(live: LiveSource | null): void {
       busy = true;
       try {
         await waitForLayout();
+        await dragHold.whenFree();
         const envelope = await fetchGraphJson(live.graphUrl);
         if (!stopped && (await applyGraphUpdate(envelope))) {
           const v = (envelope as unknown as { _live_version?: number })._live_version;

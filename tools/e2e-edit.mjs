@@ -335,6 +335,37 @@ async function wireChecks(page, w, nodeSel) {
   await expectBytes(gfile, g0, 'undo of a move');
   done.push('intent moved into another concept and undone');
 
+  // fault: rename a node in place, press Enter, and within 300 ms drag another node into a concept.
+  // both are written, in the order they were taken, and every request reaches the server.
+  await page.waitForTimeout(900);
+  const rid = 'intent-adds-numbers';
+  const rfile = join(w.work, 'spec', 'intents', 'adds-numbers.md');
+  const r0 = readFileSync(rfile, 'utf8');
+  const posts = [];
+  const onRequest = (rq) => { if (rq.method() === 'POST') posts.push(new URL(rq.url()).pathname + new URL(rq.url()).search); };
+  page.on('request', onRequest);
+  await page.locator(`${nodeSel(rid)} [data-node-title]`).dblclick();
+  await page.locator('[data-rename-field]').waitFor({ timeout: 3000 });
+  await page.waitForFunction(() => document.activeElement === document.querySelector('[data-rename-field]'), null, { timeout: 3000 });
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('Adds numbers fast');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(60);
+  const gb2 = await page.locator(nodeSel(gid)).boundingBox();
+  await dragMouse(page, { x: gb2.x + 40, y: gb2.y + 14 }, await centreOf(page, nodeSel('concept-shapes')));
+  const fastOk = await waitForFile(gfile, (t) => t.includes('parent: concept-shapes'), 6000);
+  page.off('request', onRequest);
+  if (!fastOk) await fail(`a move taken right after a rename was never written, requests were ${JSON.stringify(posts)}`);
+  if (!readFileSync(rfile, 'utf8').includes('title: Adds numbers fast')) await fail('the rename taken first was not written');
+  const order = posts.map((p) => p.split('?')[0]);
+  if (order.join(' ') !== '/api/node /api/parent') await fail(`the rename and the move were sent as ${JSON.stringify(posts)}`);
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Control+z');
+  await expectBytes(gfile, g0, 'undo of the fast move');
+  await page.keyboard.press('Control+z');
+  await expectBytes(rfile, r0, 'undo of the fast rename');
+  done.push('a rename and a move taken within 300 ms are both written in order');
+
   // snap back: a small move inside its own box, and a drop on empty canvas, write nothing and put it back
   await page.waitForTimeout(900);
   for (const [name, dx, dy] of [['small move', 24, 10], ['empty canvas', 0, 0]]) {

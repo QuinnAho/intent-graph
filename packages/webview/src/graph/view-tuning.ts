@@ -116,6 +116,8 @@ export const WIRE_EDIT_TUNING = {
   connectRadiusPx: 28,
   // how long the notice after a change stays up, ms
   noticeMs: 8000,
+  // a graph update waits this long at most for a held node to be let go, ms
+  dragHoldMaxMs: 15000,
   // a refused drop's notice is shorter, it has no button, ms
   refusedNoticeMs: 5000,
 } as const;

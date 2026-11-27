@@ -35,6 +35,7 @@ import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
+import { dragHold } from './drag-hold.js';
 import { EDIT_TIMING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
@@ -227,17 +228,15 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     [onNodesChange],
   );
 
-  // the concept box under the pointer, read from the drawn boxes in screen space, so it is
-  // right while the view pans under a held node
+  // the concept box under the pointer, read from the rects of every drawn node in screen space,
+  // so it is right while the view pans under a held node and while a graph update has the nodes
+  // hidden for a moment (a hit test skips them, their rects stay true)
   const boxAt = useCallback(
     (event: MouseEvent, dragged: string): { box: string | null } => {
       const boxes: Box[] = [];
-      const seen = new Set<string>();
-      for (const el of document.elementsFromPoint(event.clientX, event.clientY)) {
-        const nodeEl = el.closest('.react-flow__node');
-        const id = nodeEl?.getAttribute('data-id');
-        if (!nodeEl || !id || seen.has(id)) continue;
-        seen.add(id);
+      for (const nodeEl of document.querySelectorAll('.react-flow__node')) {
+        const id = nodeEl.getAttribute('data-id');
+        if (!id) continue;
         const r = nodeEl.getBoundingClientRect();
         boxes.push({ id, x: r.left, y: r.top, width: r.width, height: r.height });
       }
@@ -245,6 +244,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     },
     [ends],
   );
+  const handleDragStart = useCallback((): void => dragHold.begin(), []);
   const handleDragStop = useCallback(
     (event: MouseEvent, node: Node): void => {
       setDragAt(null);
@@ -253,6 +253,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       const outcome = dropOutcome(ends, node.id, at.box);
       if (outcome.kind === 'refuse') refuseEdit(outcome.reason);
       else if (outcome.kind === 'move') void changeParent(node.id, outcome.parent);
+      // the request is on its way, a graph update held back during the drag may land now
+      dragHold.end();
     },
     [boxAt, ends],
   );
@@ -411,6 +413,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
           rfRef.current = rf as unknown as ReactFlowInstance;
         }}
         onNodesChange={handleNodesChange}
+        onNodeDragStart={handleDragStart}
         onNodeDragStop={handleDragStop}
         isValidConnection={isValidConnection}
         onConnectStart={handleConnectStart}
