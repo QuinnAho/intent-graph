@@ -16,6 +16,8 @@ export const LIVE_TUNING = {
   driftPollMs: 400,
   // largest json body a save or create may send
   maxRequestBytes: 256 * 1024,
+  // writes (save, create, parent) the server remembers so undo can take them back
+  undoDepth: 20,
 } as const;
 
 export type LiveTuning = { readonly [K in keyof typeof LIVE_TUNING]: number };

@@ -1,4 +1,4 @@
-// the spec writer: change the title or body of a spec file, or make a new intent file.
+// the spec writer: change the title, body or parent of a spec file, or make a new intent file.
 // an edit rewrites only the lines it must (the title line, a heading that mirrors the
 // title, the updated line) and copies every other byte, so comments, key order, block
 // values and line endings survive. a round-trip yaml library would re-emit the whole
@@ -27,6 +27,8 @@ export interface SpecEdit {
   readonly title?: string;
   /** body text after the mirrored heading, any line endings */
   readonly body?: string;
+  /** a node id to hang this node under, or null to take it out of any parent */
+  readonly parent?: string | null;
 }
 
 export interface SpecForEdit {
@@ -122,9 +124,19 @@ function setKey(lines: Line[], key: string, scalar: string, eol: string): void {
   const [i, j] = span;
   const first = lines[i]!;
   const m = new RegExp(`^(${key}\\s*:[ \\t]*)(.*)$`).exec(first.text)!;
-  const comment = j === i + 1 ? trailingComment(key, m[2]!) : '';
-  const lead = j === i + 1 ? m[1]! : `${key}: `;
+  // an empty value with a comment, like 'parent:   # required', keeps the comment after the new value
+  const onlyComment = j === i + 1 && m[2]!.startsWith('#');
+  const comment = j === i + 1 ? (onlyComment ? ` ${m[2]!}` : trailingComment(key, m[2]!)) : '';
+  // a bare 'parent:' has no space to keep, so give the new value one
+  const lead = j === i + 1 ? (/[ 	]$/.test(m[1]!) ? m[1]! : `${m[1]!} `) : `${key}: `;
   lines.splice(i, j - i, { text: `${lead}${scalar}${comment}`, eol: lines[j - 1]!.eol });
+}
+
+const ID_RE = /^[a-z0-9][a-z0-9_.-]*$/i;
+
+function checkParent(parent: string | null): string | null {
+  if (parent === null) return null;
+  return ID_RE.test(parent) ? null : `bad parent id "${parent}"`;
 }
 
 function checkTitle(title: string): string | null {
@@ -174,7 +186,7 @@ export function readSpecForEdit(file: string, source: string): SpecForEdit {
   };
 }
 
-/** apply a title or body edit to a spec file's text, or say why not */
+/** apply a title, body or parent edit to a spec file's text, or say why not */
 export function editSpecSource(file: string, source: string, edit: SpecEdit, today: string): EditResult {
   const before = parseOrNull(file, source);
   if (typeof before === 'string') return refuse('rejected', `the file does not parse, fix it first: ${before}`);
@@ -185,13 +197,19 @@ export function editSpecSource(file: string, source: string, edit: SpecEdit, tod
   const newTitle = edit.title === undefined ? oldTitle : edit.title.trim();
   const bad = checkTitle(newTitle);
   if (bad) return refuse('invalid', bad);
+  const oldParent = before.minimum.parent;
+  const newParent = edit.parent === undefined ? oldParent : edit.parent;
+  const badParent = checkParent(newParent);
+  if (badParent) return refuse('invalid', badParent);
   const split = splitBody(parts.body, oldTitle);
   const titleChanged = newTitle !== oldTitle;
   const bodyChanged = edit.body !== undefined && plain(edit.body) !== plain(split.rest);
-  if (!titleChanged && !bodyChanged) return { ok: true, text: source, changed: false };
+  const parentChanged = newParent !== oldParent;
+  if (!titleChanged && !bodyChanged && !parentChanged) return { ok: true, text: source, changed: false };
 
   const yamlLines = splitLines(parts.yaml);
   if (titleChanged) setKey(yamlLines, 'title', yamlScalar(newTitle), parts.eol);
+  if (parentChanged) setKey(yamlLines, 'parent', newParent === null ? 'null' : newParent, parts.eol);
   setKey(yamlLines, 'updated', today, parts.eol);
 
   const lead = split.lead.map((l) => ({ ...l }));
@@ -200,14 +218,15 @@ export function editSpecSource(file: string, source: string, edit: SpecEdit, tod
   const body = joinLines(lead) + rest;
   const text = parts.open + joinLines(yamlLines) + parts.close + body;
 
-  // keep the result only if it parses and nothing but title and updated moved
+  // keep the result only if it parses and nothing but title, parent and updated moved
   const after = parseOrNull(file, text);
   if (typeof after === 'string') return refuse('rejected', `the edit would not parse: ${after}`);
   const keys = (r: Record<string, unknown>): string[] => Object.keys(r).filter((k) => k !== 'updated');
   const same =
     after.minimum.title === newTitle &&
+    after.minimum.parent === newParent &&
     isDeepStrictEqual(keys(before.raw), keys(after.raw)) &&
-    keys(before.raw).every((k) => k === 'title' || isDeepStrictEqual(before.raw[k], after.raw[k])) &&
+    keys(before.raw).every((k) => k === 'title' || k === 'parent' || isDeepStrictEqual(before.raw[k], after.raw[k])) &&
     after.body === body;
   if (!same) return refuse('rejected', 'the edit would change other fields, nothing was written');
   return { ok: true, text, changed: true };
@@ -316,12 +335,27 @@ function tempName(file: string): string {
   return join(dirname(file), `.${basename(file)}.${process.pid}-${Date.now()}.tmp`);
 }
 
+// on windows a rename over a file that a watcher or a scanner holds open for a moment fails
+// with EPERM, EACCES or EBUSY. it frees up within milliseconds, so wait and try again.
+const BUSY = new Set(['EPERM', 'EACCES', 'EBUSY']);
+function renameWithRetry(from: string, to: string): void {
+  for (let i = 0; ; i++) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (err) {
+      if (i >= SPEC_WRITE_TUNING.renameRetries || !BUSY.has((err as NodeJS.ErrnoException).code ?? '')) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SPEC_WRITE_TUNING.renameRetryMs);
+    }
+  }
+}
+
 /** write next to the file, then rename over it, so a reader sees the old or the new text */
-export function writeSpecFileAtomic(file: string, text: string): void {
+export function writeSpecFileAtomic(file: string, text: string | Buffer): void {
   const tmp = tempName(file);
   writeFileSync(tmp, text);
   try {
-    renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   } catch (err) {
     try {
       unlinkSync(tmp);

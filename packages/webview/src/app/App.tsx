@@ -15,6 +15,9 @@ import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-ed
 import { directKey } from './direct-edit-model.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
+import { Notice } from './Notice.js';
+import { deleteWire, undoLast } from './wire-edit-actions.js';
+import { isUndoKey } from '../graph/wire-edit-model.js';
 import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
@@ -29,6 +32,7 @@ import {
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { readEditConfig } from '../transport/edit-api.js';
+import { dragHold } from '../graph/drag-hold.js';
 import { applyGraphUpdate, fetchGraphJson, loadGraphFromJson } from '../transport/graph-json-loader.js';
 import { pickInitialFit, readFocus, readLiveSource, type LiveSource } from '../transport/live-source.js';
 
@@ -71,6 +75,7 @@ function useLiveUpdates(live: LiveSource | null): void {
       busy = true;
       try {
         await waitForLayout();
+        await dragHold.whenFree();
         const envelope = await fetchGraphJson(live.graphUrl);
         if (!stopped && (await applyGraphUpdate(envelope))) {
           const v = (envelope as unknown as { _live_version?: number })._live_version;
@@ -132,6 +137,29 @@ function useDirectEditKeys(): void {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+}
+
+// ctrl+z or cmd+z undoes the newest write when no text field has the focus. inside one it stays the
+// browser's own text undo. delete or backspace removes the wire picked with a click.
+function useWireEditKeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]') != null;
+      if (isUndoKey(e, typing)) {
+        e.preventDefault();
+        void undoLast();
+        return;
+      }
+      const wire = useUiStore.getState().selectedWire;
+      if (!typing && wire && (e.key === 'Delete' || e.key === 'Backspace') && !target?.closest('[role="menu"]')) {
+        e.preventDefault();
+        deleteWire(wire);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 }
 
@@ -200,6 +228,7 @@ export function App(): JSX.Element {
 
   useLiveUpdates(live);
   useDirectEditKeys();
+  useWireEditKeys();
   const handleNodesChange = useCallback(onSelectionChange, []);
 
   if (status === 'error' && errorMessage) {
@@ -226,6 +255,7 @@ export function App(): JSX.Element {
       />
       <EditPanel />
       </div>
+      <Notice />
       <ProblemsPanel />
     </div>
   );

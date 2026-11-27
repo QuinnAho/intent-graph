@@ -4,7 +4,7 @@
 // json, so another site in the browser cannot post here. files are only ever written
 // inside the workspace's spec/ folder.
 
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync, type Dirent } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -18,6 +18,7 @@ import {
   slugFromTitle,
   writeSpecFileAtomic,
 } from '../parser/spec-md/writer.js';
+import { checkParentChange, type ParentNode } from './parent-rules.js';
 
 export type EditErrorCode =
   | 'read-only'
@@ -167,6 +168,50 @@ export function saveEdit(root: string, target: EditTarget, input: SaveInput, tod
   return { status: 200, body: { ok: true, changed: true, hash: hashSpecSource(edit.text) }, written: relPath(root, target.file) };
 }
 
+export interface ParentInput {
+  /** the new parent id, or null to take the node out of its parent */
+  readonly parent?: unknown;
+  /** the parent the page saw, so a move on a stale graph is a conflict */
+  readonly from?: unknown;
+}
+
+/** set or remove parent in a spec file, after the parent table and the loop check say yes */
+export function setParent(
+  root: string,
+  target: EditTarget | null,
+  childId: string,
+  input: ParentInput,
+  nodes: ReadonlyArray<ParentNode>,
+  today: string,
+): ApiReply & { readonly written?: string } {
+  if (input.parent !== null && typeof input.parent !== 'string') return apiError(400, 'bad-request', 'parent must be a node id or null');
+  if (input.from !== undefined && input.from !== null && typeof input.from !== 'string') return apiError(400, 'bad-request', 'from must be a node id or null');
+  const no = checkParentChange(nodes, childId, input.parent);
+  if (no) return apiError(no.status, no.error, no.message);
+  if (!target || !isInsideSpec(root, target.file)) return apiError(422, 'invalid', `${childId} has no spec file to write`);
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(target.file);
+  } catch {
+    return apiError(409, 'conflict', `${relPath(root, target.file)} was removed on disk`);
+  }
+  const source = bytes.toString('utf8');
+  let current: string | null;
+  try {
+    current = readSpecForEdit(target.file, source).raw['parent'] as string | null;
+  } catch (err) {
+    return apiError(422, 'rejected', (err as Error).message);
+  }
+  if (input.from !== undefined && (input.from ?? null) !== (current ?? null)) {
+    return apiError(409, 'conflict', `${childId} moved on disk since the graph was drawn. Nothing was written.`);
+  }
+  const edit = editSpecSource(target.file, source, { parent: input.parent }, today);
+  if (!edit.ok) return apiError(422, edit.code === 'invalid' ? 'invalid' : 'rejected', edit.reason);
+  if (!edit.changed) return { status: 200, body: { ok: true, changed: false } };
+  writeSpecFileAtomic(target.file, edit.text);
+  return { status: 200, body: { ok: true, changed: true, parent: input.parent, was: current ?? null }, written: relPath(root, target.file) };
+}
+
 export interface CreateInput {
   readonly title?: unknown;
   readonly parent?: unknown;
@@ -195,4 +240,37 @@ export function createIntent(
   const r = createIntentFile(resolve(root, 'spec'), { title: input.title, parent: parent.id, today, targetKinds: targetKinds as string[] });
   if (!r.ok) return apiError(r.code === 'duplicate' ? 409 : 422, r.code, r.reason);
   return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file) }, written: relPath(root, r.file) };
+}
+
+/** id -> parent as the spec files hold them right now, read from disk. a file that does not parse is skipped. */
+export function parentsOnDisk(root: string): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  const walk = (dir: string): void => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = resolve(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.isFile() && e.name.toLowerCase().endsWith('.md')) {
+        try {
+          const spec = readSpecForEdit(p, readFileSync(p, 'utf8'));
+          const parent = spec.raw['parent'];
+          out.set(spec.id, typeof parent === 'string' ? parent : null);
+        } catch {
+          // not a spec node, the build reports it
+        }
+      }
+    }
+  };
+  walk(resolve(root, 'spec'));
+  return out;
+}
+
+/** the cached nodes with each spec node's parent taken from the files, so the loop check sees what is on disk */
+export function withParentsFromDisk(nodes: ReadonlyArray<ParentNode>, disk: ReadonlyMap<string, string | null>): ParentNode[] {
+  return nodes.map((n) => (disk.has(n.id) ? { ...n, parent_id: disk.get(n.id) ?? null } : n));
 }

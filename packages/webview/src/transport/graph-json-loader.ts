@@ -21,6 +21,7 @@ import type { Edge, Node } from '@xyflow/react';
 import { useGraphStore } from '../store/graph-slice.js';
 import { runLayout, type LayoutNodeInput, type LayoutEdgeInput } from '../graph/layout/index.js';
 import { getLayoutSize } from '../graph/layout/sizing.js';
+import { idsInParentLoop } from '../graph/parent-loops.js';
 import { layoutNested, parentsFirst, type Placement, type RunLayout } from '../graph/layout/nested.js';
 import { VIEW_TUNING } from '../graph/view-tuning.js';
 import { mergeGraphUpdate } from './graph-merge.js';
@@ -176,6 +177,7 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
   // packages/skill/src/build-graph.ts where the walker keeps symbol
   // parentId null and uses a contain edge instead).
   const nodeKindById = new Map(envelope.nodes.map((n) => [n.id, n.kind]));
+  const looped = idsInParentLoop(envelope.nodes);
 
   const nodes: Node[] = envelope.nodes.map((n) => {
     const baseData: Record<string, unknown> = {
@@ -200,7 +202,7 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
     // from the export) would crash React Flow's renderer; a non-concept
     // parent would invoke React Flow's sub-flow rendering on a relationship
     // that isn't supposed to be a visual container (e.g. module→symbol).
-    if (n.parent_id !== null) {
+    if (n.parent_id !== null && !looped.has(n.id)) {
       const parentKind = nodeKindById.get(n.parent_id);
       if (parentKind === 'concept') {
         (node as Node & { parentId?: string; extent?: 'parent' }).parentId = n.parent_id;

@@ -46,12 +46,16 @@ export function addIntentTo(id: string): void {
   ui.openCreate(id);
 }
 
-/** the right-click menu for a node, selecting it so the menu and the panel agree */
+/** the right-click menu for a node. it opens the menu and nothing else, so the view never shifts under it. */
 export function openNodeMenu(id: string, kind: string, at: { x: number; y: number }): void {
-  selectNode(id);
   useUiStore.getState().openMenu({ ...at, nodeId: id, kind });
 }
 
 export function openPaneMenu(at: { x: number; y: number }): void {
   useUiStore.getState().openMenu({ ...at, nodeId: null, kind: null });
+}
+
+export function openWireMenu(wireId: string, at: { x: number; y: number }): void {
+  useUiStore.getState().setSelectedWire(wireId);
+  useUiStore.getState().openMenu({ ...at, nodeId: null, kind: 'wire', wireId });
 }

@@ -1,7 +1,7 @@
 // live graph server: builds the graph with the static builder, serves it as
 // json, watches spec and source files, rebuilds and tells the page over
 // server-sent events. node http only, chokidar for watching.
-// with --write it also takes title and body saves and new intents, see edit-api.ts.
+// with --write it also takes title and body saves, new intents, parent changes and undo, see edit-api.ts.
 
 import { randomBytes } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
@@ -16,7 +16,9 @@ import { build, type BuildGraphResult } from '../build-graph.js';
 import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
-import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, type ApiReply, type EditTarget } from './edit-api.js';
+import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, parentsOnDisk, setParent, withParentsFromDisk, type ApiReply, type EditTarget } from './edit-api.js';
+import { hashSpecSource } from '../parser/spec-md/writer.js';
+import { UndoLog } from './undo-log.js';
 import { buildDriftMarks } from './drift-marks.js';
 import { NO_DRIFT, driftSignature, readDriftSnapshot, type DriftSnapshot } from './drift-reader.js';
 import { composeLiveGraph, diffProblems, type LiveGraph, type LiveProblem } from './compose.js';
@@ -128,6 +130,14 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let testsAgain = false;
   let closed = false;
   const clients = new Set<ServerResponse>();
+  const undoLog = new UndoLog(tuning.undoDepth);
+  // every write runs alone and in the order it arrived, so a check never sees a half-done neighbour
+  let writeTail: Promise<void> = Promise.resolve();
+  const enqueue = (job: () => void): Promise<void> => {
+    const run = writeTail.then(job);
+    writeTail = run.catch(() => {});
+    return run;
+  };
 
   const publish = (): void => {
     if (!result) return;
@@ -244,8 +254,13 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   await new Promise<void>((ok) => watcher.once('ready', () => ok()));
   ready = true;
 
+  // a request that throws (a file the os would not let go of) answers 500 and the server keeps running
   const server = createServer((req, res) => {
-    void handle(req, res);
+    handle(req, res).catch((err: unknown) => {
+      log(`request failed: ${(err as Error).message}`);
+      if (!res.headersSent) sendJson(res, apiError(500, 'rejected', 'The server could not finish that write. Check the file and try again.'));
+      else res.end();
+    });
   });
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -263,7 +278,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       req.on('close', () => clients.delete(res));
       return;
     }
-    if (url.pathname === '/api/node' || url.pathname === '/api/intents') {
+    if (url.pathname === '/api/node' || url.pathname === '/api/intents' || url.pathname === '/api/parent' || url.pathname === '/api/undo') {
       await handleApi(req, res, url);
       return;
     }
@@ -326,21 +341,49 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       return;
     }
     const input = read.value;
+    await enqueue(() => {
     let reply: ApiReply & { readonly written?: string };
+    // bytes before the write, so undo can put them back. null means the write makes the file.
+    let before: Buffer | null = null;
+    let label = '';
+    const id = url.searchParams.get('id') ?? '';
+    const bytesOf = (t: EditTarget | null): Buffer | null => {
+      try {
+        return t ? readFileSync(t.file) : null;
+      } catch {
+        return null;
+      }
+    };
+    const undoing = url.pathname === '/api/undo';
     if (url.pathname === '/api/node') {
-      const target = editTarget(url.searchParams.get('id'));
+      const target = editTarget(id);
+      before = bytesOf(target);
+      label = `save ${id}`;
       reply = target ? saveEdit(root, target, input, today()) : apiError(404, 'not-found', 'no spec node with that id');
+    } else if (url.pathname === '/api/parent') {
+      const target = editTarget(id);
+      before = bytesOf(target);
+      label = `parent of ${id}`;
+      reply = setParent(root, target, id, input, withParentsFromDisk(graph?.nodes ?? [], parentsOnDisk(root)), today());
+    } else if (undoing) {
+      reply = undoLog.undo(root);
     } else {
       reply = createIntent(root, input, graph?.nodes ?? [], today());
+      label = `create ${String(reply.body['id'])}`;
+    }
+    if (reply.written && !undoing) {
+      const file = join(root, reply.written);
+      undoLog.push({ file, rel: reply.written, before, afterHash: hashSpecSource(readFileSync(file)), label });
     }
     if (reply.written) {
-      log(`wrote ${reply.written}`);
+      log(`${undoing ? 'undid' : 'wrote'} ${reply.written}`);
       // the watcher would catch it too, this just starts the quiet window now
       batcher.add(reply.written);
     } else if (reply.status >= 400) {
       log(`write refused (${reply.status}): ${String(reply.body['message'])}`);
     }
     sendJson(res, reply);
+    });
   }
 
   const driftPoll = setInterval(() => {
