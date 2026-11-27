@@ -62,3 +62,17 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Effort is scaled to the lane: lane 4 on the strongest allowed model at high effort, lanes 5 and 6, the research and every verifier one tier down at medium.
 
 **Not yet.** The selected node is not highlighted, the panel covers the right edge of the canvas, and a new intent shows as a problem until it has target kinds. All three are in lane 6.
+
+### 2026-11-27, 7:55 AM  Blueprint wires and pins merged to night-1
+
+**What happened.** Lane 4, step one of ADR 0031: every node has an input pin on the left and an output pin on the right, one wire component draws smooth curves between pins, the layout runs left to right, and wires that leave a box now take part in the layout. A wire whose other end is in the other block is replaced by a count on the pin ("1 code"). Nodes have a header strip tinted by kind.
+
+**Why it matters.** Wires through labels were the first thing the eye landed on. The graph now reads constraint to intent, left to right, with nothing drawn over text.
+
+**Evidence.** On `night-1` at `34e9f0d`: `PASS all (42.5s) - 4 steps, 263 tests`, `PASS e2e-wires (31.9s) - fixture 0 crossing 0 loose, repo 0 crossing on 0/4 wires 0 loose 1587 ms`, `PASS e2e-live`, `PASS e2e-edit`. Measured before the lane with the same script: 105 crossing samples and 32 loose ends on this repo, 9 of 16 wires through a box, 6% running left to right. An independent verifier wrote its own measurement and passed 14 of 14: 0 crossings and 0 loose ends in six views, including views with 48 wires where code nodes are on screen, wires stay on their pins when a node is dragged, and the page loads about 1.1 times slower (1,990 ms against 1,790 ms, medians of ten). Frames: `docs/05 - Log/Frames/2026-11-27 Night 1/`, files `4a` to `4e`, beside `1a` to `1e` from before.
+
+**Calls taken in loop.**
+- The builder's call: a node's edge to the box that holds it is no longer drawn, because the nesting already shows it.
+- Opening a count on a pin was left out. This repo has no edge between a spec node and code yet (12 intent to concept, 4 constraint to intent, 1,078 symbol to module), so there is nothing to open until real spec files have anchors.
+
+**Not yet.** Two constraint wires cross each other, since one pin per node gives the layout nothing to order them by. On this repo only 4 wires are drawn at first view. The code block sits below the spec block and is reached by panning or a `focus` link.
