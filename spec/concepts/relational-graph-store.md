@@ -27,5 +27,5 @@ This concept groups intents about *where state lives* and *how state changes are
 
 References:
 - ADR-0002 (relational graph store)
-- tech-spec.md §2 Pillar 2, §4 Schema
+- docs/01 - Product/Tech Spec.md §2 Pillar 2, §4 Schema
 - CLAUDE.md "five architectural pillars" §2

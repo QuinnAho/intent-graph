@@ -8,7 +8,7 @@ Accepted 2026-05-03.
 
 Tech-spec §4.1 (lines 177–178) declares the `node.confidence` column as a four-state TEXT enum: `extracted | inferred | semantic | asserted`. This is a categorical encoding from the substrate up; it does not store a probability or a continuous confidence score. The aspiration is that user-facing surfaces (inbox row, canvas node styling, detail panel field rendering) preserve the categorical shape — but tech-spec does not name the rule, and absent a decision, every Phase 4 / Phase 5 surface that displays confidence is free to convert the four-state enum into a continuous score (e.g., `confidence_score = 0.73` rendered as a percentage or progress bar).
 
-The UX research synthesis at `docs/research/ux-research-synthesis.md` argues against any such conversion, in three convergent places:
+The UX research synthesis at `docs/03 - Research/ux-research-synthesis.md` argues against any such conversion, in three convergent places:
 
 1. **Q1's misreading-of-percentages finding** (lines 13–14, 45): "raw probability scores are reliably misinterpreted as accuracy; users translate '0.73' as '73% correct' regardless of what the model actually means." Modexa's 2025 industry analysis and the Visible Language journal Issue 59-2 (2025) on uncertainty UI both converge on this. The PAIR Guidebook ("Explain for understanding, not completeness") and the Google Explainability Rubric recommend mapping uncertainty to *decisions* (asserted / inferred / semantic / extracted), not numbers.
 2. **Q1's failure-must-be-legible-in-categories finding** (line 47): users build calibrated trust when they can predict *what kind of mistake the system makes*. Categorical encoding is the precondition for this calibration; continuous scores collapse the kind-of-mistake distinction into a quantitative gradient that obscures it.
@@ -84,8 +84,8 @@ A future need to expose calibrated probability to the user — for example, show
 
 **No DDL change.** The categorical commitments read existing columns:
 
-- `node.confidence` (tech-spec.md:177–178) is already the four-state enum.
-- `event_log.payload` (tech-spec.md:282) holds typed override reasons in JSON; no migration.
+- `node.confidence` (docs/01 - Product/Tech Spec.md:177–178) is already the four-state enum.
+- `event_log.payload` (docs/01 - Product/Tech Spec.md:282) holds typed override reasons in JSON; no migration.
 - The Tier 1/2/3 assignment is computed at the application layer from existing substrate (verdict severity, obligation status, node confidence, blast-radius queries on the graph). No new column.
 
 The wire format from skill to webview adds a field — `tier: 1 | 2 | 3` — on inbox event envelopes. The wire format lives in `packages/shared/src/protocol/`; no DB migration.
@@ -123,15 +123,15 @@ What this costs:
 - **Allow continuous confidence on the canvas only.** Tempting because the canvas has more visual real estate. Rejected because the synthesis's evidence (Q1 finding 1 + Cross-Cutting Theme #1) is about user cognition, not visual real estate. The misread-percentage failure mode happens regardless of where the percentage is displayed; a single percentage on the canvas calibrates the user's expectation that confidence is quantitative, which then bleeds into how they read the inbox row's categorical badge.
 - **Allow a "confidence: high / medium / low" alternative vocabulary alongside the four-tier enum.** Rejected because adding a parallel vocabulary doubles the surface contributors have to learn and creates a translation problem (does "high" map to `asserted` or `inferred`?). The four-state enum is the substrate; the surface preserves it literally.
 - **Allow a Tier 4 ("buried") for items the user has hidden.** Rejected because hiding is already covered by Tier 3's filterable-out-by-default rule plus the Linear-style snooze. A separate Tier 4 confuses the modality (is it a tier or a state?). Hidden items use a `hidden` state on the existing tier, not a new tier.
-- **Allow surface-side numeric severity for monitor verdicts only.** The monitor's `score` field (tech-spec.md:309) is a continuous value, and a surface-side display would honor the substrate. Rejected because the monitor's `recommended_action` (allow / require_human_review / block) is the user-actionable categorical projection of `score`; the score itself is diagnostic. ADR-0021's framing rule (verdicts surface as heads-up, not as severity numbers) jointly with this ADR forbids the score from leaking out of the trace panel.
+- **Allow surface-side numeric severity for monitor verdicts only.** The monitor's `score` field (docs/01 - Product/Tech Spec.md:309) is a continuous value, and a surface-side display would honor the substrate. Rejected because the monitor's `recommended_action` (allow / require_human_review / block) is the user-actionable categorical projection of `score`; the score itself is diagnostic. ADR-0021's framing rule (verdicts surface as heads-up, not as severity numbers) jointly with this ADR forbids the score from leaking out of the trace panel.
 - **Defer this decision to Phase 4 implementation.** Rejected. The synthesis's Cross-Cutting Theme #1 is explicit: "the recommendation is to *resist* the temptation to add continuous scores in v1." Without an ADR-level commitment, the temptation arrives in Phase 4 task implementation and is paid every time a contributor reaches for a percentage display. The architectural cost of forbidding it once, at this layer, is low; the cost of policing it in 30 surfaces is high.
 
 ## References
 
-- `docs/research/ux-research-synthesis.md` §Q1 finding 1 (lines 13–14, 45), §Q1 finding 2 (lines 47), §Q2 finding 1 + 5 (lines 108–110, 117–118), §Cross-Cutting Theme #1 (lines 617–619).
-- `docs/research/phase-coverage-matrix.md` rows P4.1, P4.4 — the matrix entries this ADR closes.
-- tech-spec.md:177–178 — the four-state `confidence` enum at the substrate.
-- tech-spec.md:282 — `event_log.payload` shape that holds typed override reasons.
+- `docs/03 - Research/ux-research-synthesis.md` §Q1 finding 1 (lines 13–14, 45), §Q1 finding 2 (lines 47), §Q2 finding 1 + 5 (lines 108–110, 117–118), §Cross-Cutting Theme #1 (lines 617–619).
+- `docs/03 - Research/phase-coverage-matrix.md` rows P4.1, P4.4 — the matrix entries this ADR closes.
+- docs/01 - Product/Tech Spec.md:177–178 — the four-state `confidence` enum at the substrate.
+- docs/01 - Product/Tech Spec.md:282 — `event_log.payload` shape that holds typed override reasons.
 - ADR-0020 (per-decision-type legibility taxonomy) — co-authoritative on the cross-cutting visual conventions (color = type, stroke = confidence, no continuous severity hue).
 - ADR-0021 (monitor LLM presentation framing) — owns the override-dialog UX whose typed-reason convention this ADR generalizes.
 - Synthesis cited primary sources: Modexa 2025 industry analysis on uncertainty UI; Visible Language Issue 59-2 (2025); PAIR Guidebook ("Explain for understanding, not completeness"); Phansalkar et al. PMC 2605599 (tiered alerts); Linear blog on triage; Sentry Issue #48477 / Discussion #68908 (priority-sort tradeoffs).

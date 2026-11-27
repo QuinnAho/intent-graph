@@ -1,6 +1,6 @@
-# LIFT_LOG.md
+# Lift Log
 
-Every file lifted from `claudemap/` is recorded here. The do-not-lift list lives in [`.claude/skills/intentgraph-claudemap-lifter/SKILL.md`](./.claude/skills/intentgraph-claudemap-lifter/SKILL.md). The lift discipline (do-not-lift list, provenance header, this log, gate before merge) is summarised in [ADR 0006](./docs/adr/0006-agent-configuration-setup.md).
+Every file lifted from `claudemap/` is recorded here. The do-not-lift list lives in [Architecture](<../01 - Product/Architecture.md>), hard rule 4. The lift discipline (do-not-lift list, provenance header, this log, gate before merge) is summarised in [ADR 0006](<../02 - Decisions/0006-agent-configuration-setup.md>).
 
 The vendored snapshot under `claudemap/` was lifted from with no separate git-tracked SHA at the time of this lift — the provenance header in each file uses `claudemap@vendored` and a TODO to backfill the SHA once the snapshot is git-tracked separately.
 
@@ -26,7 +26,7 @@ The vendored snapshot under `claudemap/` was lifted from with no separate git-tr
 | 2026-04-26 | (extracted from `server.ts`) | `packages/skill/src/mcp/tool-definition.ts` | New file — `ToolDefinition` interface, separated so each tool-family file can import the type without dragging the MCP SDK in at import time. | claude-code |
 | 2026-04-26 | `claudemap/scripts/package-claudemap-skill.js` | `scripts/package-agent-skill.ts` | TS strict; retargeted at the IntentGraph monorepo. **Dropped** the React-app bundling, runtime graph placeholders, slash-command rendering, and scoped-map manifest — the IntentGraph `agent-skill` ships SKILL.md + agents/ + bin/ + the prebuilt `@intentgraph/skill` `dist/`. The dual-flavor (claude vs codex) packaging shape is preserved; outputs land at `artifacts/agent-skill/intentgraph[-codex]/`. | claude-code |
 | 2026-04-26 | `claudemap/scripts/smoke-test-package.js` | `scripts/smoke-test-agent-skill.ts` | TS strict; asserts the agent-skill artifact shape for both flavors. **Dropped** the install / setup / refresh / scoped-map exercise — those commands do not exist in IntentGraph. | claude-code |
-| 2026-04-26 | `claudemap/scripts/install-claudemap.js` | `scripts/install-agent-skill.ts` | TS strict; copies the artifact into `<target>/.claude/skills/intentgraph/` or `<target>/.codex/skills/intentgraph/`. **Dropped** the in-tree `npm install` and the slash-command file writes — IntentGraph's skill is a self-contained tsup bundle and slash commands are project-defined under `.claude/commands/`. | claude-code |
+| 2026-04-26 | `claudemap/scripts/install-claudemap.js` | `scripts/install-agent-skill.ts` | TS strict; copies the artifact into `<target>/.claude/skills/intentgraph/` or the target's Codex skills folder. **Dropped** the in-tree `npm install` and the slash-command file writes — IntentGraph's skill is a self-contained tsup bundle and slash commands are project-defined under `.claude/commands/`. | claude-code |
 | 2026-04-26 | `claudemap/scripts/check-contracts.js` | `scripts/check-contracts.ts` | TS strict; **completely retargeted**. Claudemap's script enforced raw-literal rules (presentation modes / graph sources / hex colors); IntentGraph's checks are: shared schemas barrel includes the required files; Drizzle schema file exists; required tables present (gracefully waits while schema is still a Phase 0 stub); migrations directory exists. The "scan, report rule violations, exit non-zero" structure survives; the rules are entirely new. | claude-code |
 
 ## Deliberately not lifted
@@ -50,7 +50,7 @@ The vendored snapshot under `claudemap/` was lifted from with no separate git-tr
 | `claudemap/scripts/generate-seed-map.js` and `scripts/lib/seed-map-builder.js` | The ClaudeMap seed-map JSON contract is on the do-not-lift list. IntentGraph's `scripts/seed-dev-db.ts` writes through Drizzle into SQLite. |
 | `claudemap/scripts/lib/agent-converter.js`, `scripts/lib/codex-skill-generator.js` | The Codex agent / SKILL conversion logic is ClaudeMap-specific (renames "claudemap-runtime" to "codexmap-runtime", embeds slash commands inside SKILL.md, etc.). IntentGraph ships the same SKILL.md to both flavors with no rename. |
 | `claudemap/skill/lib/active-map.js`, `map-manifest.js`, `runtime-paths.js`, `manifest/io.js`, `command-harness/*` | All wired to the ClaudeMap maps-manifest model and slash-command harness. IntentGraph has neither. |
-| `claudemap/README.md`, `claudemap/CHANGELOG.md`, `claudemap/PUBLISHING.md` | The ClaudeMap project READMEs are about the ClaudeMap product. IntentGraph has its own [`README.md`](./README.md) and [`tech-spec.md`](./tech-spec.md). |
+| `claudemap/README.md`, `claudemap/CHANGELOG.md`, `claudemap/PUBLISHING.md` | The ClaudeMap project READMEs are about the ClaudeMap product. IntentGraph has its own [`README.md`](../../README.md) and [`docs/01 - Product/Tech Spec.md`](<../01 - Product/Tech Spec.md>). |
 | `claudemap/docs/`, `claudemap/stitch-base.js`, `claudemap/claudemap-maps.json`, `claudemap/resources/` | Demo site assets, stitch artifacts, the JSON-as-storage map manifest, brand resources — none of these belong in IntentGraph. |
 
 ## Architectural decisions made during the lift that were not in the original instructions

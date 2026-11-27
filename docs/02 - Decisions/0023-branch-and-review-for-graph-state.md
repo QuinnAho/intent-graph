@@ -8,7 +8,7 @@ Accepted 2026-05-03.
 
 Tech-spec leaves inter-developer coordination underspecified. §3.5 line 144 names "Yjs only at the *node-text* granularity — full graph CRDT is overkill for one webview." §6 phase 5 references "audit/replay" and "Codex parity tests" but does not define how two engineers' graph edits compose. §6 phase 4 line 463 mentions "5s undo window" via worktree shadow + WorkspaceEdit but treats this as single-user undo, not multi-user merge. §7-E (line 517) flags the unbenchmarked "1000 Y.Docs in one webview" risk but does not specify the inter-developer merge story.
 
-The UX research synthesis at `docs/research/ux-research-synthesis.md` Q4 ("Team Coordination and Version Control") is the most-research-supported and most-spec-thin section. The synthesis cites Ink & Switch's Peritext (CSCW 2022, lines 257–259), Automerge, Eg-walker (2024, line 259), Fugue (2023), and Semenov & Aksenov (2026 PaPoC, line 260) as a convergent body of evidence on a single finding: **plain-text and rich-text CRDTs preserve characters but not author intent.** Synthesis Q4 finding 1 (lines 273–275) makes the operative claim concrete: "If Alice writes intent 'the system must reject expired tokens' and Bob concurrently writes 'the system must accept expired tokens within a grace window,' a character-level CRDT will merge into an incoherent sentence. **IntentGraph must use semantic-unit branching for nodes, not character-level CRDT.**"
+The UX research synthesis at `docs/03 - Research/ux-research-synthesis.md` Q4 ("Team Coordination and Version Control") is the most-research-supported and most-spec-thin section. The synthesis cites Ink & Switch's Peritext (CSCW 2022, lines 257–259), Automerge, Eg-walker (2024, line 259), Fugue (2023), and Semenov & Aksenov (2026 PaPoC, line 260) as a convergent body of evidence on a single finding: **plain-text and rich-text CRDTs preserve characters but not author intent.** Synthesis Q4 finding 1 (lines 273–275) makes the operative claim concrete: "If Alice writes intent 'the system must reject expired tokens' and Bob concurrently writes 'the system must accept expired tokens within a grace window,' a character-level CRDT will merge into an incoherent sentence. **IntentGraph must use semantic-unit branching for nodes, not character-level CRDT.**"
 
 The synthesis's Q4 also names the right architectural shape (lines 277–283, 327–333):
 
@@ -208,14 +208,14 @@ What this costs:
 
 ## References
 
-- `docs/research/ux-research-synthesis.md` §Q4 (lines 250–361) — full state of the structured-document CRDT literature, the three-tier state model, the resolver UI, AI-suggested merges, and the in-app affordances.
-- `docs/research/ux-research-synthesis.md` §Cross-Cutting Theme #5 (lines 633–635) — "Branch-and-Review for Semantic Units."
-- `docs/research/phase-coverage-matrix.md` rows P5.7–P5.12 — the matrix entries this ADR closes.
-- tech-spec.md:71–76 — Pillar 2 substrate (better-sqlite3 + WAL, single-writer constraint that drives the per-branch-DB choice).
-- tech-spec.md:144 — Yjs node-text granularity (the inside-a-branch CRDT this ADR endorses).
-- tech-spec.md:273–286 — `event_log` shape that holds merge-resolution events.
-- tech-spec.md:289–323 — `trace_event` shape that holds AI-suggested-merge model calls and monitor verdicts.
-- tech-spec.md:517 — §7-E open call (1000 Y.Docs spike); preserved as a Phase 3 spike.
+- `docs/03 - Research/ux-research-synthesis.md` §Q4 (lines 250–361) — full state of the structured-document CRDT literature, the three-tier state model, the resolver UI, AI-suggested merges, and the in-app affordances.
+- `docs/03 - Research/ux-research-synthesis.md` §Cross-Cutting Theme #5 (lines 633–635) — "Branch-and-Review for Semantic Units."
+- `docs/03 - Research/phase-coverage-matrix.md` rows P5.7–P5.12 — the matrix entries this ADR closes.
+- docs/01 - Product/Tech Spec.md:71–76 — Pillar 2 substrate (better-sqlite3 + WAL, single-writer constraint that drives the per-branch-DB choice).
+- docs/01 - Product/Tech Spec.md:144 — Yjs node-text granularity (the inside-a-branch CRDT this ADR endorses).
+- docs/01 - Product/Tech Spec.md:273–286 — `event_log` shape that holds merge-resolution events.
+- docs/01 - Product/Tech Spec.md:289–323 — `trace_event` shape that holds AI-suggested-merge model calls and monitor verdicts.
+- docs/01 - Product/Tech Spec.md:517 — §7-E open call (1000 Y.Docs spike); preserved as a Phase 3 spike.
 - ADR-0002 (relational graph store as substrate) — the event_log canonical-shape commitment that constrains where merge events live.
 - ADR-0005 (faithfulness via architecture) — the trace-event substrate this ADR's AI-suggested merges fit into.
 - ADR-0009 (spec frontmatter schema) — the markdown projection that the branch-DB regenerates and the merge ultimately writes back to.

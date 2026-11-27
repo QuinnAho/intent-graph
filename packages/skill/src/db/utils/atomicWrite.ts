@@ -1,7 +1,7 @@
 // Lifted from claudemap/skill/lib/runtime-paths.js (writeJsonFileAtomic +
 // readJsonFile) @ claudemap@vendored.
 // Adapted: TS strict, generic-typed read/write, dependency-free.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 //
 // CONSTRAINT: This module is for SNAPSHOT ARTIFACTS ONLY — recovery dumps,
 // graph.json exports, and similar one-shot files written next to the SQLite

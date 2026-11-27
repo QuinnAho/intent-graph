@@ -23,5 +23,5 @@ This intent fails the moment any fine-tune script reads from `trace_event.monito
 Acceptance signals:
 - A CI check (deferred to ADR-0012, lands when the first fine-tune script does) refuses to run a fine-tune whose data pipeline touches `monitor_verdict`.
 - The trace store schema makes `monitor_verdict` queryable for audit and analytics, but the access is logged so any future training pipeline can be reviewed.
-- Documentation (CLAUDE.md hard rules, AGENTS.md) names this rule explicitly so contributors do not need to discover it from the ADR.
+- Documentation (CLAUDE.md hard rules) names this rule explicitly so contributors do not need to discover it from the ADR.
 - The first fine-tune script (when it lands) ships with a test that demonstrates its data pipeline excludes monitor_verdict.

@@ -4,7 +4,7 @@
 // density; in IntentGraph they map to audiences (overview = stakeholder /
 // architect, mid = developer scanning intents, detail = developer editing a
 // specific node). License: MIT (see /claudemap/LICENSE).
-// See LIFT_LOG.md for the full lift record.
+// See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import { useCallback, useState } from 'react';
 import type { Viewport } from '@xyflow/react';

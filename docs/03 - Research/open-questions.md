@@ -1,7 +1,7 @@
 # UX Research — Open Questions for Human Resolution
 
 **Status:** Draft (architect skill output, awaiting human review).
-**Source:** [`docs/research/ux-research-synthesis.md`](./ux-research-synthesis.md) §Risks and Unknowns (April 2026), plus the synthesis's "Recommended early user-testing priorities" list.
+**Source:** [`docs/03 - Research/ux-research-synthesis.md`](./ux-research-synthesis.md) §Risks and Unknowns (April 2026), plus the synthesis's "Recommended early user-testing priorities" list.
 **Purpose:** Surface the questions the research literature cannot answer for IntentGraph specifically. List the synthesis's own user-testing priorities. Tag each question as resolvable by spike work, real-user testing, or deferred to v1.
 
 The synthesis is opinionated about the strength of its evidence base (lines 731–746) and explicit about contradictions the design must navigate (lines 748–751). The questions below are not the synthesis's recommendations — those are catalogued in `phase-coverage-matrix.md`. These are the questions left *open* by the synthesis itself.

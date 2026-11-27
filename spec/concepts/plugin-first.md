@@ -26,5 +26,5 @@ This concept groups the intents that talk about *where IntentGraph runs* and *ho
 
 References:
 - ADR-0001 (plugin-first, not standalone IDE)
-- tech-spec.md §2 Pillar 1
+- docs/01 - Product/Tech Spec.md §2 Pillar 1
 - CLAUDE.md "five architectural pillars" §1

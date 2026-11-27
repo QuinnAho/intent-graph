@@ -84,11 +84,11 @@ This gives third-party plugins exactly one extension point (the MCP manifest) an
 
 ## References
 
-- tech-spec.md §3.3 (orchestration runtime, Inngest functions including `verify.run`)
-- tech-spec.md §3.4 (verification backplane — interface and scheduling rule)
-- tech-spec.md §4.3 (obligation schema)
-- tech-spec.md §5.4 (MCP verification tool surface)
+- docs/01 - Product/Tech Spec.md §3.3 (orchestration runtime, Inngest functions including `verify.run`)
+- docs/01 - Product/Tech Spec.md §3.4 (verification backplane — interface and scheduling rule)
+- docs/01 - Product/Tech Spec.md §4.3 (obligation schema)
+- docs/01 - Product/Tech Spec.md §5.4 (MCP verification tool surface)
 - ADR-0002 (relational graph store as substrate; `event_log` as canonical writer)
 - ADR-0004 (agent orchestration; Inngest as the durable runner; no second graph model)
 
-ADR draft committed at `docs/adr/0016-verifier-interface.md` with status `Proposed`. Change status to `Accepted` after review.
+ADR draft committed at `docs/02 - Decisions/0016-verifier-interface.md` with status `Proposed`. Change status to `Accepted` after review.

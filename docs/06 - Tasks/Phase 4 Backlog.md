@@ -21,7 +21,7 @@ slipped through.
 
 Open questions to resolve in Phase 4 design:
 
-- Does the test live in `automation/qa-tests/` or in CI?
+- Does the test live in `qa-tests/` or in CI?
 - Cadence: every PR, every nightly Ralph session, or weekly?
 - How many fixture violations to maintain (one per hard rule from CLAUDE.md, or
   a smaller representative set)?
@@ -53,7 +53,7 @@ Open questions to resolve in Phase 4 design:
 
 ## Monitor LLM version pinning
 
-`automation/monitor-llm.sh` calls Groq's Llama 3.3 70B. The model identifier is
+`monitor-llm.sh` calls Groq's Llama 3.3 70B. The model identifier is
 not pinned; Groq has historically rolled minor versions transparently. ADR-0005
 makes the monitor a load-bearing component of the faithfulness story, and a
 silent model bump changes the verdict distribution under us.
@@ -67,7 +67,7 @@ are candidates — see the broader research notes from 2026-04-27).
 Open questions to resolve in Phase 4 design:
 
 - Is the pin just a string in the script, or does it live in an
-  `automation/monitor-config.json` for easier audit?
+  `monitor-config.json` for easier audit?
 - How is a bump detected? Cron job that diffs `groq.com/docs/models` against
   the pinned id? Subscribed-changelog poll?
 - What is the eval cadence after a bump — re-run the full benchmark, or a

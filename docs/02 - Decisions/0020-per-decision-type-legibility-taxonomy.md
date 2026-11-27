@@ -6,13 +6,13 @@ Accepted 2026-05-03.
 
 ## Context
 
-The UX research synthesis at `docs/research/ux-research-synthesis.md` (April 2026), in Q5 ("Legibility of AI Decisions"), argues that **the unit of design for AI legibility is the decision type, not the AI action.** Drift detection, proposal generation, monitor verdict, retrieval, and verifier outcome are *epistemically* different — the monitor's verdict is *about* the proposer's reasoning; the verifier's outcome is *about* code conformance to spec; a drift event is *about* the relationship between code and intent. The synthesis cites the dominant failure mode of current AI dev tools as "treating 'the AI did a thing' as a single category" (synthesis §Q5 finding 1, lines 398–399). It cites the Google PAIR Guidebook ("Explain for understanding, not completeness," lines 371–372), the Microsoft HAX Toolkit, and the Cursor / Devin / Cody developer-tools-specific work (lines 388–393) as converging on the principle that each distinct AI action type needs its own visual treatment, and that progressive disclosure (summary → detailed steps → technical reasoning trace, line 395) is the right structural pattern.
+The UX research synthesis at `docs/03 - Research/ux-research-synthesis.md` (April 2026), in Q5 ("Legibility of AI Decisions"), argues that **the unit of design for AI legibility is the decision type, not the AI action.** Drift detection, proposal generation, monitor verdict, retrieval, and verifier outcome are *epistemically* different — the monitor's verdict is *about* the proposer's reasoning; the verifier's outcome is *about* code conformance to spec; a drift event is *about* the relationship between code and intent. The synthesis cites the dominant failure mode of current AI dev tools as "treating 'the AI did a thing' as a single category" (synthesis §Q5 finding 1, lines 398–399). It cites the Google PAIR Guidebook ("Explain for understanding, not completeness," lines 371–372), the Microsoft HAX Toolkit, and the Cursor / Devin / Cody developer-tools-specific work (lines 388–393) as converging on the principle that each distinct AI action type needs its own visual treatment, and that progressive disclosure (summary → detailed steps → technical reasoning trace, line 395) is the right structural pattern.
 
 The synthesis names five action types that already correspond to substrate the project has committed to:
 
-1. **Drift detection** — emitted by the 4-tier semantic diff ladder (tech-spec §3.2 lines 116–119) on `onDidSaveTextDocument` (tech-spec §6 phase 4 line 456). Drift events carry a `kind` discriminator from the §3.2 ladder (`signature_changed | body_semantic | orphan_symbol | orphan_intent | moved`, mirrored in MCP `graph.diff_against_code` at tech-spec.md:386).
-2. **Proposal generation** — produced by AgentRunner (tech-spec §2 Pillar 4 lines 89, §6 phase 4 line 457) and surfaced as a `proposed_patch` graph node (tech-spec §2 Pillar 3 line 79). Patches travel through `task.propose_patch` / `task.accept_patch` (tech-spec.md:401–403) and live as `task` nodes (tech-spec §4.1 lines 198–199).
-3. **Monitor verdict** — written to `trace_event.monitor_verdict` (tech-spec §4.7 lines 308–309) by the cheap monitor LLM (tech-spec §2 Pillar 5 line 102; ADR-0005). Verdicts carry `{flagged, score, categories[], evidence, recommended_action}` (tech-spec.md:309) and emit a `monitor_flag` graph node (tech-spec §2 Pillar 5 line 102).
+1. **Drift detection** — emitted by the 4-tier semantic diff ladder (tech-spec §3.2 lines 116–119) on `onDidSaveTextDocument` (tech-spec §6 phase 4 line 456). Drift events carry a `kind` discriminator from the §3.2 ladder (`signature_changed | body_semantic | orphan_symbol | orphan_intent | moved`, mirrored in MCP `graph.diff_against_code` at docs/01 - Product/Tech Spec.md:386).
+2. **Proposal generation** — produced by AgentRunner (tech-spec §2 Pillar 4 lines 89, §6 phase 4 line 457) and surfaced as a `proposed_patch` graph node (tech-spec §2 Pillar 3 line 79). Patches travel through `task.propose_patch` / `task.accept_patch` (docs/01 - Product/Tech Spec.md:401–403) and live as `task` nodes (tech-spec §4.1 lines 198–199).
+3. **Monitor verdict** — written to `trace_event.monitor_verdict` (tech-spec §4.7 lines 308–309) by the cheap monitor LLM (tech-spec §2 Pillar 5 line 102; ADR-0005). Verdicts carry `{flagged, score, categories[], evidence, recommended_action}` (docs/01 - Product/Tech Spec.md:309) and emit a `monitor_flag` graph node (tech-spec §2 Pillar 5 line 102).
 4. **Retrieval disclosure** — recorded in `trace_event.retrieved_node_ids` (tech-spec §4.7 line 306) and `retrieval` (tech-spec §4.8 lines 326–340). Retrieval is metadata on other actions (synthesis §Q5 Type 4, line 440: "anti-pattern to avoid: showing retrieval as a separate inbox item").
 5. **Verifier outcome** — produced by the verifier scheduler (tech-spec §3.4 lines 128–138; ADR-0016) and recorded as `obligation.status` plus optional `counterexample_node_id` (tech-spec §4.3 lines 233–234). Verifier outcomes attach to obligations (ADR-0019) and surface counterexamples as first-class graph nodes (tech-spec §2 Pillar 3 line 84).
 
@@ -68,7 +68,7 @@ The rules below are normative for Phase 4. Phase 5 surfaces (counterexample prov
 
 **Type 3 — Monitor verdict**
 
-- Layer 1: **annotated onto Type 2 rows, not a separate row** (synthesis §Q5 Type 3, lines 429–432). A small amber chevron at the right edge with a hover-tooltip. Exception: when the monitor's `recommended_action` is `block` (tech-spec.md:309), the verdict is escalated to its own row at Tier 1 of the inbox per ADR-0022. This is the synthesis's "Tier 1 hard stop" analog (lines 432–434), reserved as rare per ADR-0021.
+- Layer 1: **annotated onto Type 2 rows, not a separate row** (synthesis §Q5 Type 3, lines 429–432). A small amber chevron at the right edge with a hover-tooltip. Exception: when the monitor's `recommended_action` is `block` (docs/01 - Product/Tech Spec.md:309), the verdict is escalated to its own row at Tier 1 of the inbox per ADR-0022. This is the synthesis's "Tier 1 hard stop" analog (lines 432–434), reserved as rare per ADR-0021.
 - Layer 2: the verdict in plain language, framed as a teammate observation per ADR-0021.
 - Layer 3: not applicable — monitor verdicts attach to the proposing trace event, not to graph nodes. The detail panel for an affected node may list a monitor-flagged history but does not host the verdict directly.
 
@@ -118,11 +118,11 @@ This ADR does **not** specify:
 
 **No DDL change.** The taxonomy reads existing columns:
 
-- `trace_event.kind` (tech-spec.md:297) provides the substrate discriminator.
-- `node.confidence` (tech-spec.md:177) drives the stroke-style cross-cutting rule.
-- `obligation.status` and `obligation.counterexample_node_id` (tech-spec.md:231–234) drive Type 5 rendering.
-- `trace_event.monitor_verdict` (tech-spec.md:309) drives Type 3 chevron logic.
-- `trace_event.retrieved_node_ids` (tech-spec.md:306) drives Type 4 source attribution.
+- `trace_event.kind` (docs/01 - Product/Tech Spec.md:297) provides the substrate discriminator.
+- `node.confidence` (docs/01 - Product/Tech Spec.md:177) drives the stroke-style cross-cutting rule.
+- `obligation.status` and `obligation.counterexample_node_id` (docs/01 - Product/Tech Spec.md:231–234) drive Type 5 rendering.
+- `trace_event.monitor_verdict` (docs/01 - Product/Tech Spec.md:309) drives Type 3 chevron logic.
+- `trace_event.retrieved_node_ids` (docs/01 - Product/Tech Spec.md:306) drives Type 4 source attribution.
 
 The decision-types module adds an application-layer mapping but no new columns and no migration.
 
@@ -163,13 +163,13 @@ What this costs:
 
 ## References
 
-- `docs/research/ux-research-synthesis.md` §Q5 (lines 365–525) — full state of the legibility-taxonomy literature, the per-type three-layer rules, and the cross-cutting visual conventions.
-- `docs/research/ux-research-synthesis.md` §Cross-Cutting Themes #4 (lines 629–632) — "Per-decision-type, not per-AI-action" as a cross-question principle.
-- `docs/research/phase-coverage-matrix.md` rows P4.14, P4.15, P4.16, P4.17 — the matrix entries this ADR closes.
-- tech-spec.md:289–323 — `trace_event` DDL providing `kind`, `monitor_verdict`, `retrieved_node_ids`.
-- tech-spec.md:170–199 — `node` DDL providing `confidence` and per-kind body shapes.
-- tech-spec.md:223–238 — `obligation` DDL providing `status` and `counterexample_node_id`.
-- tech-spec.md:386 — `graph.diff_against_code` MCP tool providing the drift discriminator (`orphan_symbol | orphan_intent | signature_changed | body_semantic | moved`).
+- `docs/03 - Research/ux-research-synthesis.md` §Q5 (lines 365–525) — full state of the legibility-taxonomy literature, the per-type three-layer rules, and the cross-cutting visual conventions.
+- `docs/03 - Research/ux-research-synthesis.md` §Cross-Cutting Themes #4 (lines 629–632) — "Per-decision-type, not per-AI-action" as a cross-question principle.
+- `docs/03 - Research/phase-coverage-matrix.md` rows P4.14, P4.15, P4.16, P4.17 — the matrix entries this ADR closes.
+- docs/01 - Product/Tech Spec.md:289–323 — `trace_event` DDL providing `kind`, `monitor_verdict`, `retrieved_node_ids`.
+- docs/01 - Product/Tech Spec.md:170–199 — `node` DDL providing `confidence` and per-kind body shapes.
+- docs/01 - Product/Tech Spec.md:223–238 — `obligation` DDL providing `status` and `counterexample_node_id`.
+- docs/01 - Product/Tech Spec.md:386 — `graph.diff_against_code` MCP tool providing the drift discriminator (`orphan_symbol | orphan_intent | signature_changed | body_semantic | moved`).
 - ADR-0005 (faithfulness via architecture) — the substrate that produces the `trace_event` rows the taxonomy reads.
 - ADR-0016 (verifier interface) — the substrate that produces Type 5 outcomes.
 - ADR-0019 (obligation attachment semantics) — the load-bearing-vs-informational distinction the Type 5 detail-panel rendering inherits.

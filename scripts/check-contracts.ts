@@ -7,7 +7,7 @@
 // for runtime validation, and the two MUST agree. This script is the CI check
 // that enforces that agreement. The structure of "scan, report rule
 // violations, exit non-zero" survives; the rules are entirely new.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';

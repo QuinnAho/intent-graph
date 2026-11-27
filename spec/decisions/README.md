@@ -1,6 +1,6 @@
 # Decisions
 
-In-spec decision records — distinct from `/docs/adr/` which holds architectural decisions about IntentGraph itself. These decisions live inside the dogfooded spec graph and are referenced by intents and constraints.
+In-spec decision records — distinct from `/docs/02 - Decisions/` which holds architectural decisions about IntentGraph itself. These decisions live inside the dogfooded spec graph and are referenced by intents and constraints.
 
 ## Frontmatter schema
 

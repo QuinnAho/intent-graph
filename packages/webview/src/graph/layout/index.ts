@@ -1,7 +1,7 @@
 // Lifted from claudemap/app/src/lib/layoutEngine.js @ claudemap@vendored.
 // Adapted: TS strict. Public API is a single `runLayout(nodes, edges, options)`
 // returning a positions array.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 //
 // Worker posture (phase 2): runLayout calls ELK on the main thread. The
 // elkjs bundled module ships its own GWT-compiled worker that it tries to

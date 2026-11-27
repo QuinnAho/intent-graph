@@ -2,7 +2,7 @@
 // Adapted: TS strict, props-driven (nodes/edges/handlers passed in, no store reach-in),
 // presentation-mode logic stripped, IntentGraph node/edge type maps, ELK readiness via
 // a separate hook (use-elk-layout). License: MIT (see /claudemap/LICENSE).
-// See LIFT_LOG.md for the full lift record.
+// See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import {
   Background,

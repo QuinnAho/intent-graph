@@ -22,7 +22,7 @@ proposed | leased | running | produced | monitor_pending
 
 `monitor_pending` is in the view but not in the storage enum. §3.3 (line 124) describes the lifecycle as `proposed → leased → running → produced_patch → monitor_pending → committed | rejected | rolled_back`, which adds a third inconsistency: §3.3 names the post-execution state `produced_patch` while §4.1 names it `produced`. The spec is internally inconsistent on both points and offers no rule for resolving them.
 
-Phase-2 task `p2-t01` (the schema commit pending after the recovery from the failed first ralph attempt) had to pick a resolution because the Drizzle definitions, the Zod body schemas, and the `task_active` view DDL all need a concrete enum. The QA gate that produced `automation/qa-reports/qa-report-2026-04-27T200644Z.md` flagged this as a blocker (finding F-02): the resolution constrains the task state machine across storage, scheduling, and the MCP surface that exposes both, and no ADR records the decision. ADR-0015 (schema scope) committed to landing the entire tech-spec §4 schema in one monolithic migration, which forces this question now rather than deferring it to a phase-4 follow-up.
+Phase-2 task `p2-t01` (the schema commit pending after the recovery from the failed first ralph attempt) had to pick a resolution because the Drizzle definitions, the Zod body schemas, and the `task_active` view DDL all need a concrete enum. The QA gate that produced `docs/05 - Log/QA/qa-report-2026-04-27T200644Z.md` flagged this as a blocker (finding F-02): the resolution constrains the task state machine across storage, scheduling, and the MCP surface that exposes both, and no ADR records the decision. ADR-0015 (schema scope) committed to landing the entire tech-spec §4 schema in one monolithic migration, which forces this question now rather than deferring it to a phase-4 follow-up.
 
 The three options considered:
 
@@ -78,14 +78,14 @@ What this forecloses:
 
 ## References
 
-- tech-spec.md §3.3 (orchestration runtime, task lifecycle prose; note `produced_patch` is documentation drift for `produced`)
-- tech-spec.md §4.1 (node table, task body shape, storage status enum — 7 values)
-- tech-spec.md §4.5 (`task_active` view, view-layer status enum — 5 values, including derived `monitor_pending`)
-- tech-spec.md §4.7 (`trace_event` table, the source of `monitor_pending` derivation via `kind='monitor' AND monitor_verdict IS NULL`)
+- docs/01 - Product/Tech Spec.md §3.3 (orchestration runtime, task lifecycle prose; note `produced_patch` is documentation drift for `produced`)
+- docs/01 - Product/Tech Spec.md §4.1 (node table, task body shape, storage status enum — 7 values)
+- docs/01 - Product/Tech Spec.md §4.5 (`task_active` view, view-layer status enum — 5 values, including derived `monitor_pending`)
+- docs/01 - Product/Tech Spec.md §4.7 (`trace_event` table, the source of `monitor_pending` derivation via `kind='monitor' AND monitor_verdict IS NULL`)
 - ADR-0002 (relational graph store as substrate; `event_log` canonical, current-state tables as deterministic projection)
 - ADR-0004 (agent orchestration; task lifecycle and lease/fence-token discipline)
 - ADR-0015 (schema scope: monolithic Drizzle schema in phase 2; reason this decision is being forced now rather than at phase 4)
 - `packages/shared/src/schemas/node.ts:97–123` (the `TaskStatusSchema` / `TaskActiveStatusSchema` split this ADR records)
 - `packages/shared/src/schemas/task.ts:9–16` (view-row schema using `TaskActiveStatusSchema`)
 - `packages/skill/src/db/schema.ts` (the `task_active` view DDL with the 5-value `WHERE` clause)
-- `automation/qa-reports/qa-report-2026-04-27T200644Z.md` finding F-02 (the QA blocker that prompted this ADR)
+- `docs/05 - Log/QA/qa-report-2026-04-27T200644Z.md` finding F-02 (the QA blocker that prompted this ADR)

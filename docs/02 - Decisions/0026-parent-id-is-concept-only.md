@@ -67,9 +67,9 @@ None. No DDL changes. The walker, the loader, and one test change. ADR-0009's fr
 
 ## References
 
-- `tech-spec.md:179` — `parent_id TEXT REFERENCES node(id)` with the column comment "concept boundary parent"
-- `tech-spec.md:141` — sub-flows for concept boundaries (`extent: 'parent'`)
-- `tech-spec.md:152` — structural code graph uses contain/import/invoke/inherit edges
+- `docs/01 - Product/Tech Spec.md:179` — `parent_id TEXT REFERENCES node(id)` with the column comment "concept boundary parent"
+- `docs/01 - Product/Tech Spec.md:141` — sub-flows for concept boundaries (`extent: 'parent'`)
+- `docs/01 - Product/Tech Spec.md:152` — structural code graph uses contain/import/invoke/inherit edges
 - ADR-0009 (Spec frontmatter schema) — concept-only `parent` field on the authoring side
 - ADR-0015 (Schema scope: monolithic) — declined trigger gymnastics on the same posture
 - ADR-0018 (Concepts as the regeneration unit) — the broader concept-as-contract-surface commitment that makes the narrow reading of `parent_id` more load-bearing

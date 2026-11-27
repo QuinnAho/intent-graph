@@ -31,6 +31,6 @@ The monitor's `require_human_review` verdict and the safety_critical-tagged huma
 References:
 - ADR-0005 (faithfulness via architecture)
 - ADR-0012 (defer monitor-training CI check until first fine-tune script lands)
-- tech-spec.md §2 Pillar 5, §3.8 Trace store
+- docs/01 - Product/Tech Spec.md §2 Pillar 5, §3.8 Trace store
 - CLAUDE.md "five architectural pillars" §5
 - CLAUDE.md hard rule: never fine-tune against monitor signal

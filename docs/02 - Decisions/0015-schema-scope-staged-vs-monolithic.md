@@ -54,9 +54,9 @@ What this forecloses / costs:
 
 ## References
 
-- tech-spec.md §4.1–§4.10 (ten-table catalog and per-table DDL)
-- tech-spec.md §6 (phase plan; phase-2/4/5 gates that determine when each table becomes load-bearing)
+- docs/01 - Product/Tech Spec.md §4.1–§4.10 (ten-table catalog and per-table DDL)
+- docs/01 - Product/Tech Spec.md §6 (phase plan; phase-2/4/5 gates that determine when each table becomes load-bearing)
 - ADR-0002 (relational graph store as substrate; SQLite + sqlite-vec + Drizzle; hash-chained `event_log` canonical; current-state tables as deterministic projection)
 - ADR-0016 (Verifier interface — depends on `obligation.kind` enum being pinned; forthcoming)
 
-ADR draft committed at `docs/adr/0015-schema-scope-staged-vs-monolithic.md` with status `Proposed`. Change status to `Accepted` after review.
+ADR draft committed at `docs/02 - Decisions/0015-schema-scope-staged-vs-monolithic.md` with status `Proposed`. Change status to `Accepted` after review.

@@ -4,7 +4,7 @@
 // dispatch map. Free-form helpers like getSystemNodeWidth (line-count tied) were
 // dropped because IntentGraph node sizes derive from kind, expansion, and child
 // counts rather than from a primitive code metric.
-// License: MIT (see /claudemap/LICENSE). See LIFT_LOG.md for the full lift record.
+// License: MIT (see /claudemap/LICENSE). See docs/04 - Workflow/Lift Log.md for the full lift record.
 
 import type { Node } from '@xyflow/react';
 

@@ -14,7 +14,7 @@ If the work touched DB schema (`packages/skill/src/db/`), also run:
 
 4. `pnpm migrate:lint`
 
-If the work touched `.claude/`, `.codex/`, `CLAUDE.md`, `AGENTS.md`, `/spec/`, or `/docs/adr/`, also run:
+If the work touched `.claude/`, `.mcp.json`, `CLAUDE.md`, `/spec/`, `/docs/01 - Product/` or `/docs/02 - Decisions/`, also run:
 
 5. `pnpm tsx scripts/check-agent-config.ts`
 

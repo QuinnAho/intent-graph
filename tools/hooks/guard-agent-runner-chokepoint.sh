@@ -53,7 +53,7 @@ at lint time; this hook enforces it before the file is written.
 To proceed, route the call through packages/skill/src/agent-runner/ and import
 the AgentRunner wrapper from there. If you genuinely need to add a new
 chokepoint exception, that requires an ADR amendment to ADR-0005 and a change
-to eslint.config.mjs (which is itself guarded — see automation/hooks/guard-eslint-config.sh).
+to eslint.config.mjs (which is itself guarded — see tools/hooks/guard-eslint-config.sh).
 MSG
     exit 2
   fi

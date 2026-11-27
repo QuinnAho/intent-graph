@@ -17,7 +17,7 @@ Tech-spec is silent. The Drizzle schema accepts any value; the application layer
 1. **"Edit downgrades confidence to `asserted` automatically."** Wrong. An AI-inferred intent that a human lightly cleans up (fixes a typo, tightens a phrase) is not thereby asserted by the human — the human has not committed to the underlying claim, only to the surface text. Auto-promoting to `asserted` produces the failure mode the UX research synthesis names directly.
 2. **"Edit preserves confidence at whatever it was before."** Wrong as a default for the opposite reason — when a human *does* explicitly assert (rewrites the intent from scratch with the conviction "this is what we want"), the system has no signal of the assertion, and the intent stays `inferred` against the human's actual epistemic state.
 
-The UX research synthesis at `docs/research/ux-research-synthesis.md` flags this directly in the "Mental-Model Gap Between AI and Human" adjacent finding (lines 547–555). Citing the AI confabulation literature (Edwards 2023; Wolters Kluwer 2024; arXiv 2503.05806; PMC 10619792), the synthesis names "AI generating *plausible intent* the human didn't actually have" as the most dangerous form of confabulation in IntentGraph specifically (line 550): "If the AI extracts intent from code and writes 'the system intentionally allows expired tokens within a grace window' when in reality the code has a bug that allows expired tokens, the human reader has no way to distinguish AI-confabulated-intent from human-asserted-intent without provenance."
+The UX research synthesis at `docs/03 - Research/ux-research-synthesis.md` flags this directly in the "Mental-Model Gap Between AI and Human" adjacent finding (lines 547–555). Citing the AI confabulation literature (Edwards 2023; Wolters Kluwer 2024; arXiv 2503.05806; PMC 10619792), the synthesis names "AI generating *plausible intent* the human didn't actually have" as the most dangerous form of confabulation in IntentGraph specifically (line 550): "If the AI extracts intent from code and writes 'the system intentionally allows expired tokens within a grace window' when in reality the code has a bug that allows expired tokens, the human reader has no way to distinguish AI-confabulated-intent from human-asserted-intent without provenance."
 
 The synthesis's resolution (lines 552–553) is precise: "**This is precisely what the asserted/inferred/semantic/extracted confidence encoding solves** — but only if it's reliably maintained. The risk is that over time, inferred intents get edited by humans and lose their provenance. The fix is a *provenance-preserving edit history* on every node: when a human edits an inferred intent, the edit is timestamped and the inferred-flag downgrades only when the user explicitly asserts. Otherwise, the field stays inferred."
 
@@ -117,7 +117,7 @@ The Drizzle write helpers in `packages/skill/src/db/` add the transition rule at
 - `packages/extension/src/commands/assert-node.ts` (Phase 4 task) — the in-detail-panel "Assert this" action; emits `event_log.kind='node.asserted'`.
 - `packages/webview/src/inbox/DriftResolver.tsx` (Phase 4 task per ADR-0020 Type 1) — the "I assert this" checkbox on the drift-accept flow, default unchecked.
 - `packages/webview/src/merge/Resolver.tsx` (Phase 5 task per ADR-0023) — preserves the selected branch's confidence; "Write a third" defaults to the stronger of the two branches.
-- `.claude/skills/intentgraph-spec-writer/SKILL.md` — discipline note on never auto-promoting confidence and never pre-checking the assertion checkbox. Same for `.codex/skills/`.
+- `.claude/skills/intentgraph-spec-writer/SKILL.md` — discipline note on never auto-promoting confidence and never pre-checking the assertion checkbox. Same for Codex `skills/`.
 
 The Phase 4 task list amendment includes a task that lands the `node-write.ts` chokepoint and the assertion-event log convention; downstream tasks (drift resolver, merge resolver, assert-button affordance) consume the chokepoint.
 
@@ -150,12 +150,12 @@ What this costs:
 
 ## References
 
-- `docs/research/ux-research-synthesis.md` Adjacent Findings §"The Mental-Model Gap Between AI and Human" (lines 547–555) — the confabulation finding and the provenance-preservation rule.
-- `docs/research/phase-coverage-matrix.md` row P4.19 — the matrix entry this ADR closes.
-- tech-spec.md:177–178 — the four-state `confidence` enum.
-- tech-spec.md:273–286 — `event_log` shape; this ADR adds application-layer `kind` values.
-- tech-spec.md:451 — the markdown sync write-back path (Phase 3) that this ADR's transition rule applies to.
-- tech-spec.md:458 — `intent.extract` (Phase 4) that produces inferred intents the rule preserves through subsequent edits.
+- `docs/03 - Research/ux-research-synthesis.md` Adjacent Findings §"The Mental-Model Gap Between AI and Human" (lines 547–555) — the confabulation finding and the provenance-preservation rule.
+- `docs/03 - Research/phase-coverage-matrix.md` row P4.19 — the matrix entry this ADR closes.
+- docs/01 - Product/Tech Spec.md:177–178 — the four-state `confidence` enum.
+- docs/01 - Product/Tech Spec.md:273–286 — `event_log` shape; this ADR adds application-layer `kind` values.
+- docs/01 - Product/Tech Spec.md:451 — the markdown sync write-back path (Phase 3) that this ADR's transition rule applies to.
+- docs/01 - Product/Tech Spec.md:458 — `intent.extract` (Phase 4) that produces inferred intents the rule preserves through subsequent edits.
 - ADR-0005 (faithfulness via architecture) — the chokepoint pattern this ADR's `node-write.ts` mirrors.
 - ADR-0009 (spec frontmatter schema) — the markdown projection whose round-trip the transition rule preserves.
 - ADR-0019 (obligation attachment semantics) — the precedent for "discipline at the application layer, not enforcement at the DB."

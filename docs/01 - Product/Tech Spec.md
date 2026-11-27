@@ -50,7 +50,7 @@
                           │ same stdio MCP surface                   │
                 ┌─────────┴─────────┐                       ┌────────┴─────────┐
                 │ Claude Code CLI   │                       │ Codex CLI        │
-                │ .claude/skills/   │                       │ .codex/skills/   │
+                │ .claude/skills/   │                       │ Codex skills/    │
                 │ intentgraph/      │                       │ intentgraph/     │
                 └───────────────────┘                       └──────────────────┘
 ```
@@ -64,7 +64,7 @@
 ### Pillar 1 — Plugin-first, not standalone IDE
 - **VS Code extension** (`activationEvents: ["onCommand:intentgraph.openGraph"]`) with a primary `WebviewPanel` (`ViewColumn.Beside`), a sidebar `WebviewView` for outline/drift inbox, and a `CustomEditorProvider` for `.intent.json` snapshots.
 - **Singleton per workspace folder**, `WebviewPanelSerializer` for restore, `retainContextWhenHidden: true` only on the panel.
-- **Skill subprocess** packaged as a single Agent Skills directory consumed identically by Claude Code (`.claude/skills/intentgraph/`) and Codex (`.codex/skills/intentgraph/` + `agents/openai.yaml`). Skills became an open standard in Dec 2025.
+- **Skill subprocess** packaged as a single Agent Skills directory consumed identically by Claude Code (`.claude/skills/intentgraph/`) and Codex (its `skills/intentgraph/` folder + `agents/openai.yaml`). Skills became an open standard in Dec 2025.
 - **One MCP server, three clients** (Codex CLI, Claude Code CLI, VS Code extension). The extension is just the richest client; do not fork it.
 
 ### Pillar 2 — Relational graph store as substrate
@@ -445,7 +445,7 @@ CREATE VIRTUAL TABLE vec_code USING vec0(
 - **Gate (L0): `pnpm build && open app/dist/index.html` shows IntentGraph's own intents and code modules.** New team member finds an intent visually within 60s.
 
 ### Phase 3 — MCP server + bidirectional markdown sync → L1 (Weeks 5–6, ~6 eng-weeks)
-- TS MCP server (`@modelcontextprotocol/sdk`): `graph.query`, `graph.get_node`, `graph.upsert_node`, `graph.upsert_edge`, `graph.diff_against_code`, `verify.run`. Single SKILL.md packaged for both `.claude/skills/` and `.codex/skills/`.
+- TS MCP server (`@modelcontextprotocol/sdk`): `graph.query`, `graph.get_node`, `graph.upsert_node`, `graph.upsert_edge`, `graph.diff_against_code`, `verify.run`. Single SKILL.md packaged for both `.claude/skills/` and the Codex skills folder.
 - `intent.upsert` writes back to markdown; chokidar rebuilds the SQLite projection. Markdown remains canonical commit-tracked artifact.
 - VS Code extension v0.1: `WebviewPanel` with `vscode-messenger`; `intentgraph.openGraph` command; activation event lazy-starts skill subprocess (`StdioClientTransport`); `WebviewPanelSerializer` restore.
 - Adopt msgpack snapshot + delta protocol; ACK + token-bucket back-pressure.
@@ -472,7 +472,7 @@ CREATE VIRTUAL TABLE vec_code USING vec0(
 - **Gate (L3): CI fails when `verify.run --strict` shows any drift on the team's repo. Tool writes new intent stubs from PR commits (LLM-assisted) and asks the author to confirm. For 4 consecutive weeks, no merged PR contains an undocumented exported symbol.**
 
 ### Phase 6 — Hardening, packaging, first external users (Weeks 15–22, ~24 eng-weeks)
-- VS Code Marketplace listing; `~/.codex/skills/intentgraph/` install flow; Claude Code plugin marketplace entry; `npx @intentgraph/install` CLI.
+- VS Code Marketplace listing; Codex user skills folder install flow; Claude Code plugin marketplace entry; `npx @intentgraph/install` CLI.
 - Multi-workspace (`per-folder` policy default; bound to 4 concurrent skill processes).
 - Streamable HTTP transport for Codespaces / remote dev.
 - Performance hardening: incremental ELK placement, server-side ELK for >3k-node graphs, Sigma.js escape-hatch overview at <0.25 zoom.

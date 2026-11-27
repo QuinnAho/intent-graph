@@ -4,7 +4,7 @@ The team writes its own intents, constraints, and decisions here. The skill inge
 
 - [`intents/`](./intents/) — what the system should do
 - [`constraints/`](./constraints/) — verifiable narrowings of intents
-- [`decisions/`](./decisions/) — in-spec decision records (not architectural — see `/docs/adr/` for those)
+- [`decisions/`](./decisions/) — in-spec decision records (not architectural — see `/docs/02 - Decisions/` for those)
 
 Every file is Markdown with YAML frontmatter. See each subdirectory's README for the schema.
 

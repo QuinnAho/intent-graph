@@ -1,7 +1,7 @@
 # UX Research → Build-Plan Coverage Matrix
 
 **Status:** Draft (architect skill output, awaiting human review).
-**Source:** [`docs/research/ux-research-synthesis.md`](./ux-research-synthesis.md), April 2026.
+**Source:** [`docs/03 - Research/ux-research-synthesis.md`](./ux-research-synthesis.md), April 2026.
 **Purpose:** Map every tagged design implication in the synthesis to one of: needs ADR, needs task, needs both, already covered, defer. The matrix is the human-reviewable artifact that establishes nothing is silently dropped.
 
 ## How to read this
@@ -15,7 +15,7 @@ Some recommendations appear in both places (the consolidated section is a re-tag
 
 The five proposed ADRs (referenced in the *Disposition* column as ADR-0020 through ADR-0024) are drafts produced alongside this matrix. They are Proposed; the human accepts after review.
 
-The five proposed task list amendments are drafts in `automation/tasks/phase-4-drift-detection/tasks.draft.json`, `automation/tasks/phase-5-retrieval-eval/tasks.draft.json`, and `automation/tasks/v1.1-parking-lot/tasks.json` (parking-lot file is new). They are not committed to the approved task lists; the existing approved Phase 2 list is untouched.
+The five proposed task list amendments are drafts in `docs/06 - Tasks/Archive May 2026 plan/phase-4-drift-detection/tasks.draft.json`, `docs/06 - Tasks/Archive May 2026 plan/phase-5-retrieval-eval/tasks.draft.json`, and `docs/06 - Tasks/Archive May 2026 plan/v1.1-parking-lot/tasks.json` (parking-lot file is new). They are not committed to the approved task lists; the existing approved Phase 2 list is untouched.
 
 ---
 
@@ -117,9 +117,9 @@ The five proposed task list amendments are drafts in `automation/tasks/phase-4-d
 ## Summary of dispositions
 
 - **Needs ADR (new):** 5 — ADRs 0020–0024 (drafts produced).
-- **Needs task (new) in Phase 4:** 14 (see `automation/tasks/phase-4-drift-detection/tasks.draft.json`).
-- **Needs task (new) in Phase 5:** 12 (see `automation/tasks/phase-5-retrieval-eval/tasks.draft.json`).
-- **Needs task (new) in v1.1 parking lot:** 11 (see `automation/tasks/v1.1-parking-lot/tasks.json`).
+- **Needs task (new) in Phase 4:** 14 (see `docs/06 - Tasks/Archive May 2026 plan/phase-4-drift-detection/tasks.draft.json`).
+- **Needs task (new) in Phase 5:** 12 (see `docs/06 - Tasks/Archive May 2026 plan/phase-5-retrieval-eval/tasks.draft.json`).
+- **Needs task (new) in v1.1 parking lot:** 11 (see `docs/06 - Tasks/Archive May 2026 plan/v1.1-parking-lot/tasks.json`).
 - **Already covered by existing ADRs/spec:** 7 (no action).
 - **Deferred with reasoning:** 3 (no action).
 

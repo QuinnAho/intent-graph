@@ -1,6 +1,6 @@
 # Risk-C spike — ELK layout time at 5k-node and L0 scales
 
-> **Task:** `p2-t13` (`automation/tasks/phase-2-static-graph/tasks.json`)
+> **Task:** `p2-t13` (`docs/06 - Tasks/Archive May 2026 plan/phase-2-static-graph/tasks.json`)
 > **Bench script:** `scripts/spike-elk-bench.ts`
 > **Harness:** `scripts/spike-elk-5k.ts`, fixture at `.intentgraph/spike-elk-5k.json`
 > **Date:** 2026-05-04
@@ -8,7 +8,7 @@
 
 ## Posture-correction note
 
-The original `p2-t13` task notes (in `automation/tasks/phase-2-static-graph/tasks.json`, written 2026-04-27) framed the recommendation against tech-spec §3.5 line 142's stated long-term posture, "ELK in a dedicated WebWorker." That framing is **stale**: by the time this spike ran, the L0 implementation had landed `runLayout` on the **main thread**, not in a worker (commit `17e5065`, "p2-t09 follow-up: run elk on main thread"). The header comment on `packages/webview/src/graph/layout/index.ts` records the reason — `elkjs` ships its own GWT-compiled worker that fails to construct when nested inside an ESM module worker (`_Worker is not a constructor`); the dedicated wrapper at `packages/webview/src/graph/layout/elk.worker.ts` is preserved as a phase-6 entry point but is unused at L0.
+The original `p2-t13` task notes (in `docs/06 - Tasks/Archive May 2026 plan/phase-2-static-graph/tasks.json`, written 2026-04-27) framed the recommendation against tech-spec §3.5 line 142's stated long-term posture, "ELK in a dedicated WebWorker." That framing is **stale**: by the time this spike ran, the L0 implementation had landed `runLayout` on the **main thread**, not in a worker (commit `17e5065`, "p2-t09 follow-up: run elk on main thread"). The header comment on `packages/webview/src/graph/layout/index.ts` records the reason — `elkjs` ships its own GWT-compiled worker that fails to construct when nested inside an ESM module worker (`_Worker is not a constructor`); the dedicated wrapper at `packages/webview/src/graph/layout/elk.worker.ts` is preserved as a phase-6 entry point but is unused at L0.
 
 The original task notes also asked the spike to choose between three options:
 1. keep "the incremental local placement strategy (§3.5 line 142)";
@@ -172,7 +172,7 @@ After sign-off, the `produced_by` artifacts (this document plus `scripts/spike-e
 - `packages/webview/src/graph/layout/elk.worker.ts` — preserved phase-6 worker entry point, currently unused
 - `.intentgraph/spike-elk-5k.json` — spike fixture (5,000 nodes, 15,000 edges, seed=42)
 - `.intentgraph/graph.json` — L0 dogfood seed (695 nodes, 536 edges) produced by `scripts/seed-dev-db.ts`
-- `automation/tasks/phase-2-static-graph/tasks.json` — `p2-t13` task definition
-- `tech-spec.md:141–142` — original §3.5 ELK-in-WebWorker posture
-- `tech-spec.md:466` — phase-6 server-side-ELK foreshadow
-- `tech-spec.md:517` — Risk-C entry in §7
+- `docs/06 - Tasks/Archive May 2026 plan/phase-2-static-graph/tasks.json` — `p2-t13` task definition
+- `docs/01 - Product/Tech Spec.md:141–142` — original §3.5 ELK-in-WebWorker posture
+- `docs/01 - Product/Tech Spec.md:466` — phase-6 server-side-ELK foreshadow
+- `docs/01 - Product/Tech Spec.md:517` — Risk-C entry in §7

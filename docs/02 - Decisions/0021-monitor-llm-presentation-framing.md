@@ -6,9 +6,9 @@ Accepted 2026-05-03.
 
 ## Context
 
-The cheap monitor LLM (Llama 3.3 70B on Groq, tech-spec §2 Pillar 5 lines 102–103; ADR-0005) is the architectural keystone of the faithfulness pillar. Every commit phase plus a 5% sample plus all `safety_critical` mutations route through it. The monitor's output is structured (tech-spec.md:309): `{flagged, score, categories[reward_hack | intent_drift | hallucinated_spec | capability_misuse | obfuscation], evidence, recommended_action[allow | require_human_review | block]}`. Verdicts live on the same `trace_event` row as the action they evaluate (tech-spec §3.8 line 160), and a flagged verdict additionally emits a `monitor_flag` graph node (tech-spec §2 Pillar 5 line 102).
+The cheap monitor LLM (Llama 3.3 70B on Groq, tech-spec §2 Pillar 5 lines 102–103; ADR-0005) is the architectural keystone of the faithfulness pillar. Every commit phase plus a 5% sample plus all `safety_critical` mutations route through it. The monitor's output is structured (docs/01 - Product/Tech Spec.md:309): `{flagged, score, categories[reward_hack | intent_drift | hallucinated_spec | capability_misuse | obfuscation], evidence, recommended_action[allow | require_human_review | block]}`. Verdicts live on the same `trace_event` row as the action they evaluate (tech-spec §3.8 line 160), and a flagged verdict additionally emits a `monitor_flag` graph node (tech-spec §2 Pillar 5 line 102).
 
-The UX research synthesis at `docs/research/ux-research-synthesis.md` is emphatic that the **framing of the monitor LLM is the most consequential UX decision in the product** (synthesis Cross-Cutting Theme #3, lines 626–628). Three convergent findings make this load-bearing:
+The UX research synthesis at `docs/03 - Research/ux-research-synthesis.md` is emphatic that the **framing of the monitor LLM is the most consequential UX decision in the product** (synthesis Cross-Cutting Theme #3, lines 626–628). Three convergent findings make this load-bearing:
 
 1. **Q1's autonomy-and-trust analysis** (lines 53–54): the human-AI teaming literature (Wischnewski CHI 2023; Larasati 2025) finds that "trust-but-verify with no verification affordance" leads to users saying they verify but not doing so. The monitor's verdict is precisely a verification affordance, but the framing controls whether users engage with it or work around it.
 2. **Q5's developer-tools analysis** (lines 388–393, 404): Cursor's "shared ownership" comes from the user being part of the verification loop; Devin's "shared ownership through delegation" is more remote. The synthesis recommends IntentGraph adopt the former framing — "a teammate who flagged something, not an auditor who caught the user." The synthesis names the wrong framing concretely: "Faithfulness violation detected" is the audit framing; "Heads up: the monitor flagged this proposal as possibly unfaithful to the rationale. You probably want to check the trace" is the teammate framing.
@@ -44,7 +44,7 @@ The `intentgraph-spec-writer` skill discipline is extended: any new copy that re
 
 ### 2. Override mechanics
 
-The `recommended_action` field (tech-spec.md:309) drives override semantics:
+The `recommended_action` field (docs/01 - Product/Tech Spec.md:309) drives override semantics:
 
 - **`allow`** (the most common case): the surface renders the verdict in pass-through mode — no chevron, no banner. The verdict is recorded in `trace_event.monitor_verdict` for audit but does not surface to the user. Acceptance/rejection of the underlying proposal proceeds normally.
 - **`require_human_review`**: the surface renders the Type 3 chevron per ADR-0020 (annotated onto the Type 2 proposal row) with a heads-up tooltip. The user can accept or reject the proposal through the normal Y/N keyboard binding; the chevron is informational and **does not gate the action**. The verdict's evidence is reachable through the V (investigate) keybinding and through the trace panel.
@@ -83,7 +83,7 @@ The user-facing copy on a false-positive submission says "thanks — the monitor
 
 **No DDL change.** The framing reads existing columns:
 
-- `trace_event.monitor_verdict.recommended_action` (tech-spec.md:309) drives the modality policy.
+- `trace_event.monitor_verdict.recommended_action` (docs/01 - Product/Tech Spec.md:309) drives the modality policy.
 - `event_log` (tech-spec §4.6) is the existing record for override and false-positive submissions; new `kind` values (`monitor.override`, `monitor.false_positive`) are application-layer conventions and require no migration.
 - The `monitor_flag` graph node (tech-spec §2 Pillar 5 line 102) is the existing surface for verdicts that emit a node; this ADR doesn't add a new node kind.
 
@@ -94,8 +94,8 @@ The user-facing copy on a false-positive submission says "thanks — the monitor
 - `packages/webview/src/dialogs/MonitorOverrideDialog.tsx` (new) — the only modal in the monitor surface.
 - `packages/extension/src/notifications/dispatcher.ts` (Phase 4) — never-modal-except-block rule wired into the synchronous-notification gate.
 - `packages/skill/src/mcp/tools/monitor.ts` (existing in tech-spec §5.5) — `monitor.review` tool's response shape is unchanged, but the surface-side language transforms are applied at render time, not at the tool layer.
-- `.claude/skills/intentgraph-spec-writer/SKILL.md` — extended with the language rules check from §1 above. Same for `.codex/skills/intentgraph-spec-writer/`.
-- `automation/qa.sh` and `automation/qa-reports/` — the per-commit QA pass (ADR-0013, ADR-0014) reads §1's language rules when reviewing monitor-touching commits.
+- `.claude/skills/intentgraph-spec-writer/SKILL.md` — extended with the language rules check from §1 above. Same for Codex `skills/intentgraph-spec-writer/`.
+- `qa.sh` and `docs/05 - Log/QA/` — the per-commit QA pass (ADR-0013, ADR-0014) reads §1's language rules when reviewing monitor-touching commits.
 
 The Phase 4 task list amendment includes a task that lands the language-rules check in the spec-writer skill before any monitor-rendering surface is touched, and a task that documents the override-dialog mechanics with their event-log record.
 
@@ -127,12 +127,12 @@ What this costs:
 
 ## References
 
-- `docs/research/ux-research-synthesis.md` §Q1 finding 5 (lines 53–54), §Q5 findings 1, 4, 5 (lines 396–407), §Q5 framing rules (lines 481–488), §Cross-Cutting Theme #3 (lines 626–628).
-- `docs/research/phase-coverage-matrix.md` rows P4.8, P4.16, P5.2, P5.9, P5.15, P5.16 — the matrix entries this ADR closes.
-- tech-spec.md:99–104 (Pillar 5 monitor architecture and the never-train rule).
-- tech-spec.md:289–323 — `trace_event` DDL with `monitor_verdict` shape.
-- tech-spec.md:308–309 — `monitor_verdict` JSON shape including `recommended_action`.
-- tech-spec.md:417–419 — `monitor.review` MCP tool surface.
+- `docs/03 - Research/ux-research-synthesis.md` §Q1 finding 5 (lines 53–54), §Q5 findings 1, 4, 5 (lines 396–407), §Q5 framing rules (lines 481–488), §Cross-Cutting Theme #3 (lines 626–628).
+- `docs/03 - Research/phase-coverage-matrix.md` rows P4.8, P4.16, P5.2, P5.9, P5.15, P5.16 — the matrix entries this ADR closes.
+- docs/01 - Product/Tech Spec.md:99–104 (Pillar 5 monitor architecture and the never-train rule).
+- docs/01 - Product/Tech Spec.md:289–323 — `trace_event` DDL with `monitor_verdict` shape.
+- docs/01 - Product/Tech Spec.md:308–309 — `monitor_verdict` JSON shape including `recommended_action`.
+- docs/01 - Product/Tech Spec.md:417–419 — `monitor.review` MCP tool surface.
 - ADR-0005 (faithfulness via architecture) — substrate and the never-train rule this ADR transmits to UX.
 - ADR-0012 (defer monitor-training CI check) — the technical guard against the training back-door this ADR's surface-side commitment supports.
 - ADR-0013 / ADR-0014 (QA self-audit pattern) — the per-commit gate that reads §1's language rules.

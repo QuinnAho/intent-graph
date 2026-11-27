@@ -6,13 +6,13 @@ Accepted 2026-04-27. Partially supersedes one clause of ADR-0007.
 
 ## Context
 
-ADR-0005 establishes the load-bearing rule: never train any IntentGraph component against the monitor LLM's signal. Doing so triggers the obfuscation tax described by Baker et al. (arXiv 2503.11926) — once the gated model is trained against the gate, the gate stops working. CLAUDE.md restates the rule. AGENTS.md restates the rule. `automation/monitor-llm.sh:21-22` restates the rule.
+ADR-0005 establishes the load-bearing rule: never train any IntentGraph component against the monitor LLM's signal. Doing so triggers the obfuscation tax described by Baker et al. (arXiv 2503.11926) — once the gated model is trained against the gate, the gate stops working. CLAUDE.md restates the rule. the Codex AGENTS file restates the rule. `monitor-llm.sh:21-22` restates the rule.
 
 ADR-0007 § *Monitor-LLM gate* commits to a programmatic guard for that rule:
 
-> This is restated as a hard rule in `automation/README.md`, in the agent prompt template inside `ralph.sh`, and as a CI check that any future model-fine-tune script does not consume `monitor-*.json` artifacts.
+> This is restated as a hard rule in the automation README (removed), in the agent prompt template inside `ralph.sh`, and as a CI check that any future model-fine-tune script does not consume `monitor-*.json` artifacts.
 
-QA report 001, finding **F-MONITOR-TRAINING-CHECK-MISSING** (`docs/qa/qa-report-001.md`), observes that:
+QA report 001, finding **F-MONITOR-TRAINING-CHECK-MISSING** (`docs/05 - Log/QA/qa-report-001.md`), observes that:
 
 1. The CI check does not exist on disk.
 2. There are no fine-tune scripts in the repo to check against.
@@ -26,9 +26,9 @@ Defer the monitor-training CI check. Implement it when the first fine-tune scrip
 
 Specifically:
 
-- The hard rule from ADR-0005 — *never train any IntentGraph component against the monitor's signal* — **remains unchanged and load-bearing**. This ADR does not relax it. It remains documented in CLAUDE.md, AGENTS.md, ADR-0005, ADR-0007, the `intentgraph-architect` SKILL.md, and `automation/monitor-llm.sh`.
+- The hard rule from ADR-0005 — *never train any IntentGraph component against the monitor's signal* — **remains unchanged and load-bearing**. This ADR does not relax it. It remains documented in CLAUDE.md, the Codex AGENTS file, ADR-0005, ADR-0007, the `intentgraph-architect` SKILL.md, and `monitor-llm.sh`.
 - The single sentence in ADR-0007 § *Monitor-LLM gate* — "and as a CI check that any future model-fine-tune script does not consume `monitor-*.json` artifacts" — is **amended** to: "and, once the first fine-tune script lands, a CI check that any model-fine-tune script does not consume `monitor-*.json` artifacts." The rest of ADR-0007 (autonomy levels, cost caps, three-failure abort, hard rules in `ralph.sh`) is unchanged.
-- The deferral is made auditable by planting `// QA-001: F-MONITOR-TRAINING-CHECK-MISSING — implement when first fine-tune script lands` TODO markers in the relevant phase task lists (`automation/tasks/phase-4-drift-detection/tasks.json`, `automation/tasks/phase-5-retrieval-eval/tasks.json`, `automation/tasks/phase-6-hardening/tasks.json`). The marker insertions themselves are out of scope for this ADR; they are the implementer's mechanical follow-up.
+- The deferral is made auditable by planting `// QA-001: F-MONITOR-TRAINING-CHECK-MISSING — implement when first fine-tune script lands` TODO markers in the relevant phase task lists (`docs/06 - Tasks/Archive May 2026 plan/phase-4-drift-detection/tasks.json`, `docs/06 - Tasks/Archive May 2026 plan/phase-5-retrieval-eval/tasks.json`, `docs/06 - Tasks/Archive May 2026 plan/phase-6-hardening/tasks.json`). The marker insertions themselves are out of scope for this ADR; they are the implementer's mechanical follow-up.
 - If a fine-tune script enters the repo before Phase 4, the implementer must escalate via an ADR amendment that reactivates the check (or supersedes this one) before the script merges. The check is a precondition for any fine-tune code, not a follow-up to it.
 
 ## Consequences
@@ -59,7 +59,7 @@ Specifically:
 
 - [ADR-0005](./0005-faithfulness-by-architecture.md) — *Faithfulness via architecture, not training*. The hard rule this ADR does not change.
 - [ADR-0007](./0007-autonomous-workflow.md) § *Monitor-LLM gate* (line 55) — the clause partially superseded by this ADR. The rest of ADR-0007 is unchanged.
-- [QA report 001](../qa/qa-report-001.md) — finding **F-MONITOR-TRAINING-CHECK-MISSING** in §6.
-- [`automation/monitor-llm.sh`](../../automation/monitor-llm.sh) — the script that produces `monitor-*.json` artifacts that any future fine-tune script must not consume.
-- [CLAUDE.md](../../CLAUDE.md) and [AGENTS.md](../../AGENTS.md) — both restate the hard rule under *Hard rules*.
+- [QA report 001](<../05 - Log/QA/qa-report-001.md>) — finding **F-MONITOR-TRAINING-CHECK-MISSING** in §6.
+- `monitor-llm.sh` — the script that produces `monitor-*.json` artifacts that any future fine-tune script must not consume.
+- [CLAUDE.md](../../CLAUDE.md) and the Codex AGENTS file — both restate the hard rule under *Hard rules*.
 - Baker et al., *Monitoring Reasoning Models for Misbehavior and the Risks of Promoting Obfuscation*, arXiv [2503.11926](https://arxiv.org/abs/2503.11926) — the obfuscation-tax paper cited from ADR-0005.

@@ -8,7 +8,7 @@ Accepted 2026-04-27. Retrospective ratification of the layout already shipped vi
 
 This ADR is **retrospective**. The Vitest layout it describes already ships and is exercised by `pnpm test`, the CI pipeline (`.github/workflows/ci.yml`), and the autonomous workflow's per-package iteration model. No code change accompanies this ADR; the purpose is to record *why* the layout looks the way it does, so a future contributor cannot accidentally collapse it.
 
-QA report 001 (`docs/qa/qa-report-001.md`), finding **F-VITEST-LAYOUT-UNRECORDED (minor)**, surfaced the gap: STRUCTURE.md describes the layout, but no ADR captures the rationale, and ADR-0006's "decisions made during the bootstrap" section does not enumerate test infrastructure. The decision is small but load-bearing — `pnpm test` from inside any package is part of the contract Ralph iterations rely on.
+QA report 001 (`docs/05 - Log/QA/qa-report-001.md`), finding **F-VITEST-LAYOUT-UNRECORDED (minor)**, surfaced the gap: docs/01 - Product/Structure.md describes the layout, but no ADR captures the rationale, and ADR-0006's "decisions made during the bootstrap" section does not enumerate test infrastructure. The decision is small but load-bearing — `pnpm test` from inside any package is part of the contract Ralph iterations rely on.
 
 The layout as it stands:
 
@@ -61,15 +61,15 @@ The decision is not "use Vitest" (that was implicit in the Phase 0 stack choice)
 
 - **Single root `vitest.config.ts` with `include` globs covering every package's `tests/**`.** Rejected because (a) per-package `pnpm test` would either not work or would require a duplicate config inside each package that re-states the globs, breaking the Ralph iteration contract; (b) the integration project's `testTimeout: 30_000` would either bleed into unit tests or require an exception path inside the root config; (c) future per-environment splits (jsdom for webview, browser-mode Vitest, custom setup files for integration) are harder to add to a flat config than to a per-project workspace.
 - **`pnpm -r run test` with one `vitest.config.ts` per package and no workspace file.** Rejected because the root `pnpm test` would then spawn five Vitest processes serially, slower than one aggregated run, with five separate failure summaries instead of one coherent root summary. The workspace file is what gives us "one process, five projects, one summary."
-- **Jest instead of Vitest.** Out of scope for this ADR; the Phase 0 stack choice is recorded implicitly in `tech-spec.md` §6 (Phase 0 mentions "Repo bootstrap (TS strict, Vitest, ESLint with the AgentRunner-only rule pre-added)"). Not revisited here.
+- **Jest instead of Vitest.** Out of scope for this ADR; the Phase 0 stack choice is recorded implicitly in `docs/01 - Product/Tech Spec.md` §6 (Phase 0 mentions "Repo bootstrap (TS strict, Vitest, ESLint with the AgentRunner-only rule pre-added)"). Not revisited here.
 
 ## References
 
 - `vitest.workspace.ts` — the workspace composition.
 - `packages/shared/vitest.config.ts`, `packages/skill/vitest.config.ts`, `packages/extension/vitest.config.ts`, `packages/webview/vitest.config.ts`, `tests/integration/vitest.config.ts` — the five per-project configs this ADR ratifies.
 - `package.json:15` (`"test": "vitest run --passWithNoTests"`) — the root test script that consumes the workspace.
-- `docs/qa/qa-report-001.md` — finding **F-VITEST-LAYOUT-UNRECORDED (minor)**; the QA observation this ADR closes.
-- ADR-0006 (`docs/adr/0006-agent-configuration-setup.md`) — the agent-configuration bootstrap alongside which this layout was set up; this ADR fills the gap that ADR-0006's "decisions made during the bootstrap" section did not cover.
-- ADR-0007 (`docs/adr/0007-autonomous-workflow.md`) — the Ralph iteration model that depends on per-package `pnpm test` working in isolation.
-- `tech-spec.md` §6 — phase plan; tests gate L0–L3 dogfooding maturity.
+- `docs/05 - Log/QA/qa-report-001.md` — finding **F-VITEST-LAYOUT-UNRECORDED (minor)**; the QA observation this ADR closes.
+- ADR-0006 (`docs/02 - Decisions/0006-agent-configuration-setup.md`) — the agent-configuration bootstrap alongside which this layout was set up; this ADR fills the gap that ADR-0006's "decisions made during the bootstrap" section did not cover.
+- ADR-0007 (`docs/02 - Decisions/0007-autonomous-workflow.md`) — the Ralph iteration model that depends on per-package `pnpm test` working in isolation.
+- `docs/01 - Product/Tech Spec.md` §6 — phase plan; tests gate L0–L3 dogfooding maturity.
 - [Vitest workspace documentation](https://vitest.dev/guide/workspace) — `defineWorkspace` semantics.

@@ -130,7 +130,7 @@ The reason the trigger is creation-only and not also edit-of-existing: edits of 
 
 **Orchestration steps.**
 
-1. **Vision check.** The orchestrator collects the project's top-level intents and the architectural-pillar set (the latter materialized from the accepted ADRs in `docs/adr/` plus the five pillars enumerated at tech-spec §2 lines 64–104). The collection is cached at the skill side with TTL 1 hour and invalidated on any write to a top-level intent or any new ADR commit; the cache key is `(top_level_intent_count, last_adr_commit_hash)`. The proposed-node body plus the collected vision is passed to a T1 proposer (Haiku 4.5 default per tech-spec §2 Pillar 4 line 92) with a vision-contradiction prompt. The proposer returns one of: `{aligned | possibly_contradicts | clearly_contradicts}` per top-level intent and per pillar, plus an aggregate verdict.
+1. **Vision check.** The orchestrator collects the project's top-level intents and the architectural-pillar set (the latter materialized from the accepted ADRs in `docs/02 - Decisions/` plus the five pillars enumerated at tech-spec §2 lines 64–104). The collection is cached at the skill side with TTL 1 hour and invalidated on any write to a top-level intent or any new ADR commit; the cache key is `(top_level_intent_count, last_adr_commit_hash)`. The proposed-node body plus the collected vision is passed to a T1 proposer (Haiku 4.5 default per tech-spec §2 Pillar 4 line 92) with a vision-contradiction prompt. The proposer returns one of: `{aligned | possibly_contradicts | clearly_contradicts}` per top-level intent and per pillar, plus an aggregate verdict.
 2. **Sibling check.** The orchestrator collects adjacent nodes to the proposed node's intended position: `parent_id` chain (tech-spec §4.1 line 179), `parent_id`-siblings (other nodes sharing the same `parent_id`), and nodes connected to the proposed node's referenced ids by `syncs_with` or `constrains` edges (tech-spec §4.2 lines 208–210). For nodes the proposed node references in its body (e.g., a constraint that names the intent it constrains), the orchestrator also collects the referenced intent's `realizes`-connected siblings — the local neighborhood of the referent. The proposed-node body plus the adjacent-node bodies is passed to a T1 proposer with a sibling-contradiction prompt. Output is one of: `{consistent | possibly_inconsistent | clearly_contradicts}` per adjacent node, plus an aggregate verdict.
 3. **Supersession check.** The orchestrator runs PPR (tech-spec §3.7 lines 152–156) seeded by the proposed-node embedding (computed inline against the vec table per tech-spec §4.10 lines 359–369), top-K=20. For each PPR-returned existing node whose similarity exceeds 0.85 (a high-similarity threshold; the goal is to catch claims that the proposed node is functionally restating, not loosely related material), the orchestrator passes the proposed-node body plus the candidate body to a T1 proposer with a supersession prompt. Output is one of: `{independent | overlaps_partially | likely_supersedes}` per candidate. Candidates marked `likely_supersedes` are surfaced as supersession candidates in step 5.
 4. **Monitor verdict on the conflict-detection results.** The aggregate of steps 1–3 is itself an AgentRunner action — the proposer's "is this a conflict" judgment is exactly the kind of plausible-but-possibly-wrong claim the cheap monitor is good at auditing per ADR-0005 and Baker et al. (tech-spec §2 Pillar 5 lines 99–104). The monitor receives the aggregate verdict plus the proposer's evidence per step (the cited vision intents, the cited adjacent nodes, the cited supersession candidates) and returns its standard `{flagged, score, categories[], evidence, recommended_action}` shape per tech-spec §4.7 line 309. Critically, the monitor here audits the *proposer's conflict claims*, not the proposed node's content — the monitor's role is to catch the proposer falsely claiming a conflict (false positive that would block legitimate spec authoring) or falsely clearing a conflict (false negative that would let a contradicting node through). The monitor verdict is recorded on the same `trace_event` row as the conflict-detection proposer call per tech-spec §3.8 line 160.
@@ -233,7 +233,7 @@ The wire format from skill to webview adds five envelope shapes, all in `package
 - `packages/webview/src/inbox/BundledSupersessionRow.tsx` (new, Phase 4) — the §6 supersession-bundled row layout with combined Y/N affordance.
 - `packages/shared/src/protocol/inbox-events.ts` (extended Phase 4 per ADR-0022) — wire format for `inbox.grouped_event`, `inbox.paired_conflict`, `inbox.bundled_supersession`.
 - `packages/shared/src/protocol/commit-events.ts` (new, Phase 4) — wire format for `commit.conflict_modal` and `commit.supersession_dialog` payloads.
-- `.claude/skills/intentgraph-spec-writer/SKILL.md` and `.codex/skills/intentgraph-spec-writer/` — discipline note that (a) the impact pass's grouped row is the legitimate fan-out surface; do not introduce ad-hoc per-descendant rows that bypass the grouping, and (b) any new spec-authoring path must invoke the `node-write.ts` chokepoint so the §5 prospective check runs.
+- `.claude/skills/intentgraph-spec-writer/SKILL.md` and Codex `skills/intentgraph-spec-writer/` — discipline note that (a) the impact pass's grouped row is the legitimate fan-out surface; do not introduce ad-hoc per-descendant rows that bypass the grouping, and (b) any new spec-authoring path must invoke the `node-write.ts` chokepoint so the §5 prospective check runs.
 
 The Phase 4 task list amendment (deferred per the task's stop-condition) lands `impact-pass.ts`, `scope-change.ts`, `prospective-check.ts`, and `authoring-gate.ts` before the inbox-rendering tasks so every inbox surface consumes the grouped wire format from the start. The stale-detection scheduled functions (§3b, §3c) land later in Phase 4 because they depend on a population of `event_log` rows that is not present until after the AgentRunner has been running for several weeks. The `ConflictModal` and `SupersessionDialog` UI work depends on a Phase 4–5 design pass for the commit-time modal pattern, which is new substrate not covered by the existing two-surface design (canvas + inbox) — see consequences.
 
@@ -283,18 +283,18 @@ What §5 and §6 add to the consequences picture:
 
 ## References
 
-- tech-spec.md:116–119 — §3.2 parsing & analysis: 4-tier semantic AST diff ladder driving §2's drift detection.
-- tech-spec.md:121–126 — §3.3 orchestration runtime: Inngest functions, `step.run` writes to `trace_event`, task lifecycle, concurrency policy.
-- tech-spec.md:128–138 — §3.4 verification backplane: `Verifier` interface and `costClass`-based scheduling driving §1 step 3 and §2 step 3.
-- tech-spec.md:152–156 — §3.7 retrieval & memory: PPR over heterogeneous graph driving §3c.
-- tech-spec.md:170–199 — §4.1 nodes: per-kind body shapes and the `confidence` enum.
-- tech-spec.md:202–219 — §4.2 edges: `realizes`, `depends_on`, `syncs_with`, `constrains` driving §1's traversal.
-- tech-spec.md:221–238 — §4.3 obligations: `last_run_at` driving §3a's flip detection.
-- tech-spec.md:273–286 — §4.6 event log: canonical record for every trigger and every commit.
-- tech-spec.md:289–323 — §4.7 trace events: AgentRunner-only chokepoint where every model call lands.
-- tech-spec.md:386 — §5.1 graph MCP: `graph.diff_against_code` discriminator.
-- tech-spec.md:451 — §6 phase 3: markdown sync write-back path that is one trigger of §1.
-- tech-spec.md:455–464 — §6 phase 4: drift detection, AgentRunner, monitor — the substrate this ADR orchestrates.
+- docs/01 - Product/Tech Spec.md:116–119 — §3.2 parsing & analysis: 4-tier semantic AST diff ladder driving §2's drift detection.
+- docs/01 - Product/Tech Spec.md:121–126 — §3.3 orchestration runtime: Inngest functions, `step.run` writes to `trace_event`, task lifecycle, concurrency policy.
+- docs/01 - Product/Tech Spec.md:128–138 — §3.4 verification backplane: `Verifier` interface and `costClass`-based scheduling driving §1 step 3 and §2 step 3.
+- docs/01 - Product/Tech Spec.md:152–156 — §3.7 retrieval & memory: PPR over heterogeneous graph driving §3c.
+- docs/01 - Product/Tech Spec.md:170–199 — §4.1 nodes: per-kind body shapes and the `confidence` enum.
+- docs/01 - Product/Tech Spec.md:202–219 — §4.2 edges: `realizes`, `depends_on`, `syncs_with`, `constrains` driving §1's traversal.
+- docs/01 - Product/Tech Spec.md:221–238 — §4.3 obligations: `last_run_at` driving §3a's flip detection.
+- docs/01 - Product/Tech Spec.md:273–286 — §4.6 event log: canonical record for every trigger and every commit.
+- docs/01 - Product/Tech Spec.md:289–323 — §4.7 trace events: AgentRunner-only chokepoint where every model call lands.
+- docs/01 - Product/Tech Spec.md:386 — §5.1 graph MCP: `graph.diff_against_code` discriminator.
+- docs/01 - Product/Tech Spec.md:451 — §6 phase 3: markdown sync write-back path that is one trigger of §1.
+- docs/01 - Product/Tech Spec.md:455–464 — §6 phase 4: drift detection, AgentRunner, monitor — the substrate this ADR orchestrates.
 - ADR-0003 (spec-driven loop is the backbone) — forward and backward sync substrate this ADR builds on.
 - ADR-0004 (agent orchestration is first-class) — AgentRunner chokepoint that §1 step 4, §2 step 3, §4 step 1 traverse.
 - ADR-0005 (faithfulness via architecture, not training) — concrete-recording and monitor-LLM gate this ADR routes proposer outputs through.
@@ -305,16 +305,16 @@ What §5 and §6 add to the consequences picture:
 - ADR-0022 (categorical encoding for confidence and severity) — three-tier inbox severity that all six behaviors honor; structured-override-reason rule that §4's typed reason and §5 outcome (c)'s commit-anyway typed reason both inherit.
 - ADR-0023 (branch-and-review for graph state) — the per-branch DB scope that the projection tables (`drift_marker`, `scope_change_active`) live in.
 - ADR-0024 (provenance preservation on edits) — confidence transition rule that §1 step 4 proposer outputs and §4 step 1 commit honor.
-- `docs/research/ux-research-synthesis.md` §Q2 findings 1, 2, 5, 6 (lines 108–118) — cognitive-load research underpinning the volume management in §1 step 5 and §3's digest channel.
-- `docs/research/ux-research-synthesis.md` §Q2 design implications (lines 122–127) — three-tier sort that §1 step 5 tier assignments inherit.
-- `docs/research/ux-research-synthesis.md` §Notification Design (lines 557–574) — aggregation/digest pattern that §3 stale detection inherits.
-- `docs/research/ux-research-synthesis.md` §Cross-Cutting Theme #2 (line 621) — "Externalize What Cannot Be Internalized," the principle behind §3's automatic background passes.
-- `docs/research/ux-research-synthesis.md` §Q5 framing rules (lines 481–488) — monitor framing rules inherited via ADR-0021 for §1 step 4, §5 step 4, and §6 step 2 verdicts.
-- `docs/research/ux-research-synthesis.md` §"Mental-Model Gap Between AI and Human" (lines 547–555) — AI confabulation as the failure mode §5 and §6 are designed against; the synthesis's claim that "AI generating plausible intent the human didn't actually have" is the most dangerous form of confabulation in IntentGraph specifically.
-- `docs/research/ux-research-synthesis.md` §Q1 line 68 ("the proposer is reliable for X, the monitor catches Y, the verifier catches Z") — the failure-mode-by-category framing that informs §6's positioning of the gate as a verifier on AI authoring output.
-- `docs/research/ux-research-synthesis.md` §Q5 finding 5 (lines 405–407, "verifier outcomes are a *positive* feedback opportunity") — the dual-purpose framing of structured verification (catching human bugs and catching AI confabulation) that grounds §6's value over the project's lifetime.
-- `docs/research/ux-research-synthesis.md` §Adjacent Findings line 541 ("Pure dashboard-monitoring leads to vigilance decrement within ~30 minutes") — evidence underpinning the rejection of the advisory-only alternative for prospective conflict detection.
-- `docs/research/ux-research-synthesis.md` line 132 (CPOE structured override reason) — evidence underpinning §5 outcome (c)'s typed-reason commit-anyway path.
+- `docs/03 - Research/ux-research-synthesis.md` §Q2 findings 1, 2, 5, 6 (lines 108–118) — cognitive-load research underpinning the volume management in §1 step 5 and §3's digest channel.
+- `docs/03 - Research/ux-research-synthesis.md` §Q2 design implications (lines 122–127) — three-tier sort that §1 step 5 tier assignments inherit.
+- `docs/03 - Research/ux-research-synthesis.md` §Notification Design (lines 557–574) — aggregation/digest pattern that §3 stale detection inherits.
+- `docs/03 - Research/ux-research-synthesis.md` §Cross-Cutting Theme #2 (line 621) — "Externalize What Cannot Be Internalized," the principle behind §3's automatic background passes.
+- `docs/03 - Research/ux-research-synthesis.md` §Q5 framing rules (lines 481–488) — monitor framing rules inherited via ADR-0021 for §1 step 4, §5 step 4, and §6 step 2 verdicts.
+- `docs/03 - Research/ux-research-synthesis.md` §"Mental-Model Gap Between AI and Human" (lines 547–555) — AI confabulation as the failure mode §5 and §6 are designed against; the synthesis's claim that "AI generating plausible intent the human didn't actually have" is the most dangerous form of confabulation in IntentGraph specifically.
+- `docs/03 - Research/ux-research-synthesis.md` §Q1 line 68 ("the proposer is reliable for X, the monitor catches Y, the verifier catches Z") — the failure-mode-by-category framing that informs §6's positioning of the gate as a verifier on AI authoring output.
+- `docs/03 - Research/ux-research-synthesis.md` §Q5 finding 5 (lines 405–407, "verifier outcomes are a *positive* feedback opportunity") — the dual-purpose framing of structured verification (catching human bugs and catching AI confabulation) that grounds §6's value over the project's lifetime.
+- `docs/03 - Research/ux-research-synthesis.md` §Adjacent Findings line 541 ("Pure dashboard-monitoring leads to vigilance decrement within ~30 minutes") — evidence underpinning the rejection of the advisory-only alternative for prospective conflict detection.
+- `docs/03 - Research/ux-research-synthesis.md` line 132 (CPOE structured override reason) — evidence underpinning §5 outcome (c)'s typed-reason commit-anyway path.
 - Baker et al. arXiv 2503.11926 — cheap-monitor result and obfuscation-tax warning underpinning §1 step 4, §5 step 4, and §6 step 2's monitor routing and the never-train rule (transitively via ADR-0005).
 - Korbak et al. arXiv 2507.11473 — CoT monitorability fragility motivating the architecture-not-training posture.
 - Massenon et al. PMC 12365265 (cited via synthesis line 555) — "false confident assertion" as the most common LLM hallucination category, motivating the §6 AI-side gate's existence.
