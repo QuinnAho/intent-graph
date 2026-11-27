@@ -4,6 +4,8 @@
 
 import { z } from 'zod';
 
+import { NodeConfidenceSchema } from './node.js';
+
 export const DriftVerdictSchema = z.enum(['aligned', 'drift', 'unclear']);
 export type DriftVerdict = z.infer<typeof DriftVerdictSchema>;
 
@@ -21,8 +23,9 @@ export const DriftJudgeOutputSchema = z.object({
 });
 export type DriftJudgeOutput = z.infer<typeof DriftJudgeOutputSchema>;
 
-// who settled the pair: the model, the normalised hash (no logic change), or nobody.
-export const DriftDecidedBySchema = z.enum(['judge', 'hash', 'budget', 'error']);
+// who settled the pair: the model, the normalised hash (no logic change), a target
+// that does not exist, or nobody (budget spent, or the judge or parser failed).
+export const DriftDecidedBySchema = z.enum(['judge', 'hash', 'missing', 'budget', 'error']);
 export type DriftDecidedBy = z.infer<typeof DriftDecidedBySchema>;
 
 export const DriftTargetStateSchema = z.object({
@@ -43,11 +46,15 @@ export const DriftPairReportSchema = z.object({
   targets: z.array(DriftTargetStateSchema),
   decided_by: DriftDecidedBySchema,
   verdict: DriftVerdictSchema,
-  confidence: DriftJudgeConfidenceSchema.nullable(),
-  evidence: z.string(),
-  /** False when the judge's quote is not found in the diff it was shown. */
-  evidence_in_diff: z.boolean().nullable(),
-  suggested_action: z.string(),
+  /** ADR-0022 provenance: extracted (hash, missing target), inferred (judge), semantic (nobody decided). */
+  confidence: NodeConfidenceSchema,
+  /** How sure the decider is: the judge's own word, high for a hash or a missing target, low when nobody decided. */
+  certainty: DriftJudgeConfidenceSchema,
+  /** A quote from the diff for a judge row, a plain sentence saying why for every other row. Never empty. */
+  evidence: z.string().min(1),
+  /** True only when a judge quote was found in the diff it was shown. */
+  evidence_in_diff: z.boolean(),
+  suggested_action: z.string().min(1),
   truncated: z.boolean(),
   diff_chars: z.number().int().nonnegative(),
   cost_usd: z.number().nonnegative(),

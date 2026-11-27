@@ -137,9 +137,10 @@ export async function driftMain(
   });
   const t = report.totals;
   const unlinked = report.commits.reduce((n, c) => n + c.no_linked_intent.length, 0);
-  const note = `${report.commits.length} commits, ${t.pairs} pairs (${t.judged} judged, ${t.by_hash} by hash), ${t.drift} drift, ${t.unclear} unclear, ${t.errors} errors, ${t.budget_skipped} over budget, ${unlinked} changed files with no linked intent, $${t.cost_usd.toFixed(4)}`;
+  const note = `${report.commits.length} commits, ${t.pairs} pairs (${t.judged} judged, ${t.by_hash} by hash), ${t.drift} drift, ${t.unclear} unclear, ${t.errors} errors, ${t.budget_skipped} over budget, ${t.missing_targets} missing targets, ${unlinked} changed files with no linked intent, $${t.cost_usd.toFixed(4)}`;
   return {
-    ok: t.drift === 0 && t.errors === 0 && t.budget_skipped === 0,
+    // a missing target is a broken binding (ADR-0030), so it fails the check like drift does
+    ok: t.drift === 0 && t.errors === 0 && t.budget_skipped === 0 && t.missing_targets === 0,
     note,
     report: { mode: 'range', spec_root: a.spec, anchors: a.anchors, spec_warnings: loaded.errors, tuning, ...report },
   };

@@ -42,6 +42,10 @@ export function resolveClaudeBin(env: NodeJS.ProcessEnv = process.env): string {
 export function judgeArgs(opts: ClaudeCallOptions): string[] {
   return [
     '-p',
+    // safe mode skips every CLAUDE.md (user ~/.claude/CLAUDE.md included), auto memory, skills,
+    // plugins, hooks, MCP servers and custom agents, while login and permissions work as normal.
+    // --bare would skip them too, but it reads no OAuth login, so a logged-in PC could not sign in.
+    '--safe-mode',
     '--model', opts.model,
     '--tools', '',
     '--output-format', 'json',

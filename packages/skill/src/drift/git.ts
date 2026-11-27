@@ -14,6 +14,8 @@ function git(root: string, args: string[]): string {
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
     windowsHide: true,
+    // keep git's stderr (e.g. "path does not exist") off the console, callers handle the throw
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
@@ -35,7 +37,13 @@ export function listCommits(root: string, range: string, paths: readonly string[
   });
 }
 
-function show(root: string, rev: string, path: string): string | null {
+/** Full sha of a revision. */
+export function resolveRev(root: string, rev: string): string {
+  return git(root, ['rev-parse', '--verify', '--end-of-options', `${rev}^{commit}`]).trim();
+}
+
+/** A file's content at a revision, or null when it does not exist there. */
+export function show(root: string, rev: string, path: string): string | null {
   try {
     return git(root, ['show', `${rev}:${path}`]);
   } catch {

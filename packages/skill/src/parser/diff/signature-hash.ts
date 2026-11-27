@@ -34,7 +34,7 @@ interface TsNode {
 
 interface TsParser {
   setLanguage(grammar: unknown): void;
-  parse(input: string): { readonly rootNode: TsNode };
+  parse(input: string, oldTree?: unknown, opts?: { bufferSize?: number }): { readonly rootNode: TsNode };
 }
 
 export interface SignatureResult {
@@ -68,9 +68,22 @@ const MEMBER_TYPES = new Set([
 
 const parsers = new Map<unknown, TsParser>();
 
-function parseWithGrammar(path: string, content: string): TsNode | null {
+// the node binding reads input through a 32 KiB buffer by default and throws
+// 'Invalid argument' on anything longer, so size the buffer to the input
+const BINDING_DEFAULT_BUFFER = 32 * 1024;
+
+export interface ParseLimits {
+  /** Refuse files larger than this many utf-8 bytes. No cap when absent. */
+  readonly maxBytes?: number;
+}
+
+function parseWithGrammar(path: string, content: string, limits: ParseLimits = {}): TsNode | null {
   const grammar = dispatchGrammarForExtension(extname(path).toLowerCase());
   if (!grammar) return null;
+  const bytes = Buffer.byteLength(content, 'utf8');
+  if (limits.maxBytes !== undefined && bytes > limits.maxBytes) {
+    throw new Error(`${path} is ${bytes} bytes, over the parse cap of ${limits.maxBytes}`);
+  }
   let parser = parsers.get(grammar);
   if (!parser) {
     const Ctor = requireFn('tree-sitter') as new () => TsParser;
@@ -78,7 +91,7 @@ function parseWithGrammar(path: string, content: string): TsNode | null {
     parser.setLanguage(grammar);
     parsers.set(grammar, parser);
   }
-  return parser.parse(content).rootNode;
+  return parser.parse(content, undefined, { bufferSize: Math.max(BINDING_DEFAULT_BUFFER, bytes * 2 + 1) }).rootNode;
 }
 
 function sha256(s: string): string {
@@ -176,17 +189,36 @@ function symbolsOfRoot(root: TsNode): TopLevelSymbol[] {
 }
 
 /** Top-level symbols of a code file, with class members as `Class.member`. Empty for non-code files. */
-export function listTopLevelSymbols(path: string, content: string): TopLevelSymbol[] {
-  const root = parseWithGrammar(path, content);
+export function listTopLevelSymbols(path: string, content: string, limits: ParseLimits = {}): TopLevelSymbol[] {
+  const root = parseWithGrammar(path, content, limits);
   return root ? symbolsOfRoot(root) : [];
+}
+
+export interface SymbolSignature {
+  readonly name: string;
+  readonly startLine: number;
+  readonly endLine: number;
+  readonly hash: string;
+}
+
+/** Every top-level symbol with its normalised hash, from one parse. Empty for non-code files. */
+export function symbolSignatures(path: string, content: string, limits: ParseLimits = {}): SymbolSignature[] {
+  const root = parseWithGrammar(path, content, limits);
+  if (!root) return [];
+  return symbolsOfRoot(root).map((s) => ({
+    name: s.name,
+    startLine: s.startLine,
+    endLine: s.endLine,
+    hash: sha256(normalisedForm(s.node as TsNode)),
+  }));
 }
 
 /**
  * Normalised hash of a whole file (no symbol) or of one named symbol.
- * A missing symbol gives found=false and an empty hash, never a throw.
+ * A missing symbol gives found=false and an empty hash. Throws only for a file over limits.maxBytes.
  */
-export function signatureOf(path: string, content: string, symbol?: string): SignatureResult {
-  const root = parseWithGrammar(path, content);
+export function signatureOf(path: string, content: string, symbol?: string, limits: ParseLimits = {}): SignatureResult {
+  const root = parseWithGrammar(path, content, limits);
   if (!root) {
     // no grammar: hash the text with whitespace runs collapsed. symbols are not addressable.
     if (symbol) return { hash: '', found: false, mode: 'text', clean: true };

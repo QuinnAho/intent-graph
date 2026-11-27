@@ -15,6 +15,8 @@ export const DRIFT_TUNING = {
   maxNodeChars: 4_000,
   /** Files per commit whose symbols are listed. Past this the file is listed without symbols. */
   maxFilesForSymbols: 200,
+  /** Source files larger than this are not parsed. Their pairs come back unclear with the reason. */
+  maxParseBytes: 2_000_000,
   /** Diff context lines asked of git. */
   diffContextLines: 3,
 } as const;

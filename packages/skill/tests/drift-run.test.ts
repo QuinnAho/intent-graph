@@ -102,7 +102,7 @@ describe('runDrift', { timeout: 60_000 }, () => {
     expect(byCommit('comment')?.model_calls).toBe(0);
 
     // logic change: one judge call, verdict and evidence recorded
-    expect(pairOf('logic')[0]).toMatchObject({ decided_by: 'judge', verdict: 'drift', confidence: 'medium', evidence_in_diff: true, judge_model: 'fake' });
+    expect(pairOf('logic')[0]).toMatchObject({ decided_by: 'judge', verdict: 'drift', confidence: 'inferred', certainty: 'medium', evidence_in_diff: true, judge_model: 'fake' });
 
     // a change to an unbound symbol and a new unbound file: no pair, both reported
     expect(pairOf('unbound')).toEqual([]);

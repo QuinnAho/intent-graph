@@ -93,7 +93,7 @@ describe('judgeArgs', () => {
 });
 
 function row(verdict: DriftPairReport['verdict']): DriftPairReport {
-  return { commit: 'c', node_id: 'n', targets: [], decided_by: 'judge', verdict, confidence: 'high', evidence: '', evidence_in_diff: true, suggested_action: '', truncated: false, diff_chars: 0, cost_usd: 0, seconds: 0, judge_model: null, error: null };
+  return { commit: 'c', node_id: 'n', targets: [], decided_by: 'judge', verdict, confidence: 'inferred', certainty: 'high', evidence: 'q', evidence_in_diff: true, suggested_action: 'a', truncated: false, diff_chars: 0, cost_usd: 0, seconds: 0, judge_model: null, error: null };
 }
 
 describe('scoreCases', () => {
