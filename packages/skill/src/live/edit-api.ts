@@ -8,7 +8,9 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 
+import { SPEC_WRITE_TUNING } from '../parser/spec-md/write-tuning.js';
 import {
+  checkTargetKinds,
   createIntentFile,
   editSpecSource,
   hashSpecSource,
@@ -168,6 +170,7 @@ export function saveEdit(root: string, target: EditTarget, input: SaveInput, tod
 export interface CreateInput {
   readonly title?: unknown;
   readonly parent?: unknown;
+  readonly target_kinds?: unknown;
 }
 
 /** make spec/intents/<slug>.md under a concept. refuses a slug or id that is taken. */
@@ -186,7 +189,10 @@ export function createIntent(
   if (slug && nodes.some((n) => n.id === `intent-${slug}`)) {
     return apiError(409, 'duplicate', `an intent with id intent-${slug} already exists, pick another title`);
   }
-  const r = createIntentFile(resolve(root, 'spec'), { title: input.title, parent: parent.id, today });
+  const targetKinds = input.target_kinds === undefined ? [...SPEC_WRITE_TUNING.defaultTargetKinds] : input.target_kinds;
+  const badKinds = checkTargetKinds(targetKinds);
+  if (badKinds) return apiError(422, 'invalid', badKinds);
+  const r = createIntentFile(resolve(root, 'spec'), { title: input.title, parent: parent.id, today, targetKinds: targetKinds as string[] });
   if (!r.ok) return apiError(r.code === 'duplicate' ? 409 : 422, r.code, r.reason);
   return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file) }, written: relPath(root, r.file) };
 }

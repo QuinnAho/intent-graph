@@ -4,4 +4,6 @@ export const SPEC_WRITE_TUNING = {
   slugMaxLength: 60,
   // longest title the writer accepts
   titleMaxLength: 200,
+  // kind a new intent targets when the request names none, and the one the form preselects
+  defaultTargetKinds: ['code_module'],
 } as const;

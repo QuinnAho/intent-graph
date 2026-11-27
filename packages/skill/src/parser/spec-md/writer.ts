@@ -9,6 +9,7 @@ import { linkSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node
 import { basename, dirname, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
+import { NodeKindSchema } from '@intentgraph/shared/schemas';
 import yaml from 'js-yaml';
 
 import { parseFrontmatter, type ParsedFrontmatter } from './frontmatter.js';
@@ -236,6 +237,19 @@ export interface NewIntent {
   readonly parent: string;
   readonly today: string;
   readonly eol?: '\n' | '\r\n';
+  /** node kinds the intent shapes. left out, the file has no target_kinds line. */
+  readonly targetKinds?: ReadonlyArray<string>;
+}
+
+/** a message for a target_kinds list the writer would not write, null when it is fine */
+export function checkTargetKinds(kinds: unknown): string | null {
+  if (!Array.isArray(kinds) || kinds.length === 0) return 'Pick at least one target kind.';
+  const allowed: ReadonlyArray<string> = NodeKindSchema.options;
+  for (const k of kinds) {
+    if (typeof k !== 'string' || !allowed.includes(k)) return `${String(k)} is not a node kind, pick from: ${allowed.join(', ')}`;
+  }
+  if (new Set(kinds).size !== kinds.length) return 'Each target kind can be listed once.';
+  return null;
 }
 
 /** text of a new intent file: the adr 0009 minimum, asserted per adr 0024, draft, dated today */
@@ -248,6 +262,11 @@ export function newIntentSource(input: NewIntent): NewIntentResult {
   if (!/^[a-z0-9][a-z0-9_-]*$/i.test(input.parent)) {
     return refuse('invalid', `bad parent id "${input.parent}"`);
   }
+  const kinds = input.targetKinds;
+  if (kinds !== undefined) {
+    const badKinds = checkTargetKinds(kinds);
+    if (badKinds) return refuse('invalid', badKinds);
+  }
   const id = `intent-${slug}`;
   const eol = input.eol ?? '\n';
   const text = [
@@ -257,6 +276,7 @@ export function newIntentSource(input: NewIntent): NewIntentResult {
     `parent: ${input.parent}`,
     'confidence: asserted',
     'status: draft',
+    ...(kinds ? ['target_kinds:', ...kinds.map((k) => `  - ${k}`)] : []),
     `created: ${input.today}`,
     `updated: ${input.today}`,
     '---',
