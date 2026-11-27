@@ -1,11 +1,12 @@
 // the live graph: the static export from build-graph plus realized_by edges,
 // a check status on spec nodes, and anchor warnings on the node they belong to.
 
-import type { LiveDrift } from '@intentgraph/shared/schemas';
+import type { InferProposalRow, LiveDrift, LiveInferred } from '@intentgraph/shared/schemas';
 
 import { toGraphJson, type BuildGraphResult } from '../build-graph.js';
-import type { NodeAnchors } from '../parser/spec-md/anchors.js';
+import { parseAnchor, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { mapCheckStatus, toRelative, type CheckStatus, type TestReport } from './check-status.js';
+import { inferredNodeId, liveInferred } from './infer-marks.js';
 import { findParentLoops } from './parent-rules.js';
 
 // a file the parser rejected or warned about. a rejected file has no node, so
@@ -29,6 +30,8 @@ export interface LiveGraphNode {
   status_reasons?: ReadonlyArray<string>;
   warnings?: ReadonlyArray<string>;
   drift?: LiveDrift;
+  /** set only on a proposal a model inferred from the code, not yet accepted */
+  inferred?: LiveInferred;
 }
 
 export interface LiveGraphEdge {
@@ -54,12 +57,19 @@ export interface LiveDriftInput {
   readonly problem: LiveProblem | null;
 }
 
+/** the open proposals of the newest inference report, and a problem when the report is unusable */
+export interface LiveInferInput {
+  readonly proposals: ReadonlyArray<InferProposalRow>;
+  readonly problem: LiveProblem | null;
+}
+
 export function composeLiveGraph(
   result: BuildGraphResult,
   anchors: ReadonlyMap<string, NodeAnchors>,
   report: TestReport | null,
   root: string,
   drift: LiveDriftInput | null = null,
+  infer: LiveInferInput | null = null,
 ): LiveGraph {
   const parsed = JSON.parse(toGraphJson(result)) as LiveGraph;
   const toProblem = (severity: LiveProblem['severity']) => (p: { readonly file: string; readonly message: string }): LiveProblem => ({
@@ -70,7 +80,7 @@ export function composeLiveGraph(
   });
   const graph: LiveGraph = {
     ...parsed,
-    problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning')), ...(drift?.problem ? [drift.problem] : [])],
+    problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning')), ...(drift?.problem ? [drift.problem] : []), ...(infer?.problem ? [infer.problem] : [])],
   };
   // a loop made by hand has no top to draw from, so say it once and name its files
   for (const ring of findParentLoops(graph.nodes)) {
@@ -101,7 +111,31 @@ export function composeLiveGraph(
     }
     if (warnings.length > 0) node.warnings = warnings;
   }
+  if (infer) addInferred(graph, infer.proposals, ids, symbolIds);
   return graph;
+}
+
+/** each open proposal as an intent node marked inferred, under its concept, with realizes edges from the code it cites */
+function addInferred(graph: LiveGraph, proposals: ReadonlyArray<InferProposalRow>, ids: ReadonlySet<string>, symbolIds: ReadonlyArray<string>): void {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  for (const p of proposals) {
+    const id = inferredNodeId(p);
+    if (byId.has(id)) continue;
+    const concept = p.belongs_under !== null && byId.get(p.belongs_under)?.kind === 'concept' ? p.belongs_under : null;
+    const restated = p.restates !== null ? byId.get(p.restates) : undefined;
+    const node: LiveGraphNode = { id, kind: 'intent', title: p.title, body: p.body, confidence: p.confidence, parent_id: concept, inferred: liveInferred(p, restated?.title ?? null) };
+    graph.nodes.push(node);
+    byId.set(id, node);
+    const seen = new Set<string>();
+    for (const raw of p.anchors) {
+      const a = parseAnchor(raw);
+      if (!a.ok) continue;
+      const target = findTarget(a.anchor.path, a.anchor.name, ids, symbolIds);
+      if (!target || seen.has(target)) continue;
+      seen.add(target);
+      graph.edges.push({ id: `anchor:${target}->${id}`, src: target, dst: id, kind: 'realizes', weight: 1 });
+    }
+  }
 }
 
 function findTarget(path: string, name: string | undefined, ids: ReadonlySet<string>, symbolIds: ReadonlyArray<string>): string | null {

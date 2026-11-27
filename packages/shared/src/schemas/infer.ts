@@ -32,3 +32,18 @@ export const InferProposalRowSchema = InferProposalSchema.extend({
   code_hash: z.string().min(1),
 });
 export type InferProposalRow = z.infer<typeof InferProposalRowSchema>;
+
+/** What the live graph carries on an inferred node (lane 10): the proposal, ready to accept or dismiss. */
+export const LiveInferredSchema = z.object({
+  proposal_id: z.string().min(1),
+  folder: z.string().min(1),
+  anchors: z.array(z.string().min(1)),
+  confidence: InferConfidenceSchema,
+  planned: z.boolean(),
+  /** a declared intent the model says this restates, and its title when it is in the graph */
+  restates: z.string().nullable(),
+  restates_title: z.string().nullable(),
+  belongs_under: z.string().nullable(),
+  code_hash: z.string().min(1),
+});
+export type LiveInferred = z.infer<typeof LiveInferredSchema>;

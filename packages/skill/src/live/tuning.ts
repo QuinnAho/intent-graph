@@ -14,6 +14,8 @@ export const LIVE_TUNING = {
   retryMs: 1000,
   // how often the server looks for a new drift report. it only stats and reads files.
   driftPollMs: 400,
+  // how often the server looks for a new inference report or settled list. it only stats and reads files.
+  inferPollMs: 400,
   // largest json body a save or create may send
   maxRequestBytes: 256 * 1024,
   // writes (save, create, parent) the server remembers so undo can take them back
