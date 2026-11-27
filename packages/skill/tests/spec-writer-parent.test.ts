@@ -131,3 +131,25 @@ describe('editSpecSource with a parent', () => {
     ]);
   });
 });
+
+describe('editSpecSource on an empty or null parent value', () => {
+  const values = ['', ' null', ' ~', ' ""', " ''", ' Null'];
+  const comments = ['', ' # required'];
+  for (const v of values) {
+    for (const c of comments) {
+      for (const eol of ['\n', '\r\n']) {
+        const line = `parent:${v}${v === '' && c ? '' : ''}${c}`;
+        it(`sets a parent on "${line}" (${eol === '\n' ? 'lf' : 'crlf'})`, () => {
+          const src = ['---', 'id: intent-e', 'title: E', line, 'confidence: asserted', '---', ''].join(eol);
+          const r = editSpecSource('e.md', src, { parent: 'concept-a' }, TODAY);
+          expect(r.ok).toBe(true);
+          if (!r.ok) return;
+          expect(r.text).toBe(
+            src.replace(line, `parent: concept-a${c}`).replace(`confidence: asserted${eol}`, `confidence: asserted${eol}updated: ${TODAY}${eol}`),
+          );
+          expect(parseFrontmatter('e.md', r.text).minimum.parent).toBe('concept-a');
+        });
+      }
+    }
+  }
+});

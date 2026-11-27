@@ -127,7 +127,8 @@ function setKey(lines: Line[], key: string, scalar: string, eol: string): void {
   // an empty value with a comment, like 'parent:   # required', keeps the comment after the new value
   const onlyComment = j === i + 1 && m[2]!.startsWith('#');
   const comment = j === i + 1 ? (onlyComment ? ` ${m[2]!}` : trailingComment(key, m[2]!)) : '';
-  const lead = j === i + 1 ? m[1]! : `${key}: `;
+  // a bare 'parent:' has no space to keep, so give the new value one
+  const lead = j === i + 1 ? (/[ 	]$/.test(m[1]!) ? m[1]! : `${m[1]!} `) : `${key}: `;
   lines.splice(i, j - i, { text: `${lead}${scalar}${comment}`, eol: lines[j - 1]!.eol });
 }
 
