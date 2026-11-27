@@ -14,7 +14,7 @@ import { build, type BuildGraphResult } from '../build-graph.js';
 import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
-import { composeLiveGraph, type LiveGraph } from './compose.js';
+import { composeLiveGraph, diffProblems, type LiveGraph, type LiveProblem } from './compose.js';
 import { runLinkedTests, type TestRunHandle } from './test-runner.js';
 import { LIVE_TUNING, type LiveTuning } from './tuning.js';
 
@@ -74,6 +74,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let report: TestReport | null = null;
   let graph: LiveGraph | null = null;
   let graphText = '';
+  let problems: LiveProblem[] = [];
   let testRun: TestRunHandle | null = null;
   let testsAgain = false;
   let closed = false;
@@ -82,6 +83,11 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   const publish = (): void => {
     if (!result) return;
     graph = composeLiveGraph(result, anchors, report, root);
+    // one log line per new problem and per fixed file, not one per rebuild
+    const changes = diffProblems(problems, graph.problems);
+    for (const p of changes.added) log(`spec ${p.severity}: ${p.file}: ${p.message}`);
+    for (const file of changes.fixed) log(`spec fixed: ${file}`);
+    problems = graph.problems;
     version += 1;
     graph['_live_version'] = version;
     graphText = JSON.stringify(graph);
