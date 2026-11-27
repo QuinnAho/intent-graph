@@ -118,6 +118,9 @@ async function startServer(name, write) {
   const liveLine = await waitForLine(s, /^live: /, 60000);
   if (!liveLine) await fail(`${name} server did not start, see ${join(runDir, `server-${name}.log`)}`);
   s.url = liveLine.slice('live: '.length).trim();
+  // the server prints its edits line after the live line. waiting for it here stops the
+  // caller's check from racing that second line, which failed once in a few dozen runs.
+  await waitForLine(s, /^edits: /, 5000);
   return s;
 }
 const listing = (work) => readdirSync(join(work, 'spec', 'intents')).sort().join(',');
