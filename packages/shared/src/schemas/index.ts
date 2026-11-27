@@ -8,3 +8,4 @@ export * from './task.js';
 export * from './trace.js';
 export * from './mcp-tool-io.js';
 export * from './walker.js';
+export * from './drift.js';

@@ -1,0 +1,4 @@
+{
+  "expect": "aligned",
+  "about": "reformatted: new line breaks, double quotes, no semicolons. same tokens"
+}

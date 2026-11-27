@@ -1,0 +1,4 @@
+{
+  "expect": "drift",
+  "about": "the clamp at zero is removed, so a big discount gives a negative total"
+}
