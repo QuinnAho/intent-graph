@@ -45,6 +45,9 @@ describe('pickInitialFit', () => {
     expect(pickInitialFit(nodes, null)).toEqual(['intent-a', 'concept-b']);
     expect(pickInitialFit(nodes, 'nope')).toEqual(['intent-a', 'concept-b']);
   });
+  it('fits the focused node together with its concept', () => {
+    expect(pickInitialFit([...nodes, { id: 'intent-c', type: 'intent', parentId: 'concept-b' }], 'intent-c')).toEqual(['intent-c', 'concept-b']);
+  });
   it('fits everything when there are no spec nodes', () => {
     expect(pickInitialFit([{ id: 'x', type: 'code_module' }], null)).toBe(null);
   });

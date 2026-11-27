@@ -25,6 +25,7 @@ import { layoutNested, parentsFirst, type Placement, type RunLayout } from '../g
 import { VIEW_TUNING } from '../graph/view-tuning.js';
 import { mergeGraphUpdate } from './graph-merge.js';
 import { SPEC_KINDS } from './live-source.js';
+import { readProblems, useProblemsStore } from '../store/problems.js';
 
 // The build-graph export envelope. Mirrors `toGraphJson()` in
 // packages/skill/src/build-graph.ts. Kept as an inline type rather than a
@@ -101,6 +102,7 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
   }
 
   const { nodes, edges } = envelopeToReactFlow(envelope);
+  useProblemsStore.getState().setProblems(readProblems(envelope));
 
   // Dispatch the un-laid-out graph first so the canvas can render placeholders;
   // ELK populates positions in a second pass. This avoids a blank canvas
@@ -124,6 +126,7 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
 export async function applyGraphUpdate(envelope: GraphJsonEnvelope): Promise<boolean> {
   if (envelope._format !== EXPECTED_FORMAT || envelope._version !== EXPECTED_VERSION) return false;
   const { nodes, edges } = envelopeToReactFlow(envelope);
+  useProblemsStore.getState().setProblems(readProblems(envelope));
   const prev = useGraphStore.getState();
   const merged = mergeGraphUpdate(prev.nodes, prev.edges, nodes, edges);
   const placed = merged.needsLayout ? await applyLayout(merged.nodes, edges) : merged.nodes;

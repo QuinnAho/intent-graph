@@ -26,6 +26,7 @@ const FLIP_LIMIT_MS = 15000;
 const STOP_LIMIT_MS = 10000;
 // well past the server's quiet window, so a rebuild would have landed
 const SAME_WAIT_MS = 1500;
+const PROBLEM_LIMIT_MS = 3000;
 
 const fixture = join(root, 'tests', 'fixtures', 'live-workspace');
 const cli = join(root, 'packages', 'skill', 'src', 'live', 'cli.ts');
@@ -207,6 +208,34 @@ try {
   if ((await markOf('intent-adds-numbers')) !== 'verified') await fail('passing node lost verified after the flip');
   await page.screenshot({ path: join(runDir, '02-live-after.jpg'), type: 'jpeg', quality: 82 });
   console.log(`ok flip (${secs()}s) - failed mark in ${flipMs} ms`);
+
+  // 5b break a spec file: a problem count and the file name on screen in 3 s, the rest
+  // of the graph keeps working, and fixing the file clears it and brings the node back
+  const brokenRel = 'spec/intents/has-no-checks.md';
+  const brokenFile = join(work, 'spec', 'intents', 'has-no-checks.md');
+  const goodText = readFileSync(brokenFile);
+  const tBreak = Date.now();
+  writeFileSync(brokenFile, '---\nid: intent-has-no-checks\ntitle: [unclosed\n  bad: : yaml\n---\nbody\n');
+  try {
+    await page.locator('[data-problems-count] button').waitFor({ timeout: PROBLEM_LIMIT_MS });
+    await page.locator('[data-problems-count] button').click();
+    await page.locator(`[data-problem-file="${brokenRel}"]`).waitFor({ timeout: Math.max(1, PROBLEM_LIMIT_MS - (Date.now() - tBreak)) });
+  } catch {
+    await fail(`broken spec file not shown with its name within ${PROBLEM_LIMIT_MS} ms`);
+  }
+  const problemMs = Date.now() - tBreak;
+  const problemText = (await page.locator('[data-problems-count]').innerText()).replace(/\s+/g, ' ');
+  if ((await markOf('intent-adds-numbers')) !== 'verified') await fail('other nodes lost their status while a file was broken');
+  if ((await page.locator('.react-flow__node[data-id="intent-has-no-checks"] [data-check-status="verified"]').count()) > 0) await fail('broken file shows verified');
+  await page.screenshot({ path: join(runDir, '02b-live-problem.jpg'), type: 'jpeg', quality: 82 });
+  writeFileSync(brokenFile, goodText);
+  try {
+    await page.locator('[data-problems-count]').waitFor({ state: 'detached', timeout: PROBLEM_LIMIT_MS });
+    await waitMark('intent-has-no-checks', 'pending', PROBLEM_LIMIT_MS);
+  } catch {
+    await fail('problem did not clear or the node did not come back after the fix');
+  }
+  console.log(`ok broken spec (${secs()}s) - shown in ${problemMs} ms as "${problemText.slice(0, 90)}", cleared after the fix`);
 
   // 6 focus a named node, its mark must be on screen
   const focusPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });

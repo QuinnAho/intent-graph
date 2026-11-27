@@ -26,8 +26,13 @@ export function readFocus(search: string): string | null {
 }
 
 /** node ids the first view fits to, or null to fit the whole graph */
-export function pickInitialFit(nodes: ReadonlyArray<{ id: string; type?: string | undefined }>, focus: string | null): string[] | null {
-  if (focus && nodes.some((n) => n.id === focus)) return [focus];
+export function pickInitialFit(
+  nodes: ReadonlyArray<{ id: string; type?: string | undefined; parentId?: string | undefined }>,
+  focus: string | null,
+): string[] | null {
+  const hit = focus ? nodes.find((n) => n.id === focus) : undefined;
+  // a node inside a concept brings its concept, so the frame around it is not cut off
+  if (hit) return hit.parentId !== undefined && nodes.some((n) => n.id === hit.parentId) ? [hit.id, hit.parentId] : [hit.id];
   const spec = nodes.filter((n) => n.type !== undefined && SPEC_KINDS.has(n.type)).map((n) => n.id);
   return spec.length > 0 ? spec : null;
 }

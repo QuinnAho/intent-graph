@@ -11,6 +11,7 @@ import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
+import { ProblemsPanel } from './ProblemsPanel.js';
 import {
   useGraphEdges,
   useGraphError,
@@ -164,6 +165,7 @@ export function App(): JSX.Element {
         fitNodeIds={fitNodeIds ?? null}
         onNodesChange={handleNodesChange}
       />
+      <ProblemsPanel />
     </div>
   );
 }
