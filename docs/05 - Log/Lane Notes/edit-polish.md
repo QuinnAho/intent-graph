@@ -13,6 +13,7 @@ go: owner, 2026-11-27
 
 ## What exists (read these, not the whole tree)
 
+- Lanes 4 and 5 changed the node look and the panel today (header strip, pins, counts, a drift mark, a drift section). Read `packages/webview/src/graph/nodes/shared/nodeChrome.tsx` and `app/EditPanel.tsx` as they are now.
 - The panel and the create form: `packages/webview/src/app/{App,EditPanel,ProblemsPanel}.tsx` and `app/edit-model.ts`. Calls to the server: `packages/webview/src/transport/edit-api.ts`.
 - The server's write endpoints: `/api/node` and `/api/intents` in `packages/skill/src/live/server.ts:251` and `:290-315`.
 - The spec writer: `packages/skill/src/parser/spec-md/writer.ts`. `newIntentSource` (line 242) and `createIntentFile` (line 274) build a new intent.
@@ -21,7 +22,7 @@ go: owner, 2026-11-27
 
 ## Scope
 
-1. The selected node is clearly marked on the canvas.
+1. The selected node is clearly marked on the canvas. Lane 4 added an outline through React Flow's `.selected` class (`packages/webview/src/styles/wires.css`). Keep it, and make sure the node whose panel is open always carries it, also right after a create and after a live update.
 2. The open panel does not cover the selected node. The graph keeps the node in view.
 3. Read only looks read only: values are shown as text, not as dimmed inputs, and the reason is a plain notice.
 4. A long file path in the panel header is never cut without a way to read it in full.
