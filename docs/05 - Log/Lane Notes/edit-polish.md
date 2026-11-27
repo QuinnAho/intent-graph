@@ -63,8 +63,25 @@ Stop and report after 40 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
-(the builder fills this in)
+Reused: the writer's yaml and refuse helpers for the new `target_kinds` lines, `NodeKindSchema` from the shared schemas as the one list of allowed kinds, lane 4's `.selected` outline, the node chrome and `getLayoutSize` for the title room, React Flow's `setViewport` for keeping a node clear of the panel, and the drift report writer shape from `tools/e2e-drift-marks.mjs` (copied into `tools/e2e-edit.mjs`, not imported).
+New: `graph/layout/title-room.ts`, `graph/keep-in-view.ts`, `app/edit-tuning.ts`, `tools/play.mjs`, two launcher files.
 
 ## Builder notes
 
+- The create endpoint lives in `packages/skill/src/live/edit-api.ts` (`createIntent`), not in `server.ts`. I changed it there, one file outside the list, because the endpoint logic is only there.
+- A create without `target_kinds` still works and gets the default kind from `write-tuning.ts`, so the first cut's server test (which posts none) passes unchanged. A create that sends kinds the schema does not allow, an empty list, a non-list or a repeat gets 422 and writes nothing. `newIntentSource` without `targetKinds` writes the old file, so the writer's old test passes unchanged.
+- Titles: spec nodes are 420 wide (was 340) and their height follows the title (`specNodeHeight`). The estimate reserves room for a status mark and a drift mark even when none shows, so a drift report arriving later never resizes a node. A 40 character title takes two lines.
+- Panel off the node: `KeepInView` in `GraphCanvas` reads the drawn node box 250 ms after a selection (the layout moves the node a little when it is selected) and pans or zooms out only when the node sits under the panel. The box comes from the DOM because React Flow's absolute position for a node inside a concept was off by the group padding.
+- Problems list: it moved from a floating box over the canvas to a strip under the canvas, so it takes its own room and covers nothing.
+- Ctrl+S and Cmd+S: the old code already matched both. I moved the test into `isSaveKey`, added unit cases and a Meta+S step in `e2e-edit`.
+- `tools/e2e-edit.mjs`: one old check was replaced, not loosened. "title and body are disabled in read only" became "no input, textarea or select exists in the read-only panel, and the title and body show as text". Nothing else was removed.
+- Closing the launcher window sends the stop line to the server. If `play.mjs` itself is killed hard, the server it started keeps running, because `cli.ts` only stops on a stop line, SIGINT or SIGTERM.
+
 ## Results
+
+1. `node tools/verify.mjs all`: PASS all, 304 tests in 39 files (was 285 in 35).
+2. `node tools/e2e-edit.mjs`: PASS. New proofs: selected outline, panel box clear of the selected node (intent, concept and a new intent), target_kinds in the new file with no new problem, no inputs in read only, no cut title with a drift report loaded (40 character title whole on two lines), problems list covers no title, Cmd+S saves, server refuses a bad kind with 422.
+3. A save still changes only the title, the heading and `updated`: the old byte check in `e2e-edit` and the writer's old tests pass unchanged.
+4. `e2e-live`, `e2e-wires`, `e2e-drift-marks`: PASS.
+5. `node tools/play.mjs --no-open`: prints the address, serves the page and graph.json, exits 0 on a stop line. `open-graph.cmd` runs `node tools\play.mjs`, `open-graph-edit.cmd` runs `node tools\play.mjs --write`, both from the repo root, and pause only if the script failed.
+6. Frames: `.runs/e2e-edit/<stamp>/` holds 01 to 06 and `extra-read-only.jpg`, the same seven views as 3a to 3g, plus `extra-long-titles-drift.jpg` and `extra-problems-open.jpg`.
