@@ -76,3 +76,5 @@ The reuse check runs past 30 minutes. The gate cannot be made green in two tries
 - Fixed an old layout bug on the way: intents inside a concept were clamped onto one spot by `extent: 'parent'`. Children are now laid out inside a parent sized to hold them, and spec nodes sit in a block above the code, so the first view shows the spec.
 - Fixture tests run with `--globals` and import nothing from vitest, so a temp copy needs no node_modules. Vitest leaves a `.vite` cache in the workspace root, which the watcher ignores.
 - `@sig` is parsed and kept but not compared. The binding status (aligned, changed, drift) is lane 2.
+- A spec file that fails to parse has no node, so the live `graph.json` carries a `problems` list (severity, workspace-relative file, first line of the parser message) built from `build()`s own errors and warnings. The server logs each new problem and each fixed file once.
+- The page shows problems as a count in the top left (`ProblemsPanel.tsx`) that opens a list of file and message and disappears when the list is empty. A `?focus=` node inside a concept fits the concept too.
