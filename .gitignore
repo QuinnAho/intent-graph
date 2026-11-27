@@ -40,11 +40,6 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 
-# Ralph loop state — sessions/ holds per-run progress.json, prompts, agent
-# outputs, verification logs, and monitor verdicts. Loop commits go through
-# git; the session directory is loop-internal scratch.
-automation/sessions/
-
 # Per-machine Claude Code permission state. Allowlist accumulates as the user
 # approves bash commands during a session; that state is local to one machine
 # and should not be tracked. .claude/settings.json (project-level) IS tracked.
@@ -53,13 +48,6 @@ automation/sessions/
 # Per-machine Claude Code scheduler lock; runtime state, never project content.
 .claude/scheduled_tasks.lock
 
-# cc-sdd kiro-* skills and related artifacts are installed per-developer via
-# automation/install.sh. They are tooling, not project content. The project's
-# own intentgraph-* skills under .claude/skills/ and .codex/skills/ ARE tracked.
-# cc-sdd v3.0.2 writes Codex skills to .agents/ at the repo root (drift from
-# older versions); it also drops a spec-reviewer agent under .codex/agents/
-# and a settings-templates tree under .kiro/.
-.claude/skills/kiro-*
-.agents/
-.codex/agents/
-.kiro/
+# local worktrees and run output, never project content.
+.wt/
+.runs/

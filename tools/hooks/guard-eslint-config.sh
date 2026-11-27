@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# automation/hooks/guard-eslint-config.sh — PreToolUse hook.
+# tools/hooks/guard-eslint-config.sh — PreToolUse hook.
 #
 # Refuses Edit/Write against eslint.config.mjs (and its base/overrides) unless
 # the surrounding change context references an ADR (e.g. "ADR-0014" or
-# "docs/adr/0014-..."). The intent: the AgentRunner-only chokepoint and the
+# "docs/02 - Decisions/0014-..."). The intent: the AgentRunner-only chokepoint and the
 # other lint rules in eslint.config.mjs are load-bearing for ADR-0005's
 # "faithfulness via architecture" claim. Relaxing them is an ADR-level
 # decision, not a lint fix.
@@ -37,7 +37,7 @@ context="$(printf '%s' "$PAYLOAD" | jq -r '[.tool_input.new_string, .tool_input.
 context="${context}
 ${CLAUDE_HOOK_CONTEXT:-}"
 
-if printf '%s' "$context" | grep -Eq 'ADR[- ]?[0-9]{4}|docs/adr/[0-9]{4}-'; then
+if printf '%s' "$context" | grep -Eq 'ADR[- ]?[0-9]{4}|docs/02 - Decisions/[0-9]{4}-'; then
   exit 0
 fi
 

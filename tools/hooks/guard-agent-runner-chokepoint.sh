@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# automation/hooks/guard-agent-runner-chokepoint.sh — PreToolUse hook.
+# tools/hooks/guard-agent-runner-chokepoint.sh — PreToolUse hook.
 #
 # Refuses Edit/Write that introduces an import from the `ai` SDK
 # (generateText, streamText, generateObject, streamObject, embed, embedMany)
