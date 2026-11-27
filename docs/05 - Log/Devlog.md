@@ -76,3 +76,17 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Opening a count on a pin was left out. This repo has no edge between a spec node and code yet (12 intent to concept, 4 constraint to intent, 1,078 symbol to module), so there is nothing to open until real spec files have anchors.
 
 **Not yet.** Two constraint wires cross each other, since one pin per node gives the layout nothing to order them by. On this repo only 4 wires are drawn at first view. The code block sits below the spec block and is reached by panning or a `focus` link.
+
+### 2026-11-27, 8:17 AM  Drift on the graph merged to night-1
+
+**What happened.** Lane 5: the live server reads the newest drift report (`<workspace>/.runs/drift/latest.json`) and puts each node's verdict beside its test status: drift, unclear or aligned, each with an icon and a word. A verdict turns stale, dimmed and dashed, when a file the node is bound to changes after the report was written. The side panel shows the verdict, the commit, the evidence and the suggested action. The server never calls a model. It only reads the file that `node tools/drift.mjs` wrote.
+
+**Why it matters.** The two things this project builds, checks tied to real tests and an intent-level drift check, now meet on one node: a node can be verified by its tests and still be marked as drift.
+
+**Evidence.** On `night-1` at `246867c`: `PASS all (44.3s) - 4 steps, 285 tests`, `PASS e2e-drift-marks (21.5s) - marks 388 ms, change 325 ms, stale 436 ms, no model process`, and `e2e-live`, `e2e-edit` and `e2e-wires` pass. `PASS drift - caught 4 of 4 breaking, wrongly flagged 0 of 5 harmless` on the lane head. An independent verifier wrote its own reports and passed 13 of 14 checks: the worst verdict wins, a report outside `.runs/drift` is refused and never read, a broken report is one problem and no marks, an 8 MB report with 20,000 entries left `/graph.json` answering in under 80 ms, markup in the evidence is shown as text, and the list of model processes on the PC was the same before and after. Frames: `docs/05 - Log/Frames/2026-11-27 Night 1/`, files `5a` to `5c`.
+
+**Calls taken in loop.**
+- The one failed check was scope: four node files outside the declared list. Each got one line that passes the mark through. The list in the lane note was too narrow, so the work was accepted as it is.
+- This lane ran one model tier down at medium effort. It took 10 minutes and passed its gate and its verifier on the first try.
+
+**Not yet.** With two marks in the header a title is cut after about 14 characters (lane 6). This repo's own nodes show no drift mark, because no real spec file has anchors. The report is found by a 400 ms poll.

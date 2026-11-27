@@ -29,12 +29,13 @@ go: owner, 2026-11-27
 5. The new-intent form asks for the target kinds, with one preselected. The new file carries `target_kinds`, and creating an intent leaves no entry in the problems list. Tests first: this is the code that writes a person's files.
 6. The open problems list does not cover a node's title.
 7. Ctrl+S and Cmd+S both save.
-8. A launcher to double-click on Windows, in the repo root: one file that opens the live graph of this repo for viewing, and one that opens it for editing (`--write`). Each builds the page if it is missing, starts the server on a free port, opens the browser at the printed address, and stops the server when its window is closed. The work is done by `tools/play.mjs`, and the two `.cmd` files only call it.
+8. A node's title stays readable. With a status mark and a drift mark in the header, titles are cut after about 14 characters today. A title of up to 40 characters is shown in full, on one line or two, and the layout knows the node's real size.
+9. A launcher to double-click on Windows, in the repo root: one file that opens the live graph of this repo for viewing, and one that opens it for editing (`--write`). Each builds the page if it is missing, starts the server on a free port, opens the browser at the printed address, and stops the server when its window is closed. The work is done by `tools/play.mjs`, and the two `.cmd` files only call it.
 
 ## Files the builder may touch
 
 - `packages/webview/src/app/**`, `packages/webview/src/styles/**`, `packages/webview/src/transport/edit-api.ts`
-- `packages/webview/src/graph/**`, only for the selected look and for keeping the node in view
+- `packages/webview/src/graph/**`, only for the selected look, for keeping the node in view and for the title's room in a node
 - `packages/skill/src/live/server.ts`, only the create endpoint
 - `packages/skill/src/parser/spec-md/writer.ts` and `write-tuning.ts`
 - new test files, and new cases in the tests of the first cut (never fewer assertions)
@@ -44,7 +45,7 @@ go: owner, 2026-11-27
 ## Acceptance checks
 
 1. `node tools/verify.mjs all` passes and the test count does not go down.
-2. `node tools/e2e-edit.mjs` passes, and now also proves: the selected node carries a visible selected state, the panel's box and the selected node's box do not overlap, a created intent has `target_kinds` in its file and adds no problem, and in read-only mode the title and body are not input elements.
+2. `node tools/e2e-edit.mjs` passes, and now also proves: the selected node carries a visible selected state, the panel's box and the selected node's box do not overlap, a created intent has `target_kinds` in its file and adds no problem, in read-only mode the title and body are not input elements, and no title on the fixture is cut while a drift report is loaded.
 3. A save still changes only the title, the heading and `updated` in the file. The writer's existing tests pass unchanged.
 4. `tools/e2e-live.mjs`, `tools/e2e-wires.mjs` and `tools/e2e-drift-marks.mjs` still pass.
 5. `node tools/play.mjs --no-open` starts, prints the address, serves the page, and stops cleanly on a `stop` line. Say what the `.cmd` files contain.

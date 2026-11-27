@@ -9,12 +9,11 @@ Integration branch: `night-1`. `main` is still at the May state until the owner 
 
 ## Lanes with a go (given by the owner on 2026-11-27)
 
-They run one after another, because all three touch the node components.
+Lanes 4 (Blueprint wires and pins) and 5 (drift on the graph) are merged into `night-1`. See the [[Devlog]].
 
 | Lane | What | Branch | Status | Evidence |
 |---|---|---|---|---|
-| 5 drift on the graph | The drift check's verdict as a mark on each node, next to the test status. Lane note: [[drift-marks]] | `drift-marks` | building | |
-| 6 editing polish | Highlight the selected node, keep the panel off the canvas, make read-only look read-only, new intents get their target kinds from the form, a double-click launcher | `edit-polish` | waits for lane 5 | |
+| 6 editing polish | Keep the panel off the selected node, make read-only look read-only, give titles room, new intents get their target kinds from the form, a double-click launcher. Lane note: [[edit-polish]] | `edit-polish` | building | |
 
 ## Waiting on the owner
 
