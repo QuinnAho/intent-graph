@@ -193,11 +193,28 @@ try {
     while (existsSync(f) !== want && Date.now() < end) await page.waitForTimeout(50);
     return existsSync(f) === want;
   };
+  // the canvas draws only what is in view, so presence is read from the graph the page is fed
+  const graphIds = async () => ((await (await fetch(`${srv.url}graph.json`)).json()).nodes.map((n) => n.id));
   const waitNode = async (id, want) => {
     const end = Date.now() + SHOW_LIMIT_MS;
-    const has = () => page.evaluate((s) => document.querySelector(s) !== null, node(id));
-    while ((await has()) !== want && Date.now() < end) await page.waitForTimeout(50);
-    return (await has()) === want;
+    while ((await graphIds()).includes(id) !== want && Date.now() < end) await page.waitForTimeout(50);
+    return (await graphIds()).includes(id) === want;
+  };
+  // the count in the strip selects the next proposal and the page brings it into view, so a step
+  // reaches the node it wants the way a person would, then clicks it so the keys go to the canvas
+  const clickNode = async (p, id) => {
+    const pid = id.slice('inferred:'.length);
+    const shown = () => p.evaluate(() => document.querySelector('[data-inferred-panel]')?.getAttribute('data-inferred-panel') ?? null);
+    for (let i = 0; i < 6 && (await shown()) !== pid; i++) {
+      const was = await shown();
+      await p.locator('[data-inferred-count] button').click();
+      // the panel opens once the selection settles, wait for it before deciding to click again
+      await p.waitForFunction((w) => (document.querySelector('[data-inferred-panel]')?.getAttribute('data-inferred-panel') ?? null) !== w, was, { timeout: SHOW_LIMIT_MS });
+    }
+    await p.locator(`[data-inferred-panel="${pid}"]`).waitFor({ timeout: SHOW_LIMIT_MS });
+    // the view settles after a selection before it pans
+    await p.waitForTimeout(700);
+    await p.locator(node(id)).click({ position: { x: 30, y: 60 } });
   };
 
   // 1 the proposals show beside the declared intents, dashed and worded, never by colour alone
@@ -241,7 +258,7 @@ try {
   // 3 Enter accepts: a real intent file with realized_by, the notice with Undo, the count goes down one
   const spec0 = specBytes();
   const settled0 = readOr(settledFile());
-  await page.locator(node(inf(P_ADD))).click({ position: { x: 30, y: 60 } });
+  await clickNode(page, inf(P_ADD));
   await page.keyboard.press('Enter');
   const addFile = join(work, 'spec', 'intents', 'adds-numbers-for-the-calculator.md');
   if (!(await waitFile(addFile, true))) await fail('Enter did not write the intent file');
@@ -269,6 +286,7 @@ try {
   console.log(`ok undo accept (${secs()}s) - file removed, spec/ byte for byte, proposal back, count 3`);
 
   // 5 a double-click opens the rename field, a new title and Enter accept under that title
+  await clickNode(page, inf(P_ADD));
   await page.locator(node(inf(P_ADD))).locator('[data-node-title]').dblclick();
   await page.locator(`[data-rename-field="${inf(P_ADD)}"]`).waitFor({ timeout: 3000 });
   await page.keyboard.press('Control+A');
@@ -294,7 +312,7 @@ try {
   // 6 Delete dismisses: only .runs/infer changes, the node goes, the count goes down one, Undo puts the bytes back
   if (!(await waitNode(inf(P_GREET), true))) await fail('restated proposal is not drawn');
   const settled1 = readOr(settledFile());
-  await page.locator(node(inf(P_GREET))).click({ position: { x: 30, y: 60 } });
+  await clickNode(page, inf(P_GREET));
   await page.locator('[data-inferred-panel="inf-greet"]').waitFor({ timeout: 3000 });
   const greetPanelSame = await page.locator('[data-inferred-panel] [data-inferred-same]').textContent();
   if (!/^Same as /.test(greetPanelSame.trim())) await fail(`panel of a restated proposal: ${greetPanelSame}`);
@@ -314,13 +332,13 @@ try {
   console.log(`ok dismiss (${secs()}s) - Delete hid it, only .runs/infer/settled.json changed, undo put its bytes back, count 3 (settled ${settled0 === null ? 'made by the first accept' : 'there before'})`);
 
   // 7 dismiss again, then a new report with the same id and code: it stays hidden, the new one shows
-  await page.locator(node(inf(P_GREET))).click({ position: { x: 30, y: 60 } });
+  await clickNode(page, inf(P_GREET));
   await page.keyboard.press('Delete');
   if ((await waitCount(2)) !== 2) await fail(`count after the second dismiss is ${await count()}, want 2`);
   writeReport([P_ADD, P_GREET, P_PLAN, P_NEW]);
   if (!(await waitNode(inf(P_NEW), true))) await fail('the new report did not show its new proposal');
   if ((await waitCount(3)) !== 3) await fail(`count after the new report is ${await count()}, want 3`);
-  if (await page.locator(node(inf(P_GREET))).count()) await fail('a dismissed id came back on a new report');
+  if ((await graphIds()).includes(inf(P_GREET))) await fail('a dismissed id came back on a new report');
   console.log(`ok new report (${secs()}s) - the dismissed id stays hidden, the new proposal shows, count 3`);
 
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
@@ -338,7 +356,7 @@ try {
   await page2.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 3, null, { timeout: 30000 });
   const specRo = specBytes();
   const settledRo = readOr(settledFile());
-  await page2.locator(node(inf(P_ADD))).click({ position: { x: 30, y: 60 } });
+  await clickNode(page2, inf(P_ADD));
   await page2.locator('[data-inferred-panel]').waitFor({ timeout: 3000 });
   await page2.keyboard.press('Enter');
   await page2.keyboard.press('Delete');
