@@ -264,8 +264,14 @@ try {
   const stopped = await stopServer();
   if (!stopped) await fail(`server did not exit within ${STOP_LIMIT_MS} ms of stop`);
   if (await portOpen(port)) await fail(`port ${port} still open after stop`);
-  const left = [...testPids].filter(alive);
-  if (left.length) await fail(`test processes left: ${left.join(', ')}`);
+  // a killed process tree takes a moment to disappear on windows. checking at once failed
+  // one run in four with a pid that was gone a second later, so wait up to 5 s before calling it a leak.
+  let left = [...testPids].filter(alive);
+  for (let i = 0; i < 25 && left.length; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    left = left.filter(alive);
+  }
+  if (left.length) await fail(`test processes left after 5 s: ${left.join(', ')}`);
   console.log(`ok stop (${secs()}s) - exit ${server.exitCode}, port closed, ${testPids.size} test runs all gone`);
   await finish(true, `label ${labelMs} ms, failed mark ${flipMs} ms, clean stop, frames in ${runDir}`);
 } catch (e) {
