@@ -11,10 +11,11 @@ import {
   type EdgeTypes,
   type Node,
   type NodeTypes,
+  type OnNodesChange,
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useRef, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from 'react';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -91,6 +92,10 @@ export interface GraphCanvasProps {
   onPaneMouseMove?: PaneMouseHandler;
   onPaneClick?: PaneMouseHandler;
   onZoomLevelChange?: (level: ZoomLevel) => void;
+  /** node ids the first view fits to (a focus node, or the spec nodes). null fits everything. */
+  fitNodeIds?: ReadonlyArray<string> | null;
+  /** selection changes, so a live update can keep what the user picked */
+  onNodesChange?: OnNodesChange;
 }
 
 export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
@@ -106,7 +111,13 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     onPaneMouseMove,
     onPaneClick,
     onZoomLevelChange,
+    fitNodeIds = null,
+    onNodesChange,
   } = props;
+  const fitViewOptions = useMemo(
+    () => (fitNodeIds && fitNodeIds.length > 0 ? { ...FIT_VIEW_OPTIONS, nodes: fitNodeIds.map((id) => ({ id })) } : FIT_VIEW_OPTIONS),
+    [fitNodeIds],
+  );
 
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
   const graphReady = graphLoaded && layoutReady;
@@ -143,7 +154,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         fitView={fitView}
-        fitViewOptions={FIT_VIEW_OPTIONS}
+        fitViewOptions={fitViewOptions}
         nodesDraggable={false}
         nodesConnectable={false}
         panOnScroll={false}
@@ -156,6 +167,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         onlyRenderVisibleElements
         onViewportChange={handleViewportChange}
         {...(onNodeClick ? { onNodeClick } : {})}
+        {...(onNodesChange ? { onNodesChange } : {})}
         {...(onNodeMouseEnter ? { onNodeMouseEnter } : {})}
         {...(onPaneMouseMove ? { onPaneMouseMove } : {})}
         {...(onPaneClick ? { onPaneClick } : {})}

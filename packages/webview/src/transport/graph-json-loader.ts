@@ -21,6 +21,10 @@ import type { Edge, Node } from '@xyflow/react';
 import { useGraphStore } from '../store/graph-slice.js';
 import { runLayout, type LayoutNodeInput, type LayoutEdgeInput } from '../graph/layout/index.js';
 import { getLayoutSize } from '../graph/layout/sizing.js';
+import { layoutNested, parentsFirst, type Placement, type RunLayout } from '../graph/layout/nested.js';
+import { VIEW_TUNING } from '../graph/view-tuning.js';
+import { mergeGraphUpdate } from './graph-merge.js';
+import { SPEC_KINDS } from './live-source.js';
 
 // The build-graph export envelope. Mirrors `toGraphJson()` in
 // packages/skill/src/build-graph.ts. Kept as an inline type rather than a
@@ -34,6 +38,9 @@ interface GraphJsonNode {
   readonly body: Record<string, unknown> | unknown;
   readonly confidence: string;
   readonly parent_id: string | null;
+  // set by the live server (packages/skill/src/live/compose.ts)
+  readonly status?: 'verified' | 'failed' | 'pending';
+  readonly warnings?: ReadonlyArray<string>;
 }
 
 interface GraphJsonEdge {
@@ -44,7 +51,7 @@ interface GraphJsonEdge {
   readonly weight: number;
 }
 
-interface GraphJsonEnvelope {
+export interface GraphJsonEnvelope {
   readonly _format: string;
   readonly _version: number;
   readonly nodes: ReadonlyArray<GraphJsonNode>;
@@ -109,7 +116,22 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
   }
 }
 
-async function fetchGraphJson(url: string): Promise<GraphJsonEnvelope> {
+/**
+ * Apply a live update without a reload. Keeps positions and selection when no
+ * node or edge was added or removed, otherwise lays the graph out again. The
+ * store stays ready throughout, so the canvas and its viewport stay mounted.
+ */
+export async function applyGraphUpdate(envelope: GraphJsonEnvelope): Promise<boolean> {
+  if (envelope._format !== EXPECTED_FORMAT || envelope._version !== EXPECTED_VERSION) return false;
+  const { nodes, edges } = envelopeToReactFlow(envelope);
+  const prev = useGraphStore.getState();
+  const merged = mergeGraphUpdate(prev.nodes, prev.edges, nodes, edges);
+  const placed = merged.needsLayout ? await applyLayout(merged.nodes, edges) : merged.nodes;
+  useGraphStore.getState().setGraph(placed, edges);
+  return true;
+}
+
+export async function fetchGraphJson(url: string): Promise<GraphJsonEnvelope> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} ${response.statusText}`);
@@ -148,6 +170,8 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
       body: n.body,
       confidence: n.confidence,
     };
+    if (n.status !== undefined) baseData['checkStatus'] = n.status;
+    if (n.warnings !== undefined && n.warnings.length > 0) baseData['warnings'] = n.warnings;
     const node: Node = {
       id: n.id,
       type: n.kind,
@@ -196,25 +220,42 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
  * graph/layout/sizing.ts; missing sizes default to a sensible 200×60.
  */
 async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge>): Promise<Node[]> {
-  const layoutNodes: LayoutNodeInput[] = nodes.map((n) => {
-    const size = getLayoutSize(n);
-    return { id: n.id, width: size.width, height: size.height };
-  });
-  const layoutEdges: LayoutEdgeInput[] = edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-  }));
+  // spec nodes get their own block above the code, so the first view can show
+  // them without hunting through hundreds of code nodes. edges that cross the
+  // two blocks (code realizes intent) are drawn but not laid out.
+  const isSpec = (n: Node): boolean => n.type !== undefined && SPEC_KINDS.has(n.type);
+  const groups = [nodes.filter(isSpec), nodes.filter((n) => !isSpec(n))];
 
-  const positions = await runLayout(layoutNodes, layoutEdges);
-  const positionMap = new Map<string, { x: number; y: number }>();
-  for (const p of positions) {
-    positionMap.set(p.id, { x: p.x, y: p.y });
+  // spec nodes render at the width the layout gave them, so a long title
+  // ellipsises instead of pushing the status mark past its concept's border
+  const sizeOf = (n: Node): { width: number; height: number } =>
+    isSpec(n) ? { width: VIEW_TUNING.specNodeWidth, height: getLayoutSize(n).height } : getLayoutSize(n);
+
+  const placed = new Map<string, Placement>();
+  let offsetY = 0;
+  for (const group of groups) {
+    if (group.length === 0) continue;
+    const ids = new Set(group.map((n) => n.id));
+    const run: RunLayout = (layoutNodes: LayoutNodeInput[], layoutEdges: LayoutEdgeInput[]) => runLayout(layoutNodes, layoutEdges);
+    const groupPlaced = await layoutNested(group, edges.filter((e) => ids.has(e.source) && ids.has(e.target)), sizeOf, run, VIEW_TUNING);
+    let bottom = offsetY;
+    for (const n of group) {
+      const p = groupPlaced.get(n.id);
+      if (!p) continue;
+      const topLevel = n.parentId === undefined || !ids.has(n.parentId);
+      const position = topLevel ? { x: p.position.x, y: p.position.y + offsetY } : p.position;
+      placed.set(n.id, p.size ? { position, size: p.size } : { position });
+      if (topLevel) bottom = Math.max(bottom, position.y + (p.size ?? sizeOf(n)).height);
+    }
+    offsetY = bottom + VIEW_TUNING.specCodeGap;
   }
 
-  return nodes.map((n) => {
-    const pos = positionMap.get(n.id);
-    if (!pos) return n;
-    return { ...n, position: pos };
-  });
+  return parentsFirst(
+    nodes.map((n) => {
+      const p = placed.get(n.id);
+      if (!p) return n;
+      if (p.size) return { ...n, position: p.position, width: p.size.width, height: p.size.height };
+      return isSpec(n) ? { ...n, position: p.position, width: sizeOf(n).width } : { ...n, position: p.position };
+    }),
+  );
 }

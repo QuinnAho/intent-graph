@@ -22,6 +22,8 @@ export function DecisionNode(props: NodeProps): JSX.Element {
     ...(data.isSelected !== undefined ? { isSelected: data.isSelected } : {}),
     ...(data.isDimmed !== undefined ? { isDimmed: data.isDimmed } : {}),
     ...(data.isGhosted !== undefined ? { isGhosted: data.isGhosted } : {}),
+    ...(data.checkStatus !== undefined ? { checkStatus: data.checkStatus } : {}),
+    ...(data.warnings !== undefined ? { warnings: data.warnings } : {}),
   };
   return <NodeChrome data={chromeData} />;
 }
