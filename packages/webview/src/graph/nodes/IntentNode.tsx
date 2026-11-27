@@ -5,10 +5,12 @@
 import type { NodeProps } from '@xyflow/react';
 
 import { registerLayoutSizer } from '../layout/sizing.js';
+import type { InferredInfo } from '../../app/inferred-model.js';
 import { NodeChrome, type NodeChromeData } from './shared/nodeChrome.js';
 
 export interface IntentNodeData extends Omit<NodeChromeData, 'kind' | 'body'> {
   summary?: string;
+  inferred?: InferredInfo;
 }
 
 export function IntentNode(props: NodeProps): JSX.Element {
@@ -26,6 +28,7 @@ export function IntentNode(props: NodeProps): JSX.Element {
     ...(data.checkStatus !== undefined ? { checkStatus: data.checkStatus } : {}),
     ...(data.warnings !== undefined ? { warnings: data.warnings } : {}),
     ...(data.drift !== undefined ? { drift: data.drift } : {}),
+    ...(data.inferred !== undefined ? { inferred: data.inferred } : {}),
   };
   return <NodeChrome data={chromeData} />;
 }

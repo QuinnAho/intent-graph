@@ -10,7 +10,7 @@ import type { Node } from '@xyflow/react';
 
 import type { NodeKind } from '../nodes/nodeIcons.js';
 import { getDefaultChromeSize } from '../nodes/shared/nodeChrome.js';
-import { VIEW_TUNING } from '../view-tuning.js';
+import { TITLE_TUNING, VIEW_TUNING } from '../view-tuning.js';
 import { specNodeHeight } from './title-room.js';
 
 export interface NodeLayoutSize {
@@ -38,10 +38,13 @@ export function getLayoutSize(node: Node): NodeLayoutSize {
     if (fn) {
       const size = fn(node);
       if (!TITLE_KINDS.has(kind)) return size;
-      const data = node.data as { label?: unknown; warnings?: ReadonlyArray<string> };
+      const data = node.data as { label?: unknown; warnings?: ReadonlyArray<string>; inferred?: { restates?: unknown } };
       const label = typeof data.label === 'string' ? data.label : '';
       const hasWarnings = (data.warnings?.length ?? 0) > 0;
-      return { width: size.width, height: specNodeHeight(label, VIEW_TUNING.specNodeWidth, hasWarnings, size.height) };
+      const height = specNodeHeight(label, VIEW_TUNING.specNodeWidth, hasWarnings, size.height);
+      // an inferred node carries a row of words, and a "same as" line when it restates a declared intent
+      const extra = data.inferred ? TITLE_TUNING.inferredRowPx + (data.inferred.restates ? TITLE_TUNING.sameAsRowPx : 0) : 0;
+      return { width: size.width, height: height + extra };
     }
   }
   if (kind) return getDefaultChromeSize(kind, false);

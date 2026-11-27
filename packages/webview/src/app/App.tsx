@@ -13,8 +13,11 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { GraphCanvas } from '../graph/GraphCanvas.js';
 import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-edit-actions.js';
 import { directKey } from './direct-edit-model.js';
+import { acceptProposal, dismissProposal } from './inferred-actions.js';
+import { INFERRED_MENU_KIND, inferredKey, inferredOf } from './inferred-model.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
+import { InferredCount } from './InferredCount.js';
 import { Notice } from './Notice.js';
 import { deleteWire, undoLast } from './wire-edit-actions.js';
 import { isUndoKey } from '../graph/wire-edit-model.js';
@@ -122,6 +125,17 @@ function useDirectEditKeys(): void {
       const typing = target?.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"]') != null;
       const ui = useUiStore.getState();
       const picked = pickEditNode(useGraphStore.getState().nodes);
+      // an inferred node: Enter accepts, Delete dismisses, F2 opens the title first
+      const inferred = inferredKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, inferredSelected: inferredOf(picked) !== null }, e);
+      if (inferred && picked) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (inferred === 'accept') void acceptProposal(picked.id);
+        else if (inferred === 'dismiss') void dismissProposal(picked.id);
+        else if (ui.editConfig.write) renameNode(picked.id);
+        else void acceptProposal(picked.id);
+        return;
+      }
       const action = directKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, selectedKind: picked?.type ?? null, write: ui.editConfig.write }, e);
       if (!action) return;
       e.preventDefault();
@@ -131,7 +145,7 @@ function useDirectEditKeys(): void {
         if (picked && picked.type) {
           const el = Array.from(document.querySelectorAll('.react-flow__node')).find((n) => n.getAttribute('data-id') === picked.id);
           const r = el?.getBoundingClientRect();
-          openNodeMenu(picked.id, picked.type, { x: (r?.left ?? 0) + MENU_TUNING.nodeInset, y: (r?.top ?? 0) + MENU_TUNING.nodeInset });
+          openNodeMenu(picked.id, inferredOf(picked) ? INFERRED_MENU_KIND : picked.type, { x: (r?.left ?? 0) + MENU_TUNING.nodeInset, y: (r?.top ?? 0) + MENU_TUNING.nodeInset });
         } else openPaneMenu({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
       }
     };
@@ -256,6 +270,7 @@ export function App(): JSX.Element {
       <EditPanel />
       </div>
       <Notice />
+      <InferredCount />
       <ProblemsPanel />
     </div>
   );

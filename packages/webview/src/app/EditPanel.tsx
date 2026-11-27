@@ -4,7 +4,7 @@
 // also holds the short form a concept's add button opens.
 
 import type { Node } from '@xyflow/react';
-import { X } from 'lucide-react';
+import { Equal, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../graph/nodes/nodeIcons.js';
@@ -13,7 +13,9 @@ import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
 import { escapeLayer } from './direct-edit-model.js';
-import { focusNode } from './direct-edit-actions.js';
+import { focusNode, renameNode } from './direct-edit-actions.js';
+import { acceptProposal, dismissProposal } from './inferred-actions.js';
+import { inferredOf, inferredWords, sameAsLabel, type InferredInfo } from './inferred-model.js';
 import { useSettledId } from './use-settled-id.js';
 import { isDirty, isSaveKey, kindsProblem, pickEditNode, titleProblem, toggleKind, type Draft } from './edit-model.js';
 import { CREATE_TUNING } from './edit-tuning.js';
@@ -468,6 +470,101 @@ function CreateForm(props: { parent: string }): JSX.Element {
   );
 }
 
+const WORD: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', borderRadius: '999px', border: '1px dashed var(--ig-edge)', fontSize: '11px', fontWeight: 600 };
+const MONO_LIST: CSSProperties = { ...LIST, fontFamily: 'var(--ig-font-mono, monospace)', overflowWrap: 'anywhere' };
+// a disabled button must not look like one that works
+const OFF: CSSProperties = { opacity: 0.45, cursor: 'not-allowed' };
+
+// the panel of a proposal: what the model read, from where, and the three ways to settle it
+function InferredPanel(props: { node: Node; info: InferredInfo }): JSX.Element {
+  const { node, info } = props;
+  const config = useUiStore((s) => s.editConfig);
+  const data = node.data as { label?: unknown; body?: unknown };
+  const title = String(data.label ?? node.id);
+  const body = typeof data.body === 'string' ? data.body : '';
+  const same = sameAsLabel(info);
+  const off = !config.write;
+  useEditKeys(() => {}, () => {
+    const { menuOpen, renameOpen } = openLayers();
+    if (escapeLayer({ menuOpen, renameOpen, createOpen: false, panelOpen: true, panelDirty: false }) === 'panel-close') clearSelection();
+  });
+  return (
+    <aside style={PANEL} data-edit-panel={node.id} data-inferred-panel={info.proposal_id} aria-label="Inferred intent">
+      <div style={HEADER}>
+        <Sparkles size={18} aria-hidden />
+        <span style={{ fontWeight: 600 }}>Inferred intent</span>
+        <button type="button" style={ICON_BUTTON} aria-label="Close panel" onClick={clearSelection}>
+          <X size={16} />
+        </button>
+      </div>
+      <div style={ROW}>
+        {inferredWords(info).map((w) => (
+          <span key={w} style={WORD} data-panel-word={w}>
+            {w}
+          </span>
+        ))}
+      </div>
+      <div style={LABEL}>
+        Title
+        <div style={{ ...READ_TEXT, fontSize: '14px', fontWeight: 600 }} data-inferred-title="">
+          {title}
+        </div>
+      </div>
+      <div style={LABEL}>
+        What the code is for
+        <div style={{ ...READ_TEXT, whiteSpace: 'pre-wrap' }} data-inferred-body="">
+          {body}
+        </div>
+      </div>
+      {same ? (
+        <div style={NOTE_STYLE.info} data-inferred-same="">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+            <Equal size={14} aria-hidden /> {same.charAt(0).toUpperCase() + same.slice(1)}
+          </span>
+          <div style={{ marginTop: '4px', opacity: 0.85 }}>The model says this restates a declared intent. Dismiss it as a duplicate, or accept it as its own intent.</div>
+        </div>
+      ) : null}
+      {info.planned ? (
+        <div style={NOTE_STYLE.info} data-inferred-planned="">
+          Planned. Every file it cites is a placeholder, so this code does not work yet.
+        </div>
+      ) : null}
+      <div>
+        <p style={SECTION_TITLE}>Read from</p>
+        <div style={{ ...MUTED, fontFamily: 'var(--ig-font-mono, monospace)', overflowWrap: 'anywhere' }} data-inferred-folder="">
+          {info.folder}
+        </div>
+      </div>
+      <div>
+        <p style={SECTION_TITLE}>Evidence</p>
+        <ul style={MONO_LIST} data-inferred-evidence="">
+          {info.anchors.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+      </div>
+      <div style={ROW}>
+        <button type="button" style={off ? { ...PRIMARY, ...OFF } : PRIMARY} disabled={off} data-inferred-accept="" title={off ? config.readOnlyReason ?? 'Read only' : 'Accept as a declared intent (Enter)'} onClick={() => void acceptProposal(node.id)}>
+          Accept
+        </button>
+        <button type="button" style={off ? { ...BUTTON, ...OFF } : BUTTON} disabled={off} data-inferred-edit="" title={off ? config.readOnlyReason ?? 'Read only' : 'Edit the title, then Enter accepts (F2)'} onClick={() => renameNode(node.id)}>
+          Edit title
+        </button>
+        <button type="button" style={off ? { ...BUTTON, ...OFF } : BUTTON} disabled={off} data-inferred-dismiss="" title={off ? config.readOnlyReason ?? 'Read only' : 'Dismiss (Delete)'} onClick={() => void dismissProposal(node.id)}>
+          Dismiss
+        </button>
+      </div>
+      {off ? (
+        <div style={MUTED} data-inferred-readonly="">
+          {config.readOnlyReason}
+        </div>
+      ) : (
+        <div style={MUTED}>Enter accepts, F2 edits the title first, Delete dismisses. Ctrl+Z undoes.</div>
+      )}
+    </aside>
+  );
+}
+
 export function EditPanel(): JSX.Element | null {
   const createParent = useUiStore((s) => s.createParent);
   const picked = useGraphStore((s) => pickEditNode(s.nodes));
@@ -475,5 +572,7 @@ export function EditPanel(): JSX.Element | null {
   const node = picked && picked.id === settled ? picked : null;
   if (createParent) return <CreateForm key={createParent} parent={createParent} />;
   if (!node) return null;
+  const info = inferredOf(node);
+  if (info) return <InferredPanel key={node.id} node={node} info={info} />;
   return <NodeEditor key={node.id} node={node} />;
 }

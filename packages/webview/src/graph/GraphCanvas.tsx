@@ -26,6 +26,7 @@ import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
 import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
+import { INFERRED_MENU_KIND, inferredOf } from '../app/inferred-model.js';
 import { changeParent, refuseEdit } from '../app/wire-edit-actions.js';
 import { boxUnder, dropOutcome, endsOf, lightedBox, whyNotParent, type Box } from './wire-edit-model.js';
 import { useUiStore } from '../store/ui-slice.js';
@@ -204,7 +205,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
     return nodes.map((n) => {
       const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
-      const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type);
+      // a proposal is not a file yet, so it cannot be dragged into another concept
+      const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type) && inferredOf(n) === null;
       out.draggable = movable;
       // a node held by the pointer may leave its box, the drop decides where it belongs
       if (movable) delete out.extent;
@@ -369,7 +371,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   const handleNodeContext = useCallback<NodeMouseHandler>((event, node) => {
     if (!node.type || !SPEC_KINDS.has(node.type)) return;
     event.preventDefault();
-    openNodeMenu(node.id, node.type, { x: event.clientX, y: event.clientY });
+    openNodeMenu(node.id, inferredOf(node) ? INFERRED_MENU_KIND : node.type, { x: event.clientX, y: event.clientY });
   }, []);
   const handlePaneContext = useCallback((event: MouseEvent | globalThis.MouseEvent): void => {
     event.preventDefault();

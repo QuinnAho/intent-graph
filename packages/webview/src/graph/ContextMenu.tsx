@@ -10,6 +10,8 @@ import { currentEnds, deleteWire } from '../app/wire-edit-actions.js';
 import { NOT_A_PARENT_WIRE, deletableWire } from './wire-edit-model.js';
 import { useGraphStore } from '../store/graph-slice.js';
 import { clampMenu, menuItems, stepMenu, type MenuItem } from '../app/direct-edit-model.js';
+import { acceptProposal, dismissProposal } from '../app/inferred-actions.js';
+import { INFERRED_MENU_KIND, inferredMenuItems } from '../app/inferred-model.js';
 import { MENU_TUNING } from '../app/direct-edit-tuning.js';
 import { useUiStore } from '../store/ui-slice.js';
 
@@ -55,7 +57,8 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
   const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const wire = useGraphStore((s) => (menu?.wireId ? s.edges.find((e) => e.id === menu.wireId) : undefined));
   const wireRefusal = menu?.kind === 'wire' && (!wire || !deletableWire(wire, currentEnds())) ? NOT_A_PARENT_WIRE : null;
-  const items: MenuItem[] = menu ? menuItems(menu.kind, { write: config.write, reason: config.readOnlyReason }, wireRefusal) : [];
+  const can = { write: config.write, reason: config.readOnlyReason };
+  const items: MenuItem[] = !menu ? [] : menu.kind === INFERRED_MENU_KIND ? inferredMenuItems(can) : menuItems(menu.kind, can, wireRefusal);
   const nodeId = menu?.nodeId ?? null;
 
   // measure, then place inside the window before the first paint
@@ -97,6 +100,8 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
       if (menu.wireId) deleteWire(menu.wireId);
     }
     else if (nodeId === null) return;
+    else if (item.id === 'accept') void acceptProposal(nodeId);
+    else if (item.id === 'dismiss') void dismissProposal(nodeId);
     else if (item.id === 'rename') renameNode(nodeId);
     else if (item.id === 'edit-details') openDetails(nodeId);
     else addIntentTo(nodeId);

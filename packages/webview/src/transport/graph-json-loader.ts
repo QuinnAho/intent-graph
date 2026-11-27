@@ -54,6 +54,8 @@ interface GraphJsonNode {
     readonly entries: number;
     readonly stale: boolean;
   };
+  // a proposal a model inferred from the code, not yet accepted (lane 10)
+  readonly inferred?: Record<string, unknown>;
 }
 
 interface GraphJsonEdge {
@@ -166,7 +168,7 @@ export async function fetchGraphJson(url: string): Promise<GraphJsonEnvelope> {
  *     still render via ConceptNode.tsx; the sub-flow boundary is implicit
  *     in the parent-child relationship plus React Flow's own renderer.
  */
-function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
+export function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
   nodes: Node[];
   edges: Edge[];
 } {
@@ -190,6 +192,7 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
     if (n.status_reasons !== undefined && n.status_reasons.length > 0) baseData['statusReasons'] = n.status_reasons;
     if (n.warnings !== undefined && n.warnings.length > 0) baseData['warnings'] = n.warnings;
     if (n.drift !== undefined) baseData['drift'] = n.drift;
+    if (n.inferred !== undefined) baseData['inferred'] = n.inferred;
     const node: Node = {
       id: n.id,
       type: n.kind,
