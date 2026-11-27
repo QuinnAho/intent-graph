@@ -64,6 +64,16 @@ export const IDENTITY_THRESHOLD_TENTATIVE = 0.65;
 // the composite score lands in [TENTATIVE, CONFIDENT). Wired in Phase 5.
 export const IDENTITY_EMBEDDING_PROMOTION_THRESHOLD = 0.92;
 
+// The node binding reads a string through a 32 KiB buffer by default and throws
+// 'Invalid argument' on anything longer, so every parse call sizes the buffer to
+// its input. utf-8 bytes are never fewer than utf-16 units, so twice the bytes is
+// always enough.
+const BINDING_DEFAULT_BUFFER = 32 * 1024;
+
+export function parseBufferSize(content: string): number {
+  return Math.max(BINDING_DEFAULT_BUFFER, Buffer.byteLength(content, 'utf8') * 2 + 1);
+}
+
 export interface ParseFileResult {
   /** SHA-256 of the file content. Threaded through to extractCodeSymbols. */
   readonly contentHash: string;
@@ -101,7 +111,7 @@ export function parseFile(
   const parser = new ParserCtor();
   parser.setLanguage(grammar);
 
-  const tree = parser.parse(content);
+  const tree = parser.parse(content, undefined, { bufferSize: parseBufferSize(content) });
   const entry: ParseCacheEntry = {
     tree,
     contentHash,
@@ -253,7 +263,7 @@ function jaccardSimilarity(a: readonly string[], b: readonly string[]): number {
 /** Tree-sitter type sketches. The native binding is opaque; we type the surface we use. */
 interface TreeSitterParser {
   setLanguage(grammar: unknown): void;
-  parse(input: string): TreeSitterTree;
+  parse(input: string, oldTree?: unknown, opts?: { bufferSize?: number }): TreeSitterTree;
 }
 
 interface TreeSitterTree {

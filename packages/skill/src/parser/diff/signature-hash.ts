@@ -17,6 +17,7 @@ import { createRequire } from 'node:module';
 import { extname } from 'node:path';
 
 import { dispatchGrammarForExtension } from '../grammar-registry.js';
+import { parseBufferSize } from '../tree-sitter.js';
 
 const requireFn = createRequire(import.meta.url);
 
@@ -68,10 +69,6 @@ const MEMBER_TYPES = new Set([
 
 const parsers = new Map<unknown, TsParser>();
 
-// the node binding reads input through a 32 KiB buffer by default and throws
-// 'Invalid argument' on anything longer, so size the buffer to the input
-const BINDING_DEFAULT_BUFFER = 32 * 1024;
-
 export interface ParseLimits {
   /** Refuse files larger than this many utf-8 bytes. No cap when absent. */
   readonly maxBytes?: number;
@@ -91,7 +88,7 @@ function parseWithGrammar(path: string, content: string, limits: ParseLimits = {
     parser.setLanguage(grammar);
     parsers.set(grammar, parser);
   }
-  return parser.parse(content, undefined, { bufferSize: Math.max(BINDING_DEFAULT_BUFFER, bytes * 2 + 1) }).rootNode;
+  return parser.parse(content, undefined, { bufferSize: parseBufferSize(content) }).rootNode;
 }
 
 function sha256(s: string): string {

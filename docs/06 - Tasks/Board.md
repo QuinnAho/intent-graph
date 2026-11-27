@@ -36,7 +36,6 @@ Lanes 1 (live graph with status) and 2 (drift check prototype) merged to `night-
 ## Known
 
 - Anchors are parsed twice: `packages/skill/src/parser/spec-md/anchors.ts` (lane 1) and inside `packages/skill/src/drift/` (lane 2). One of them should go.
-- The main parser (`packages/skill/src/parser/tree-sitter.ts`) still has the 32 KB input limit that lane 2 fixed in its own hash code. A source file over 32 KB will not parse in the graph build.
 - The drift judge answers "unclear" on about a third of real commits, mostly when a large diff is cut at 12k characters.
 - Edges are drawn through node labels.
 - ELK layout runs on the main thread today (see [[Code Map]]).
