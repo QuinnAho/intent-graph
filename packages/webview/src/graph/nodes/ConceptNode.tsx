@@ -59,6 +59,7 @@ export function ConceptNode(props: NodeProps): JSX.Element {
     ...(data.isGhosted !== undefined ? { isGhosted: data.isGhosted } : {}),
     ...(data.checkStatus !== undefined ? { checkStatus: data.checkStatus } : {}),
     ...(data.warnings !== undefined ? { warnings: data.warnings } : {}),
+    ...(data.drift !== undefined ? { drift: data.drift } : {}),
   };
   const canWrite = useUiStore((s) => s.editConfig.write);
   const openCreate = useUiStore((s) => s.openCreate);

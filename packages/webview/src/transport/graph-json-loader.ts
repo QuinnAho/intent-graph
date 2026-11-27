@@ -43,6 +43,16 @@ interface GraphJsonNode {
   readonly status?: 'verified' | 'failed' | 'pending';
   readonly status_reasons?: ReadonlyArray<string>;
   readonly warnings?: ReadonlyArray<string>;
+  readonly drift?: {
+    readonly verdict: 'aligned' | 'drift' | 'unclear';
+    readonly evidence: string;
+    readonly suggested_action: string;
+    readonly commit: string;
+    readonly decided_by: string;
+    readonly reported_at: string;
+    readonly entries: number;
+    readonly stale: boolean;
+  };
 }
 
 interface GraphJsonEdge {
@@ -177,6 +187,7 @@ function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
     if (n.status !== undefined) baseData['checkStatus'] = n.status;
     if (n.status_reasons !== undefined && n.status_reasons.length > 0) baseData['statusReasons'] = n.status_reasons;
     if (n.warnings !== undefined && n.warnings.length > 0) baseData['warnings'] = n.warnings;
+    if (n.drift !== undefined) baseData['drift'] = n.drift;
     const node: Node = {
       id: n.id,
       type: n.kind,

@@ -63,8 +63,22 @@ Stop and report after 40 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
-(the builder fills this in)
+- Schema check: reused `DriftPairReportSchema` (zod) as is, one `safeParse` per report entry. No new validator.
+- Icons: lucide-react, already in the webview (`ShieldCheck`, `CircleHelp`, `OctagonAlert`).
+- Mark shape: copied the status pill in `nodeChrome.tsx`, same size and spacing, so the two marks line up.
+- Report finding: a 400 ms poll that stats `latest.json` and the report it names. chokidar was not reused because the server's watcher deliberately ignores `.runs`, and watching a folder that may not exist yet is flaky.
+- Proof pattern: copied `tools/e2e-live.mjs` (temp fixture copy, free port, Playwright, stop line, one PASS line).
+- Nothing written from scratch that an open source part already did.
 
 ## Builder notes
 
+- `tools/drift.mjs` wrote to its own repo's `.runs/drift` even with `--root`. It now writes under the `--root` folder when one is given, and under its own repo otherwise (unchanged default).
+- Pure rules are in `packages/skill/src/live/drift-marks.ts` (worst verdict, stale rule, report parsing), file reading in `drift-reader.ts`, glue in `server.ts`. Tuning number: `driftPollMs` in `tuning.ts`.
+- The report time is the report file's mtime. Stale means a `realized_by` file has an mtime newer than that. Among equal verdicts the later entry wins. A report outside `.runs/drift` is refused as a problem.
+- A report is all or nothing: one bad entry gives one problem and no marks.
+- Longer headers: with the test mark, the drift mark and a warning count, a title can be cut short on a 240 px node. The full title is in the tooltip and the panel.
+- The server cannot start a model: no file in `live/` imports the drift code, and `tools/e2e-drift-marks.mjs` preloads a spy into the server that logs every process it starts. The log must hold no process naming claude or drift, and the report writes must start none.
+
 ## Results
+
+See the report from the run for the numbers. Frames: `.runs/e2e-drift-marks/<stamp>/` (`01-drift-marks.jpg`, `02-drift-panel.jpg`, `03-drift-stale.jpg`).

@@ -5,7 +5,7 @@
 // highlight states, hidden handles" surface called out in the lift plan.
 
 import { Handle, Position, useNodeId } from '@xyflow/react';
-import { CircleCheck, CircleDashed, CircleX, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { useContext, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
@@ -18,6 +18,19 @@ export type NodeHealth = 'green' | 'yellow' | 'red';
 export type NodeHighlight = 'none' | 'subtle' | 'lead';
 /** check status from verified_by, per adr 0030 */
 export type CheckStatus = 'verified' | 'failed' | 'pending';
+export type DriftVerdict = 'aligned' | 'drift' | 'unclear';
+/** the drift check's verdict for a spec node, from the newest report (live server only) */
+export interface DriftInfo {
+  verdict: DriftVerdict;
+  evidence: string;
+  suggested_action: string;
+  commit: string;
+  decided_by: string;
+  reported_at: string;
+  entries: number;
+  /** a bound source file changed after the report was written */
+  stale: boolean;
+}
 
 export interface NodeChromeData {
   /** Node kind drives the icon + default sizing. */
@@ -38,6 +51,8 @@ export interface NodeChromeData {
   isGhosted?: boolean;
   /** Check status of a spec node. Absence means no mark (code nodes). */
   checkStatus?: CheckStatus;
+  /** Drift verdict of a spec node. Absence means the report has no entry for it. */
+  drift?: DriftInfo;
   /** Anchor warnings for this node, shown as a count with the text on hover. */
   warnings?: ReadonlyArray<string>;
   /** Render the in and out pins. Default true. */
@@ -86,6 +101,50 @@ export function StatusMark(props: { status: CheckStatus }): JSX.Element {
     >
       <Icon size={13} strokeWidth={props.status === 'failed' ? 2.6 : 2.2} />
       {props.status}
+    </span>
+  );
+}
+
+// aligned is quiet, unclear is a caution, drift is loud. icon and word on every one.
+const DRIFT_MARK: Record<DriftVerdict, { Icon: typeof CircleCheck; color: string; border: string; background: string }> = {
+  aligned: { Icon: ShieldCheck, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)', background: 'transparent' },
+  unclear: { Icon: CircleHelp, color: '#d29922', border: 'rgba(210, 153, 34, 0.7)', background: 'rgba(210, 153, 34, 0.12)' },
+  drift: { Icon: OctagonAlert, color: '#fff', border: '#f85149', background: '#da3633' },
+};
+
+export function driftTitle(d: DriftInfo): string {
+  return `drift ${d.verdict}${d.stale ? ', stale: a bound file changed after the report' : ''}`;
+}
+
+export function DriftMark(props: { drift: DriftInfo }): JSX.Element {
+  const { drift } = props;
+  const { Icon, color, border, background } = DRIFT_MARK[drift.verdict];
+  return (
+    <span
+      data-drift={drift.verdict}
+      data-drift-stale={drift.stale ? 'true' : 'false'}
+      aria-label={driftTitle(drift)}
+      title={driftTitle(drift)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 7px 2px 5px',
+        borderRadius: '999px',
+        border: `1px ${drift.stale ? 'dashed' : 'solid'} ${border}`,
+        background,
+        color,
+        fontSize: '11px',
+        fontWeight: drift.verdict === 'drift' ? 700 : 600,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        // a stale mark must not look current
+        opacity: drift.stale ? 0.5 : 1,
+      }}
+    >
+      <Icon size={13} strokeWidth={drift.verdict === 'drift' ? 2.6 : 2.2} />
+      {drift.verdict}
+      {drift.stale ? ' (stale)' : ''}
     </span>
   );
 }
@@ -258,6 +317,7 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
           </span>
           {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
           {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
+          {data.drift ? <DriftMark drift={data.drift} /> : null}
           {showPip && data.health ? (
             <div
               style={{

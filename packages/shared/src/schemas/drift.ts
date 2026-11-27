@@ -63,3 +63,19 @@ export const DriftPairReportSchema = z.object({
   error: z.string().nullable(),
 });
 export type DriftPairReport = z.infer<typeof DriftPairReportSchema>;
+
+/** The drift mark on a live graph node: the worst verdict the newest report holds for it. */
+export const LiveDriftSchema = z.object({
+  verdict: DriftVerdictSchema,
+  evidence: z.string(),
+  suggested_action: z.string(),
+  commit: z.string(),
+  decided_by: DriftDecidedBySchema,
+  /** ISO time the report was written */
+  reported_at: z.string(),
+  /** how many report entries this node has */
+  entries: z.number().int().positive(),
+  /** a bound source file changed after the report was written */
+  stale: z.boolean(),
+});
+export type LiveDrift = z.infer<typeof LiveDriftSchema>;

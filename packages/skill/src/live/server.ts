@@ -4,7 +4,7 @@
 // with --write it also takes title and body saves and new intents, see edit-api.ts.
 
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -17,6 +17,8 @@ import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js'
 import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
 import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, type ApiReply, type EditTarget } from './edit-api.js';
+import { buildDriftMarks } from './drift-marks.js';
+import { NO_DRIFT, driftSignature, readDriftSnapshot, type DriftSnapshot } from './drift-reader.js';
 import { composeLiveGraph, diffProblems, type LiveGraph, type LiveProblem } from './compose.js';
 import { runLinkedTests, type TestRunHandle } from './test-runner.js';
 import { LIVE_TUNING, type LiveTuning } from './tuning.js';
@@ -118,6 +120,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let anchors: ReadonlyMap<string, NodeAnchors & { readonly file: string }> = new Map();
   let linked: LinkedFiles = { tests: new Set(), realized: new Set() };
   let report: TestReport | null = null;
+  let drift: DriftSnapshot = NO_DRIFT;
   let graph: LiveGraph | null = null;
   let graphText = '';
   let problems: LiveProblem[] = [];
@@ -128,7 +131,16 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
 
   const publish = (): void => {
     if (!result) return;
-    graph = composeLiveGraph(result, anchors, report, root);
+    const realized = new Map([...anchors].map(([id, a]) => [id, a.realizedBy.map((r) => r.path)]));
+    const mtimeOf = (p: string): number | null => {
+      try {
+        return statSync(join(root, p)).mtimeMs;
+      } catch {
+        return null;
+      }
+    };
+    const marks = drift.pairs ? buildDriftMarks(drift.pairs, drift.writtenAtMs, realized, mtimeOf) : new Map();
+    graph = composeLiveGraph(result, anchors, report, root, { marks, problem: drift.problem });
     // one log line per new problem and per fixed file, not one per rebuild
     const changes = diffProblems(problems, graph.problems);
     for (const p of changes.added) log(`spec ${p.severity}: ${p.file}: ${p.message}`);
@@ -180,6 +192,9 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     });
   };
 
+  // a new, changed or removed drift report: look at two files on a timer, no model is ever started
+  let driftSeen = driftSignature(root);
+  drift = readDriftSnapshot(root);
   rebuild('start');
   linked = linkedFiles(anchors);
   runTests();
@@ -328,6 +343,16 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     sendJson(res, reply);
   }
 
+  const driftPoll = setInterval(() => {
+    if (closed || !result) return;
+    const sig = driftSignature(root);
+    if (sig === driftSeen) return;
+    driftSeen = sig;
+    drift = readDriftSnapshot(root);
+    publish();
+    log(`drift report v${version}: ${drift.pairs ? `${drift.pairs.length} entries` : drift.problem ? 'unusable' : 'none'}`);
+  }, tuning.driftPollMs);
+
   const keepAlive = setInterval(() => {
     for (const c of clients) c.write(': ping\n\n');
   }, tuning.keepAliveMs);
@@ -347,6 +372,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       closed = true;
       batcher.stop();
       clearInterval(keepAlive);
+      clearInterval(driftPoll);
       testRun?.cancel();
       await watcher.close();
       for (const c of clients) c.end();

@@ -1,6 +1,8 @@
 // the live graph: the static export from build-graph plus realized_by edges,
 // a check status on spec nodes, and anchor warnings on the node they belong to.
 
+import type { LiveDrift } from '@intentgraph/shared/schemas';
+
 import { toGraphJson, type BuildGraphResult } from '../build-graph.js';
 import type { NodeAnchors } from '../parser/spec-md/anchors.js';
 import { mapCheckStatus, toRelative, type CheckStatus, type TestReport } from './check-status.js';
@@ -25,6 +27,7 @@ export interface LiveGraphNode {
   status?: CheckStatus;
   status_reasons?: ReadonlyArray<string>;
   warnings?: ReadonlyArray<string>;
+  drift?: LiveDrift;
 }
 
 export interface LiveGraphEdge {
@@ -44,11 +47,18 @@ export interface LiveGraph {
   [key: string]: unknown;
 }
 
+/** what the newest drift report says: a mark per node id, and a problem when the report is unusable */
+export interface LiveDriftInput {
+  readonly marks: ReadonlyMap<string, LiveDrift>;
+  readonly problem: LiveProblem | null;
+}
+
 export function composeLiveGraph(
   result: BuildGraphResult,
   anchors: ReadonlyMap<string, NodeAnchors>,
   report: TestReport | null,
   root: string,
+  drift: LiveDriftInput | null = null,
 ): LiveGraph {
   const parsed = JSON.parse(toGraphJson(result)) as LiveGraph;
   const toProblem = (severity: LiveProblem['severity']) => (p: { readonly file: string; readonly message: string }): LiveProblem => ({
@@ -59,7 +69,7 @@ export function composeLiveGraph(
   });
   const graph: LiveGraph = {
     ...parsed,
-    problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning'))],
+    problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning')), ...(drift?.problem ? [drift.problem] : [])],
   };
   const ids = new Set(graph.nodes.map((x) => x.id));
   const symbolIds = graph.nodes.filter((x) => x.kind === 'code_symbol').map((x) => x.id);
@@ -70,6 +80,8 @@ export function composeLiveGraph(
     const check = mapCheckStatus(a?.verifiedBy ?? [], report, root);
     node.status = check.status;
     node.status_reasons = check.reasons;
+    const mark = drift?.marks.get(node.id);
+    if (mark) node.drift = mark;
     const warnings = [...(a?.warnings ?? [])];
     for (const r of a?.realizedBy ?? []) {
       const target = findTarget(r.path, r.name, ids, symbolIds);
