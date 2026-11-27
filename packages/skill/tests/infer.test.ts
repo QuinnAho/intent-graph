@@ -575,3 +575,31 @@ describe('the cache key and the declared spec', () => {
     expect(call.calls).toHaveLength(1);
   });
 });
+
+describe('bare file anchors', () => {
+  const files = [
+    digestFile('src/q/queue.ts', 'export function enqueue(a: number) {}\nexport class Retrier { run() {} }\n'),
+    digestFile('src/q/index.ts', '// barrel\nexport * from "./queue";\n'),
+    digestFile('src/q/stub.ts', '// plan\nexport const Q_PLACEHOLDER = 1;\n'),
+  ];
+  const input = buildFolderInput('src/q', files);
+  const one = (anchors: string[], over: Partial<InferProposal> = {}) => rowsFor(input, [good(anchors, over)], declared).rows[0]!;
+
+  it('a bare path of a file with symbols is dropped when the file is already cited by a symbol', () => {
+    expect(one(['src/q/queue.ts#enqueue', 'src/q/queue.ts', 'src/q/index.ts']).anchors).toEqual(['src/q/queue.ts#enqueue', 'src/q/index.ts']);
+  });
+  it('otherwise it becomes the symbol the title or body names, or else the first symbol', () => {
+    expect(one(['src/q/queue.ts', 'src/q/index.ts'], { title: 'A Retrier runs failed jobs again' }).anchors).toEqual(['src/q/queue.ts#Retrier', 'src/q/index.ts']);
+    expect(one(['src/q/queue.ts', 'src/q/index.ts']).anchors).toEqual(['src/q/queue.ts#enqueue', 'src/q/index.ts']);
+    expect(one(['src/q/stub.ts', 'src/q/index.ts']).anchors).toEqual(['src/q/stub.ts#Q_PLACEHOLDER', 'src/q/index.ts']);
+  });
+  it('a file with no top-level symbol keeps its bare path, and no anchor in a run is left bare when the file has a symbol', async () => {
+    const call = stub(() => reply([good(['src/q/queue.ts', 'src/q/index.ts', 'src/q/stub.ts'])]));
+    const r = await runInfer({ root: WS, plans: [{ folder: 'src/q', unclaimed: files.map((f) => f.path), claimed: [] }], declared, call, cache: memoryCache(), tuning: TUNING, inputFor: () => input });
+    const bare = r.proposals.flatMap((p) => p.anchors).filter((a) => !a.includes('#'));
+    expect(bare).toEqual(['src/q/index.ts']);
+  });
+  it('the system prompt asks for a symbol', () => {
+    expect(INFER_SYSTEM_PROMPT).toMatch(/cite a symbol/);
+  });
+});

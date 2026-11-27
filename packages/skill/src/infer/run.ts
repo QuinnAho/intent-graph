@@ -9,7 +9,7 @@ import type { InferProposal } from '@intentgraph/shared/schemas';
 import type { ClaudeCallResult } from '../drift/claude-cli.js';
 import { readFolder, type FolderInput } from './gather.js';
 import type { FolderPlan } from './folders.js';
-import { buildPrompt, checkAnchors, parseReply, pinDeclaredId, PROMPT_SIGNATURE, type Declared } from './prompt.js';
+import { buildPrompt, checkAnchors, parseReply, nameBareAnchors, pinDeclaredId, PROMPT_SIGNATURE, type Declared } from './prompt.js';
 import { INFER_TUNING, type InferTuning } from './tuning.js';
 
 export type InferCall = (prompt: string, folder: string) => Promise<ClaudeCallResult>;
@@ -124,8 +124,9 @@ export function rowsFor(
       droppedProposals += 1;
       return;
     }
+    const anchors = nameBareAnchors(check.kept, input.files, `${p.title} ${p.body}`);
     // planned goes by the files the kept anchors cite, never by what the model says
-    const cited = new Set(check.kept.map((a) => a.split('#')[0]));
+    const cited = new Set(anchors.map((a) => a.split('#')[0]));
     const planned = input.files.filter((f) => cited.has(f.path)).every((f) => f.stub);
     rows.push({
       id: proposalId(input.folder, input.codeHash, i),
@@ -133,7 +134,7 @@ export function rowsFor(
       title: planned ? withPlanned(p.title, tuning.maxTitleChars) : p.title,
       body: planned ? withPlanned(p.body, tuning.maxBodyChars) : p.body,
       planned,
-      anchors: check.kept,
+      anchors,
       belongs_under: pinDeclaredId(p.belongs_under, 'concept', declared),
       restates: pinDeclaredId(p.restates, 'intent', declared),
       confidence: p.confidence,

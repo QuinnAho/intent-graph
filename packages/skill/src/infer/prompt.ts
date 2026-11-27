@@ -20,7 +20,7 @@ export const INFER_SYSTEM_PROMPT = [
   'If the folder is plumbing or glue, say what it makes possible for the rest of the product, not that it is glue.',
   'A file marked STUB has no working code. Its comment says what it is meant to do, so propose that, but write the body as a plan: start it with "Planned:", say that nothing runs yet, and use "semantic". Never describe a stub as if it already works. When every file you cite is a stub, start the title with "Planned:" too, and word it as something that will be so, never as something that is.',
   'Say only what the shown code supports. If you cannot tell what part of it is for, leave that out and use "semantic" as the confidence.',
-  'anchors are two to eight places in the shown code that are your evidence. Copy them exactly from the names shown, as path or path#Symbol. Never invent one.',
+  'anchors are two to eight places in the shown code that are your evidence. Copy them exactly from the names shown. Always cite a symbol as path#Symbol when the file lists top-level symbols, naming the one your point is about. Use the path alone only for a file that shows no top-level symbols. Never invent one.',
   'belongs_under is the id of a declared concept this sits under, or null. restates is the id of a declared intent that this proposal says nearly the same thing as, or null. Use ids exactly as listed. Use null when unsure.',
   'confidence is "inferred" when the shown code states its purpose plainly, and "semantic" when you are reading it between the lines.',
   'Reply with the JSON object only.',
@@ -231,6 +231,31 @@ export function checkAnchors(raw: readonly string[], files: readonly Pick<FileDi
     if (!kept.includes(clean)) kept.push(clean);
   }
   return { kept, dropped };
+}
+
+/**
+ * A bare path names no symbol, so for a file that has top-level symbols it is made to name one. It is dropped when the
+ * proposal already cites that file by a symbol, else it takes the symbol the title or body names, else the file's first
+ * top-level symbol. A file with no top-level symbol keeps its bare path.
+ */
+export function nameBareAnchors(kept: readonly string[], files: readonly Pick<FileDigest, 'path' | 'anchorNames'>[], text: string): string[] {
+  const byPath = new Map(files.map((f) => [f.path, f.anchorNames] as const));
+  const symbolsOf = (a: string): readonly string[] => (a.includes('#') ? [] : (byPath.get(a) ?? []));
+  const citedBySymbol = new Set(kept.filter((a) => a.includes('#')).map((a) => a.split('#')[0]));
+  const words = new Set(text.match(/[A-Za-z0-9_$]+/g) ?? []);
+  const out: string[] = [];
+  for (const a of kept) {
+    const names = symbolsOf(a);
+    // a symbol anchor, or a file with no symbol to name, stays as it is
+    let next = a;
+    if (names.length > 0) {
+      if (citedBySymbol.has(a)) continue;
+      const own = (n: string): string => n.slice(a.length + 1);
+      next = names.find((n) => words.has(own(n).split('.')[0]!)) ?? names.find((n) => !own(n).includes('.')) ?? names[0]!;
+    }
+    if (!out.includes(next)) out.push(next);
+  }
+  return out;
 }
 
 /** An id the model made up, or one of the wrong kind, becomes null. */
