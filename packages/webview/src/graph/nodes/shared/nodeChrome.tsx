@@ -9,6 +9,7 @@ import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldChe
 import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
 import { useUiStore } from '../../../store/ui-slice.js';
+import { SPEC_KINDS } from '../../../transport/live-source.js';
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
 import { RenameField } from './RenameField.js';
 import { PinContext } from '../../edges/wire-context.js';
@@ -259,6 +260,8 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
   const { data } = props;
   const nodeId = useNodeId();
   const renaming = useUiStore((s) => nodeId !== null && s.renameId === nodeId);
+  // a title can be renamed in place only on a spec node and only when the server takes writes
+  const renamable = useUiStore((s) => s.editConfig.write) && SPEC_KINDS.has(data.kind);
   const pending = useUiStore((s) => (nodeId !== null ? s.pendingTitles[nodeId] : undefined));
   const setPendingTitle = useUiStore((s) => s.setPendingTitle);
   const shown = pending ?? data.label;
@@ -332,6 +335,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
               position: 'relative',
             }}
             data-node-title=""
+            {...(renamable && !renaming ? { 'data-renamable': '', title: 'Double-click or F2 to rename' } : {})}
           >
             {/* while the rename field is open the text stays, hidden, so the box does not change */}
             <span style={renaming ? { visibility: 'hidden' } : undefined}>{shown}</span>

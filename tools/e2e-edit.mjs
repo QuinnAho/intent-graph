@@ -462,6 +462,49 @@ try {
   if (!plusIn) await fail('the plus button is not inside the concept header strip');
   await page.screenshot({ path: join(runDir, 'direct-4-plus-button.jpg'), ...FRAME });
 
+  // lane 7 fix: with nothing selected, a real double-click on a title opens the rename field on that node.
+  // the first click selects and would open the panel and pan the view, so the second must still land on the title.
+  const titleCentre = async (id) => { const r = await rectOf(`${nodeSel(id)} [data-node-title]`); return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null; };
+  const deselect = async () => { await page.keyboard.press('Escape'); await page.mouse.click(30, 400); await page.waitForTimeout(500); };
+  const freshDouble = async (id, label) => {
+    await deselect();
+    if (await page.locator('[data-edit-panel]').count()) await fail(`${label}: something stayed selected before the double-click`);
+    const c = await titleCentre(id);
+    if (!c) await fail(`${label}: no title for ${id}`);
+    const v0 = await viewTransform();
+    await page.mouse.dblclick(c.x, c.y);
+    const opened = await field.waitFor({ timeout: 3000 }).then(() => true, () => false);
+    if (!opened) { const st = await page.evaluate((cc) => ({ at: document.elementFromPoint(cc.x, cc.y)?.outerHTML.slice(0, 120), panel: document.querySelector('[data-edit-panel]')?.getAttribute('data-edit-panel') ?? null }), c); await fail(`${label}: a double-click on the title of an unselected node did not open the rename field ${JSON.stringify(st)} ${v0} then ${await viewTransform()}`); }
+    const on = await page.evaluate(() => document.querySelector('[data-rename-field]')?.closest('.react-flow__node')?.getAttribute('data-id'));
+    if (on !== id) await fail(`${label}: the rename field opened on ${on}, not ${id}`);
+    await page.waitForTimeout(600);
+    if ((await viewTransform()) !== v0) await fail(`${label}: the view moved while the field was open`);
+    if ((await field.count()) !== 1) await fail(`${label}: the rename field closed on its own`);
+    const act = await page.evaluate(() => document.activeElement === document.querySelector('[data-rename-field]'));
+    if (!act) await fail(`${label}: the rename field is open but does not hold the focus`);
+    await page.keyboard.press('Escape');
+    await field.waitFor({ state: 'detached', timeout: 3000 }).catch(() => fail(`${label}: Escape did not close the rename field`));
+  };
+  await freshDouble(gid, 'middle of the view');
+  // a node that sits where the panel opens: drag the view so the title is near the right edge
+  await deselect();
+  const cg = await titleCentre(gid);
+  const winW = await page.evaluate(() => window.innerWidth);
+  const shift = Math.round(winW - 200 - cg.x);
+  await page.mouse.move(30, 400);
+  await page.mouse.down();
+  await page.mouse.move(30 + shift, 400, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const cg2 = await titleCentre(gid);
+  if (!cg2 || cg2.x < winW - 380) await fail(`could not park the node under the panel zone: ${JSON.stringify(cg2)}`);
+  await freshDouble(gid, 'under the panel zone');
+  await deselect();
+  await page.mouse.click(30, 400, { button: 'right' });
+  await page.locator('[data-menu-item="fit-view"]').click();
+  await page.waitForTimeout(900);
+  console.log(`ok double-click unselected (${secs()}s) - nothing selected, a real double-click on the title opens the rename field in the middle and under the panel zone`);
+
   // a double-click on empty canvas still zooms, on a node it does not
   await page.locator(nodeSel(gid)).click();
   await page.locator(`[data-edit-panel="${gid}"]`).waitFor({ timeout: 3000 });
@@ -532,6 +575,43 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForFunction((t) => document.querySelector('[data-edit-title]')?.value === t, renamed, { timeout: 3000 });
   console.log(`ok panel first (${secs()}s) - unsaved panel text kept, the rename went to the panel title field`);
+
+  // polish: the title says it can be renamed, the focus ring is clear, tabbing the panel never drops to the body
+  const hint = await page.evaluate((sel) => { const t = document.querySelector(sel); const cs = t && getComputedStyle(t); return t && { title: t.getAttribute('title'), cursor: cs.cursor }; }, `${nodeSel(gid)} [data-node-title]`);
+  if (!hint || hint.title !== 'Double-click or F2 to rename' || hint.cursor !== 'text') await fail(`the title gives no rename hint: ${JSON.stringify(hint)}`);
+  await page.locator(nodeSel(gid)).focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  const ring = await page.evaluate((id) => { const n = document.querySelector('.react-flow__node[data-id="' + id + '"]'); const b = n.querySelector('.ig-node-body'); const cs = getComputedStyle(b); return { focused: document.activeElement === n, width: parseFloat(cs.outlineWidth), style: cs.outlineStyle, offset: parseFloat(cs.outlineOffset) }; }, gid);
+  if (!ring.focused || (ring.style !== 'solid' || ring.width < 3 || ring.offset < 3)) await fail(`the keyboard focus ring on a node is too faint: ${JSON.stringify(ring)}`);
+  await page.locator('[data-edit-title]').focus();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  const seen = [];
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Tab');
+    const a = await page.evaluate(() => document.activeElement === document.body ? 'BODY' : (document.activeElement.getAttribute('data-edit-cancel') !== null ? 'cancel' : document.activeElement.tagName));
+    seen.push(a);
+    if (a === 'BODY') await fail(`tabbing the panel dropped focus to the page body: ${seen.join(' > ')}`);
+    if (a === 'cancel') break;
+  }
+  if (seen[seen.length - 1] !== 'cancel') await fail(`Tab did not reach Cancel: ${seen.join(' > ')}`);
+  await page.keyboard.press('Enter');
+  await page.waitForFunction((t) => document.querySelector('[data-edit-title]')?.value === t, renamed, { timeout: 3000 });
+  if (await page.evaluate(() => document.activeElement === document.body)) await fail('pressing Cancel from the keyboard dropped focus to the page body');
+  await page.locator('[data-edit-panel] button[aria-label="Close panel"]').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 });
+  if (await page.evaluate(() => document.activeElement === document.body)) await fail('closing the panel from the keyboard dropped focus to the page body');
+  // a single click still opens the panel quickly
+  await deselect();
+  const ct = await titleCentre(gid);
+  const tClick = Date.now();
+  await page.mouse.click(ct.x, ct.y);
+  await page.locator(`[data-edit-panel="${gid}"]`).waitFor({ timeout: 3000 });
+  const openMs = Date.now() - tClick;
+  if (openMs > 400) await fail(`a single click took ${openMs} ms to open the panel`);
+  console.log(`ok polish (${secs()}s) - rename hint and text cursor on the title, focus ring ${ring.width}px, tab order never reaches the body, single click opens the panel in ${openMs} ms`);
 
   // the right-click menu on a concept
   await page.keyboard.press('Escape');

@@ -77,6 +77,9 @@ New: app/direct-edit-model.ts (pure rules, 25 tests), direct-edit-actions.ts, gr
 - Right-click on a code node leaves the browser menu alone, as does everything outside the canvas.
 - A saved title shows at once and is dropped when the live update brings the same label, or after 5 s.
 - The panel title can lag a moment behind a rename until the live update reloads it.
+- Fix, double-click on an unselected title: the first click makes React Flow draw the node again, hidden and shifted for a frame, so the second click landed on the concept box. The canvas now remembers the title from the first click and matches the dblclick by place (6 px) and time (500 ms). The rename field retries its focus while the node is hidden.
+- The panel and the pan wait 250 ms for a new selection (use-settled-id.ts, tuning in view-tuning.ts), so a slow double-click is not covered by the panel. A pick from the right-click menu skips the wait. A single click opens the panel in about 330 ms.
+- Polish: the title of a spec node has a text cursor, a hover tint and the title attribute "Double-click or F2 to rename", only when the server takes writes. The node focus ring is 3 px with a halo. Save and Cancel use aria-disabled so they stay in the tab order, and closing the panel from inside it returns focus to the node.
 
 ## Results
 

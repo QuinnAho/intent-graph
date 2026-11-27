@@ -15,6 +15,7 @@ import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-ed
 import { directKey } from './direct-edit-model.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
+import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
 import {
@@ -170,7 +171,7 @@ export function App(): JSX.Element {
   const live = useMemo(() => readLiveSource(window.location.search, window.__INTENTGRAPH_LIVE__), []);
   const focus = useMemo(() => readFocus(window.location.search), []);
   const pendingSelect = useUiStore((s) => s.pendingSelect);
-  const editNodeId = useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null);
+  const editNodeId = useSettledId(useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null));
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
 

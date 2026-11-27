@@ -27,7 +27,7 @@ import { HoverNodeContext, PinContext } from './edges/wire-context.js';
 import { planWires } from './edges/wire-plan.js';
 import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
-import { PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, PANEL_TUNING, WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -191,18 +191,34 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return undefined;
+    // the first click selects a node and the page redraws it for a moment, so the second click can land
+    // on the box behind it. the title is remembered from the first click and matched by place and time.
+    let lastTitle: { id: string; x: number; y: number; at: number } | null = null;
+    const onClick = (e: globalThis.MouseEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const title = target && !target.closest('textarea, input, button') ? target.closest('[data-node-title]') : null;
+      const id = title?.closest('.react-flow__node')?.getAttribute('data-id');
+      if (id) lastTitle = { id, x: e.clientX, y: e.clientY, at: e.timeStamp };
+    };
     const onDouble = (e: globalThis.MouseEvent): void => {
       const target = e.target instanceof Element ? e.target : null;
       const nodeEl = target?.closest('.react-flow__node');
       if (!target || !nodeEl) return;
       e.stopPropagation();
-      if (target.closest('textarea, input, button') || !target.closest('[data-node-title]')) return;
-      const id = nodeEl.getAttribute('data-id');
+      let id: string | null | undefined;
+      if (target.closest('textarea, input, button')) return;
+      if (target.closest('[data-node-title]')) id = nodeEl.getAttribute('data-id');
+      else if (lastTitle && e.timeStamp - lastTitle.at <= EDIT_TIMING.doubleClickMs && Math.hypot(e.clientX - lastTitle.x, e.clientY - lastTitle.y) <= EDIT_TIMING.samePointPx) id = lastTitle.id;
+      if (!id) return;
       const type = nodesRef.current.find((n) => n.id === id)?.type;
-      if (id && type && SPEC_KINDS.has(type)) renameNode(id);
+      if (type && SPEC_KINDS.has(type)) renameNode(id);
     };
+    el.addEventListener('click', onClick, true);
     el.addEventListener('dblclick', onDouble, true);
-    return () => el.removeEventListener('dblclick', onDouble, true);
+    return () => {
+      el.removeEventListener('click', onClick, true);
+      el.removeEventListener('dblclick', onDouble, true);
+    };
   }, [drawn]);
 
   const handleNodeContext = useCallback<NodeMouseHandler>((event, node) => {

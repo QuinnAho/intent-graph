@@ -13,6 +13,8 @@ import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
 import { escapeLayer } from './direct-edit-model.js';
+import { focusNode } from './direct-edit-actions.js';
+import { useSettledId } from './use-settled-id.js';
 import { isDirty, isSaveKey, kindsProblem, pickEditNode, titleProblem, toggleKind, type Draft } from './edit-model.js';
 import { CREATE_TUNING } from './edit-tuning.js';
 import { PANEL_TUNING } from '../graph/view-tuning.js';
@@ -100,7 +102,10 @@ function openLayers(): { menuOpen: boolean; renameOpen: boolean } {
 
 function clearSelection(): void {
   const s = useGraphStore.getState();
+  // focus inside the panel would fall to the page body when the panel goes, so it goes back to the node
+  const back = document.activeElement?.closest('[data-edit-panel]') ? pickEditNode(s.nodes)?.id ?? null : null;
   s.setGraph(s.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), s.edges);
+  focusNode(back);
 }
 
 // ctrl+s and esc while the panel is open, wherever the focus is
@@ -271,10 +276,10 @@ function NodeEditor(props: { node: Node }): JSX.Element {
               <textarea data-edit-body="" style={BODY_FIELD} value={draft.body} spellCheck onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
             </label>
             <div style={ROW}>
-              <button type="submit" style={{ ...PRIMARY, opacity: dirty && !busy ? 1 : 0.5 }} disabled={!dirty || busy} data-edit-save="">
+              <button type="submit" style={{ ...PRIMARY, opacity: dirty && !busy ? 1 : 0.5 }} aria-disabled={!dirty || busy} data-edit-save="">
                 {busy ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" style={{ ...BUTTON, opacity: dirty ? 1 : 0.5 }} disabled={!dirty} onClick={cancel} data-edit-cancel="">
+              <button type="button" style={{ ...BUTTON, opacity: dirty ? 1 : 0.5 }} aria-disabled={!dirty} onClick={dirty ? cancel : undefined} data-edit-cancel="">
                 Cancel
               </button>
               <span style={MUTED}>Ctrl+S or Cmd+S saves, Esc cancels</span>
@@ -465,7 +470,9 @@ function CreateForm(props: { parent: string }): JSX.Element {
 
 export function EditPanel(): JSX.Element | null {
   const createParent = useUiStore((s) => s.createParent);
-  const node = useGraphStore((s) => pickEditNode(s.nodes));
+  const picked = useGraphStore((s) => pickEditNode(s.nodes));
+  const settled = useSettledId(picked?.id ?? null);
+  const node = picked && picked.id === settled ? picked : null;
   if (createParent) return <CreateForm key={createParent} parent={createParent} />;
   if (!node) return null;
   return <NodeEditor key={node.id} node={node} />;

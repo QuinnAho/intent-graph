@@ -68,9 +68,20 @@ export function RenameField(props: { id: string; label: string }): JSX.Element {
     const el = field.current;
     el?.focus({ preventScroll: true });
     el?.select();
+    // a node drawn again after a click is hidden for a moment and cannot take focus, so try again
+    let tries = 0;
+    let frame = 0;
+    const retry = (): void => {
+      if (!el || document.activeElement === el || tries++ >= 20) return;
+      el.focus({ preventScroll: true });
+      if (document.activeElement === el) el.select();
+      else frame = window.requestAnimationFrame(retry);
+    };
+    if (el && document.activeElement !== el) frame = window.requestAnimationFrame(retry);
     // an unmount for any other reason (a different node renamed) leaves nothing half done
     return () => {
       finished.current = true;
+      window.cancelAnimationFrame(frame);
     };
     // the field opens once per node
   }, []);
