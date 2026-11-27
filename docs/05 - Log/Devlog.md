@@ -163,3 +163,17 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Layers: yes, and it is the same question as nesting. The options, what others do and a small experiment are in [[2026-11-27 Layers - Approaches]]. It waits for the owner's go.
 
 **Evidence.** The gate and the end-to-end scripts were run on `main` in a clean checkout before the push. The pass lines are in the run log.
+
+### 2026-11-27, 5:40 PM  The inference script merged to day-2
+
+**What happened.** Lane 9: `node tools/infer.mjs` reads the source folders that no declared intent claims and asks a cheap model what each is for. It sends file names, leading comments and top-level signatures, never whole files, and at most 12,000 characters a folder. Each proposal has a title in the style of this repo's intents, a short body, the symbols it was read from, the concept it belongs under, the declared intent it seems to restate, a confidence word, and a flag for code that is only a placeholder. Every anchor is checked against the real code. Results are cached by a hash of the code, the declared titles and the prompt, so a second run costs nothing. A spending cap stops a run. Nothing is written under `spec/`.
+
+**Why it matters.** This repo has 12 declared intents and no link from any of them to code. The script found 66 things the code does or plans to do, in about 4 minutes and 6 cents. It is the bottom-up half of "declared and inferred": what the code seems to be for, to set beside what a person said it is for.
+
+**Evidence.** On `day-2` at `2c84e63`: `PASS all (68.4s) - 4 steps, 454 tests`, and `PASS infer - 66 proposals from 42 folders, 0 calls, 42 cached`. Of the 66, 21 are marked planned and every one of those titles starts with "Planned:". 229 of 235 anchors name a symbol, and the other 6 are files with no top-level symbol. No anchor points at a missing file.
+
+**Quality, three reads.** The builder's first prompt got 36 of 58 right, mostly because it described placeholder files as working code. After marking placeholders it judged 59 of 64 right and none wrong. An independent verifier drew eight at random and read the code: 6 right, 2 vague, 0 wrong. The owner was shown a sample.
+
+**What the verifier caught.** Ten of twelve checks passed: the cache, the cap, the isolated model call with its arguments quoted, a byte-identical `spec/` folder, and a file comment that told the model to say something else and was ignored. Fixed afterwards by a second agent: planned code that read as built, a prompt 16 characters over its cap, 30 anchors that named a file where a symbol was meant, a restated intent that was not named, and a cache key that did not cover the prompt.
+
+**Not yet.** The model now names a restated intent 14 times, and some are a stretch. A person has to settle those, which is what the next lane is for. Nothing shows on the graph yet.

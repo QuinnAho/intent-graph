@@ -19,8 +19,9 @@ Declared and inferred intent: the owner said go on 2026-11-27. Options and the r
 
 | Lane | What | Branch | Status |
 |---|---|---|---|
-| 9 infer, the script | A cheap model reads source folders that no intent claims and proposes what the code is for, with the symbols it read as evidence. A report under `.runs/infer/`, never a write to `/spec`. The owner reads the proposals for this repo before the next lane starts. Lane note: [[infer]] | `infer` | building |
-| 10 inferred on the graph | The proposals drawn dashed, nested with their code. Enter accepts and writes a spec file, a double-click edits first, Delete dismisses | `inferred-graph` | waits for lane 9 and the owner's read of its proposals |
+| 10 inferred on the graph | The proposals drawn dashed, with the word "inferred". Enter accepts and writes a spec file tied to that code, a double-click edits first, Delete dismisses, undo takes any of it back. Lane note: [[inferred-graph]] | `inferred-graph` | building |
+
+Lane 9 (the inference script, `node tools/infer.mjs`) is merged into `day-2`. See the [[Devlog]].
 
 ## Waiting on the owner
 
