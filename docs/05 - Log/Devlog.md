@@ -90,3 +90,21 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - This lane ran one model tier down at medium effort. It took 10 minutes and passed its gate and its verifier on the first try.
 
 **Not yet.** With two marks in the header a title is cut after about 14 characters (lane 6). This repo's own nodes show no drift mark, because no real spec file has anchors. The report is found by a 400 ms poll.
+
+### 2026-11-27, 8:53 AM  Editing polish merged to night-1, and the loop ended
+
+**What happened.** Lane 6: the view moves so the selected node stays clear of the open panel, read only shows text instead of dimmed inputs, a title of up to 40 characters is shown in full on one or two lines, the new-intent form asks for target kinds so a new intent is no longer listed as a problem, the problems list sits in a strip under the canvas, Cmd+S saves as well as Ctrl+S, and `open-graph.cmd` and `open-graph-edit.cmd` open the graph of this repo with a double-click. With that every lane that had a go is merged, and the loop stopped.
+
+**Why it matters.** The first cut of editing was judged from frames and its rough edges were listed. This lane closed that list before anyone had to ask twice.
+
+**Evidence.** On `night-1` at `69313c4`: `PASS all (44.8s) - 4 steps, 304 tests`, `PASS e2e-edit (32.9s) - label 389 ms, new node 879 ms`, `PASS e2e-live`, `PASS e2e-wires - fixture 0 crossing 0 loose, repo 0 crossing on 0/4 wires 0 loose`, `PASS e2e-drift-marks - marks 450 ms, change 256 ms, stale 378 ms, no model process`, and `node tools/play.mjs --no-open` served the page and stopped on a `stop` line. An independent verifier passed 16 of 17 checks: one selected node at a time, the node clear of the panel at two window sizes, six bad `target_kinds` requests refused with 422 and nothing written, a byte-exact save on a file with comments and Windows line endings, no inputs and a 403 in read only, a 132 character path readable in full, and two launchers at once on two ports. Frames: `docs/05 - Log/Frames/2026-11-27 Night 1/`, files `6a` to `6i`, with a verdict for each in the README there.
+
+**Calls taken in loop.**
+- The failed check was scope again: the create endpoint lives in `packages/skill/src/live/edit-api.ts`, and the lane note named `server.ts`. Eight lines, disclosed by the builder, accepted.
+- One old check in `tools/e2e-edit.mjs` was replaced: "fields are disabled in read only" became "no input exists". The lane note asks for exactly that.
+- The builder moved the problems list under the canvas instead of floating it.
+- Lanes 5 and 6 ran one model tier down at medium effort. Both passed the gate and the verifier's behaviour checks on the first try.
+
+**Not yet.** The form offers the nine node kinds from the code schema, while this repo's intents use `module` and `api` (Board, call 3). The "Add intent" button can be cut off at the top edge after the view moves. Nobody has double-clicked the launcher files yet.
+
+**The day in numbers.** 91 tests when the overhaul merged, 304 now. Six feature lanes, each gated by script and then checked by a verifier that never saw the builder's report. The verifiers found five real faults that had passed the builders' own tests, all in lanes 1 and 2, all fixed. `main` did not move.
