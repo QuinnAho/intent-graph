@@ -16,7 +16,7 @@ import { build, type BuildGraphResult } from '../build-graph.js';
 import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
-import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, setParent, type ApiReply, type EditTarget } from './edit-api.js';
+import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, parentsOnDisk, setParent, withParentsFromDisk, type ApiReply, type EditTarget } from './edit-api.js';
 import { hashSpecSource } from '../parser/spec-md/writer.js';
 import { UndoLog } from './undo-log.js';
 import { buildDriftMarks } from './drift-marks.js';
@@ -131,6 +131,13 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let closed = false;
   const clients = new Set<ServerResponse>();
   const undoLog = new UndoLog(tuning.undoDepth);
+  // every write runs alone and in the order it arrived, so a check never sees a half-done neighbour
+  let writeTail: Promise<void> = Promise.resolve();
+  const enqueue = (job: () => void): Promise<void> => {
+    const run = writeTail.then(job);
+    writeTail = run.catch(() => {});
+    return run;
+  };
 
   const publish = (): void => {
     if (!result) return;
@@ -334,6 +341,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       return;
     }
     const input = read.value;
+    await enqueue(() => {
     let reply: ApiReply & { readonly written?: string };
     // bytes before the write, so undo can put them back. null means the write makes the file.
     let before: Buffer | null = null;
@@ -356,7 +364,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       const target = editTarget(id);
       before = bytesOf(target);
       label = `parent of ${id}`;
-      reply = setParent(root, target, id, input, graph?.nodes ?? [], today());
+      reply = setParent(root, target, id, input, withParentsFromDisk(graph?.nodes ?? [], parentsOnDisk(root)), today());
     } else if (undoing) {
       reply = undoLog.undo(root);
     } else {
@@ -375,6 +383,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       log(`write refused (${reply.status}): ${String(reply.body['message'])}`);
     }
     sendJson(res, reply);
+    });
   }
 
   const driftPoll = setInterval(() => {

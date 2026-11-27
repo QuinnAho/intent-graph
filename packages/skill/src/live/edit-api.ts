@@ -4,7 +4,7 @@
 // json, so another site in the browser cannot post here. files are only ever written
 // inside the workspace's spec/ folder.
 
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync, type Dirent } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -240,4 +240,37 @@ export function createIntent(
   const r = createIntentFile(resolve(root, 'spec'), { title: input.title, parent: parent.id, today, targetKinds: targetKinds as string[] });
   if (!r.ok) return apiError(r.code === 'duplicate' ? 409 : 422, r.code, r.reason);
   return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file) }, written: relPath(root, r.file) };
+}
+
+/** id -> parent as the spec files hold them right now, read from disk. a file that does not parse is skipped. */
+export function parentsOnDisk(root: string): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  const walk = (dir: string): void => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = resolve(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.isFile() && e.name.toLowerCase().endsWith('.md')) {
+        try {
+          const spec = readSpecForEdit(p, readFileSync(p, 'utf8'));
+          const parent = spec.raw['parent'];
+          out.set(spec.id, typeof parent === 'string' ? parent : null);
+        } catch {
+          // not a spec node, the build reports it
+        }
+      }
+    }
+  };
+  walk(resolve(root, 'spec'));
+  return out;
+}
+
+/** the cached nodes with each spec node's parent taken from the files, so the loop check sees what is on disk */
+export function withParentsFromDisk(nodes: ReadonlyArray<ParentNode>, disk: ReadonlyMap<string, string | null>): ParentNode[] {
+  return nodes.map((n) => (disk.has(n.id) ? { ...n, parent_id: disk.get(n.id) ?? null } : n));
 }

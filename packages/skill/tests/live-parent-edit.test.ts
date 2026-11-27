@@ -217,3 +217,86 @@ describe('live server parent edits and undo', () => {
     expect(read('spec/intents/a.md')).toBe(handEdit);
   });
 });
+
+const concept = (id: string, parent: string): string => `---\nid: ${id}\ntitle: ${id}\nparent: ${parent}\nconfidence: asserted\n---\n`;
+
+describe('writes that arrive together', () => {
+  let dir = '';
+  let server: LiveServer;
+  let token = '';
+  const post = (path: string, body: unknown): Promise<Response> =>
+    fetch(`${server.url}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': token }, body: JSON.stringify(body) });
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'ig-race-'));
+    mkdirSync(join(dir, 'spec', 'concepts'), { recursive: true });
+    mkdirSync(join(dir, 'web'));
+    writeFileSync(join(dir, 'web', 'index.html'), '<html><head></head><body></body></html>');
+    writeFileSync(join(dir, 'spec', 'concepts', 'c.md'), concept('concept-c', 'null'));
+    writeFileSync(join(dir, 'spec', 'concepts', 'd.md'), concept('concept-d', 'null'));
+    server = await startLiveServer({ root: dir, port: 0, webDir: join(dir, 'web'), write: true, today: () => TODAY });
+    token = String((JSON.parse(/__INTENTGRAPH_LIVE__ = (\{.*?\});/.exec(await (await fetch(server.url)).text())![1]!) as Record<string, unknown>)['token']);
+  });
+  afterAll(async () => {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('refuses the second of two requests that would make a loop, however fast it comes', async () => {
+    const c0 = readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8');
+    const d0 = readFileSync(join(dir, 'spec', 'concepts', 'd.md'), 'utf8');
+    for (let round = 0; round < 5; round++) {
+      const [a, b] = await Promise.all([post('api/parent?id=concept-c', { parent: 'concept-d' }), post('api/parent?id=concept-d', { parent: 'concept-c' })]);
+      expect([a.status, b.status]).toEqual([200, 422]);
+      const c = readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8');
+      const d = readFileSync(join(dir, 'spec', 'concepts', 'd.md'), 'utf8');
+      expect(c.includes('parent: concept-d') && d.includes('parent: concept-c')).toBe(false);
+      expect(d).toBe(d0);
+      expect((await post('api/undo', {})).status).toBe(200);
+      expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(c0);
+    }
+  });
+
+  it('keeps writes in the order they arrived', async () => {
+    const replies = await Promise.all([
+      post('api/parent?id=concept-c', { parent: 'concept-d' }),
+      post('api/parent?id=concept-c', { parent: null }),
+      post('api/parent?id=concept-c', { parent: 'concept-d' }),
+    ]);
+    expect(replies.map((r) => r.status)).toEqual([200, 200, 200]);
+    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toContain('parent: concept-d');
+    for (let i = 0; i < 3; i++) expect((await post('api/undo', {})).status).toBe(200);
+    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(concept('concept-c', 'null'));
+  });
+
+  it('checks the loop against the files on disk, not the cached graph', async () => {
+    // a hand edit the watcher may not have seen yet
+    writeFileSync(join(dir, 'spec', 'concepts', 'd.md'), concept('concept-d', 'concept-c'));
+    const r = await post('api/parent?id=concept-c', { parent: 'concept-d' });
+    expect(r.status).toBe(422);
+    expect(readFileSync(join(dir, 'spec', 'concepts', 'c.md'), 'utf8')).toBe(concept('concept-c', 'null'));
+    writeFileSync(join(dir, 'spec', 'concepts', 'd.md'), concept('concept-d', 'null'));
+  });
+});
+
+describe('a loop made by hand', () => {
+  it('answers with one problem that names the files and does not hang', async () => {
+    const d = mkdtempSync(join(tmpdir(), 'ig-loop-'));
+    mkdirSync(join(d, 'spec', 'concepts'), { recursive: true });
+    writeFileSync(join(d, 'spec', 'concepts', 'p.md'), concept('concept-p', 'concept-q'));
+    writeFileSync(join(d, 'spec', 'concepts', 'q.md'), concept('concept-q', 'concept-p'));
+    writeFileSync(join(d, 'spec', 'concepts', 'r.md'), concept('concept-r', 'concept-q'));
+    const s = await startLiveServer({ root: d, port: 0, write: true, today: () => TODAY });
+    try {
+      const g = (await (await fetch(`${s.url}graph.json`, { signal: AbortSignal.timeout(5000) })).json()) as { problems: Array<{ severity: string; file: string; message: string }> };
+      const loops = g.problems.filter((p) => /loop/i.test(p.message));
+      expect(loops).toHaveLength(1);
+      expect(loops[0]!.message).toContain('p.md');
+      expect(loops[0]!.message).toContain('q.md');
+      expect(loops[0]!.message).not.toContain('r.md');
+    } finally {
+      await s.close();
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+});

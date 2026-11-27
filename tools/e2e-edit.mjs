@@ -386,6 +386,34 @@ async function wireChecks(page, w, nodeSel) {
   if (asks.noToken !== 403 || Object.entries(asks).some(([k, s]) => k !== 'noToken' && (s < 400 || s >= 500))) await fail(`direct parent requests answered ${JSON.stringify(asks)}`);
   if (files() !== f0 || readFileSync(shapesFile, 'utf8') !== s0) await fail('a refused parent request wrote a file');
   done.push(`direct requests refused ${JSON.stringify(asks)}`);
+
+  // two requests at once that would close a loop: one is written, the other refused, no loop on disk
+  const call = (path, tok, body) => page.evaluate(async ([p, t, b]) => (await fetch(p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': t }, body: b })).status, [path, tok, JSON.stringify(body)]);
+  const raceA = join(w.work, 'spec', 'concepts', 'race-a.md');
+  const raceB = join(w.work, 'spec', 'concepts', 'race-b.md');
+  const raceText = (id) => `---\nid: concept-race-${id}\ntitle: Race ${id}\nparent: null\nconfidence: asserted\n---\n`;
+  writeFileSync(raceA, raceText('a'));
+  writeFileSync(raceB, raceText('b'));
+  if (!(await graphHas(w, 'concept-race-b')) || !(await graphHas(w, 'concept-race-a'))) await fail('the live graph never showed the two race concepts');
+  const raced = await page.evaluate(async (t) => {
+    const post = async (id, parent) => (await fetch(`/api/parent?id=${id}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': t }, body: JSON.stringify({ parent }) })).status;
+    return Promise.all([post('concept-race-a', 'concept-race-b'), post('concept-race-b', 'concept-race-a')]);
+  }, token);
+  if (raced[0] !== 200 || raced[1] < 400 || raced[1] >= 500) await fail(`two requests that make a loop answered ${raced.join(' ')}`);
+  if (readFileSync(raceB, 'utf8') !== raceText('b') || !readFileSync(raceA, 'utf8').includes('parent: concept-race-b')) await fail('the refused half of a loop race wrote, or the first did not');
+  if ((await call('/api/undo', token, {})) !== 200 || readFileSync(raceA, 'utf8') !== raceText('a')) await fail('undo after the loop race did not restore the file');
+  done.push(`a loop race answers ${raced.join(' ')} and writes one side`);
+
+  // a file whose parent line is bare can be wired, with a space after the colon
+  const bare = join(w.work, 'spec', 'concepts', 'bare.md');
+  const bareText = '---\nid: concept-bare\ntitle: Bare\nparent:\nconfidence: asserted\n---\n';
+  writeFileSync(bare, bareText);
+  if (!(await graphHas(w, 'concept-bare'))) await fail('the live graph never showed the bare-parent concept');
+  const bareStatus = await call('/api/parent?id=concept-bare', token, { parent: 'concept-calculator' });
+  if (bareStatus !== 200 || !readFileSync(bare, 'utf8').includes('\nparent: concept-calculator\n')) await fail(`a bare parent line got ${bareStatus} and ${JSON.stringify(readFileSync(bare, 'utf8'))}`);
+  await call('/api/undo', token, {});
+  if (!(await waitForFile(bare, (t) => t === bareText))) await fail('undo of the bare parent did not restore the file');
+  done.push('a bare parent: line is wired as parent: <id>');
   return done.join(', ');
 }
 

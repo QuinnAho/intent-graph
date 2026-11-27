@@ -6,6 +6,7 @@ import type { LiveDrift } from '@intentgraph/shared/schemas';
 import { toGraphJson, type BuildGraphResult } from '../build-graph.js';
 import type { NodeAnchors } from '../parser/spec-md/anchors.js';
 import { mapCheckStatus, toRelative, type CheckStatus, type TestReport } from './check-status.js';
+import { findParentLoops } from './parent-rules.js';
 
 // a file the parser rejected or warned about. a rejected file has no node, so
 // this list is the only place it shows up.
@@ -71,6 +72,11 @@ export function composeLiveGraph(
     ...parsed,
     problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning')), ...(drift?.problem ? [drift.problem] : [])],
   };
+  // a loop made by hand has no top to draw from, so say it once and name its files
+  for (const ring of findParentLoops(graph.nodes)) {
+    const files = ring.map((id) => toRelative((anchors.get(id) as { file?: string } | undefined)?.file ?? id, root));
+    graph.problems.push({ severity: 'error', file: files[0]!, message: `parent loop, each of these is under the next: ${files.join(' -> ')} -> ${files[0]!}` });
+  }
   const ids = new Set(graph.nodes.map((x) => x.id));
   const symbolIds = graph.nodes.filter((x) => x.kind === 'code_symbol').map((x) => x.id);
 

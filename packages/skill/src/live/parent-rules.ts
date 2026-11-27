@@ -47,3 +47,29 @@ export function checkParentChange(nodes: ReadonlyArray<ParentNode>, childId: str
   }
   return null;
 }
+
+/** each loop in the parent chains once, as the ids in the order they point at each other */
+export function findParentLoops(nodes: ReadonlyArray<{ readonly id: string; readonly parent_id: string | null }>): string[][] {
+  const parentOf = new Map(nodes.map((n) => [n.id, n.parent_id]));
+  const done = new Set<string>();
+  const loops: string[][] = [];
+  for (const n of nodes) {
+    const path: string[] = [];
+    const at = new Map<string, number>();
+    let id: string | null | undefined = n.id;
+    while (id && parentOf.has(id) && !done.has(id)) {
+      const hit = at.get(id);
+      if (hit !== undefined) {
+        const ring = path.slice(hit);
+        const first = ring.indexOf([...ring].sort()[0]!);
+        loops.push([...ring.slice(first), ...ring.slice(0, first)]);
+        break;
+      }
+      at.set(id, path.length);
+      path.push(id);
+      id = parentOf.get(id);
+    }
+    for (const p of path) done.add(p);
+  }
+  return loops;
+}
