@@ -26,16 +26,17 @@ import {
   type LayoutWorkerRequest,
   type LayoutWorkerResponse,
 } from './layout-protocol.js';
+import { LAYOUT_TUNING } from '../view-tuning.js';
 
 const elk = new ELK();
 
+// left to right, per adr 0031. numbers live in view-tuning.
 const DEFAULT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
-  'elk.direction': 'DOWN',
-  'elk.spacing.nodeNode': '64',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '84',
-  'elk.padding': '[top=30,left=30,bottom=30,right=30]',
-  'org.eclipse.elk.portConstraints': 'FIXED_ORDER',
+  'elk.direction': LAYOUT_TUNING.direction,
+  'elk.spacing.nodeNode': String(LAYOUT_TUNING.nodeNode),
+  'elk.layered.spacing.nodeNodeBetweenLayers': String(LAYOUT_TUNING.betweenLayers),
+  'elk.padding': `[top=${LAYOUT_TUNING.padding},left=${LAYOUT_TUNING.padding},bottom=${LAYOUT_TUNING.padding},right=${LAYOUT_TUNING.padding}]`,
 };
 
 function buildLayoutOptions(overrides: LayoutOptions['elkOptions'] | undefined): Record<string, string> {

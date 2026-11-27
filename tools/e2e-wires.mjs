@@ -116,7 +116,10 @@ async function loadGraph(page, url) {
 }
 
 // runs in the page. everything in screen px, converted to flow units by the zoom.
-function measureInPage({ parents, ends, samples }) {
+// overLabel counts samples inside a leaf node or any node's header where the wire, not the node,
+// is on top. a box's own padding is left out, the wires of its children run there by design.
+// inView counts only ends inside the window, for views where some nodes are off screen.
+function measureInPage({ parents, ends, samples, loosePx, inView }) {
   const vp = document.querySelector('.react-flow__viewport');
   const zoom = Number(/scale\(([\d.e-]+)\)/.exec(vp?.style.transform ?? '')?.[1] ?? 1);
   const boxes = [...document.querySelectorAll('.react-flow__node')].map((el) => ({ id: el.getAttribute('data-id'), r: el.getBoundingClientRect() }));
@@ -135,7 +138,13 @@ function measureInPage({ parents, ends, samples }) {
   };
   const distToRect = (p, r) => Math.hypot(Math.max(r.left - p.x, 0, p.x - r.right), Math.max(r.top - p.y, 0, p.y - r.bottom));
   const inside = (p, r) => p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom;
-  const res = { wires: 0, crossSamples: 0, crossWires: 0, looseEnds: 0, ltr: 0, crossedBy: {}, loose: [] };
+  const holders = new Set(Object.values(parents));
+  const labels = [
+    ...boxes.filter((b) => !holders.has(b.id)).map((b) => b.r),
+    ...[...document.querySelectorAll('[data-node-header]')].map((h) => h.getBoundingClientRect()),
+  ];
+  const onScreen = (p) => p.x >= 0 && p.y >= 0 && p.x <= innerWidth && p.y <= innerHeight;
+  const res = { wires: 0, crossSamples: 0, crossWires: 0, looseEnds: 0, ltr: 0, overLabel: 0, crossedBy: {}, loose: [] };
   for (const g of document.querySelectorAll('.react-flow__edge')) {
     const id = g.getAttribute('data-id');
     const path = g.querySelector('path.react-flow__edge-path') ?? g.querySelector('path');
@@ -150,6 +159,10 @@ function measureInPage({ parents, ends, samples }) {
     let crossed = 0;
     for (let i = 0; i < samples; i++) {
       const p = at((len * i) / (samples - 1));
+      if (onScreen(p) && labels.some((r) => inside(p, r))) {
+        const top = document.elementFromPoint(p.x, p.y);
+        if (top && top.closest('.react-flow__edge')) res.overLabel += 1;
+      }
       const hit = boxes.find((b) => !skip.has(b.id) && inside(p, b.r));
       if (hit) {
         crossed += 1;
@@ -162,8 +175,9 @@ function measureInPage({ parents, ends, samples }) {
     const b = at(len);
     if (b.x > a.x) res.ltr += 1;
     for (const p of [a, b]) {
+      if (inView && !onScreen(p)) continue;
       const d = pins.length ? Math.min(...pins.map((r) => distToRect(p, r))) / zoom : Infinity;
-      if (d > 6) {
+      if (d > loosePx) {
         res.looseEnds += 1;
         if (res.loose.length < 5) res.loose.push(`${id} ${Math.round(d)}`);
       }
@@ -190,17 +204,17 @@ async function measurePage(browser, url, name, errors) {
   loads.sort((a, b) => a - b);
   const loadMs = loads[Math.floor(loads.length / 2)];
   await page.waitForTimeout(600);
-  const m = await page.evaluate(measureInPage, { parents, ends, samples: SAMPLES });
+  const m = await page.evaluate(measureInPage, { parents, ends, samples: SAMPLES, loosePx: LOOSE_PX, inView: false });
   m.loadMs = loadMs;
   m.graphEdges = graph.edges.length;
-  return { page, m };
+  return { page, m, parents, ends };
 }
 
 function describe(name, m) {
   const ltr = m.wires ? Math.round((100 * m.ltr) / m.wires) : 100;
   const crossShare = m.wires ? Math.round((1000 * m.crossWires) / m.wires) / 10 : 0;
   const top = Object.entries(m.crossedBy).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}:${v}`).join(' ');
-  return `${name}: ${m.wires} wires drawn of ${m.graphEdges}, ${m.crossSamples} crossing samples on ${m.crossWires} wires (${crossShare}%), ${m.looseEnds} loose ends, ${ltr}% left to right, laid out in ${m.loadMs} ms, ${m.nodes} nodes, ${m.pins} pins, zoom ${m.zoom.toFixed(2)}${top ? `, most crossed ${top}` : ''}${m.loose.length ? `, loose ${m.loose.join(' ')}` : ''}`;
+  return `${name}: ${m.wires} wires drawn of ${m.graphEdges}, ${m.crossSamples} crossing samples on ${m.crossWires} wires (${crossShare}%), ${m.looseEnds} loose ends, ${m.overLabel} samples over a node, ${ltr}% left to right, laid out in ${m.loadMs} ms, ${m.nodes} nodes, ${m.pins} pins, zoom ${m.zoom.toFixed(2)}${top ? `, most crossed ${top}` : ''}${m.loose.length ? `, loose ${m.loose.join(' ')}` : ''}`;
 }
 
 try {
@@ -234,6 +248,7 @@ try {
   console.log(`ok ${describe('fixture', fx.m)}`);
   if (fx.m.crossSamples > 0) problems.push(`fixture has ${fx.m.crossSamples} crossing samples`);
   if (fx.m.looseEnds > 0) problems.push(`fixture has ${fx.m.looseEnds} loose ends`);
+  if (fx.m.overLabel > 0) problems.push(`fixture has ${fx.m.overLabel} wire samples drawn over a node`);
   if (fx.m.wires && fx.m.ltr / fx.m.wires < MIN_LTR_SHARE) problems.push(`fixture ${fx.m.ltr}/${fx.m.wires} left to right`);
   await fx.page.close();
   if (!(await stopServer())) await fail('fixture server did not stop');
@@ -248,14 +263,17 @@ try {
   for (let i = 0; i < 4; i++) { await rp.page.mouse.wheel(0, -200); await rp.page.waitForTimeout(120); }
   await rp.page.waitForTimeout(500);
   await rp.page.screenshot({ path: join(runDir, 'b-repo-zoomed.jpg'), type: 'jpeg', quality: 85 });
-  const zm = await rp.page.evaluate(measureInPage, { parents: {}, ends: {}, samples: 2 });
+  const zm = await rp.page.evaluate(measureInPage, { parents: rp.parents, ends: rp.ends, samples: SAMPLES, loosePx: LOOSE_PX, inView: true });
   console.log(`ok ${describe('repo', rp.m)}`);
-  console.log(`ok repo zoomed: ${zm.wires} wires, ${zm.looseEnds} loose ends at zoom ${zm.zoom.toFixed(2)}`);
+  console.log(`ok repo zoomed: ${zm.wires} wires, ${zm.looseEnds} loose ends on screen, ${zm.overLabel} samples over a node at zoom ${zm.zoom.toFixed(2)}`);
+  if (zm.looseEnds > 0) problems.push(`zoomed repo has ${zm.looseEnds} loose ends on screen`);
+  if (zm.overLabel > 0) problems.push(`zoomed repo has ${zm.overLabel} wire samples drawn over a node`);
   await rp.page.close();
   if (!(await stopServer())) await fail('repo server did not stop');
 
   const m = rp.m;
   if (m.looseEnds > 0) problems.push(`repo has ${m.looseEnds} loose ends`);
+  if (m.overLabel > 0) problems.push(`repo has ${m.overLabel} wire samples drawn over a node`);
   if (m.wires && m.crossWires / m.wires > MAX_CROSS_WIRE_SHARE) problems.push(`repo ${m.crossWires}/${m.wires} wires cross a box`);
   if (BEFORE.repoCrossSamples > 0 && m.crossSamples > BEFORE.repoCrossSamples * (1 - MIN_CROSS_CUT)) problems.push(`repo crossing samples ${m.crossSamples}, before ${BEFORE.repoCrossSamples}`);
   if (m.wires && m.ltr / m.wires < MIN_LTR_SHARE) problems.push(`repo ${m.ltr}/${m.wires} left to right`);

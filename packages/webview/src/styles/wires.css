@@ -1,0 +1,5 @@
+/* blueprint-style selection: the selected node outlines, its wires thicken in WireEdge */
+.react-flow__node.selected > div > .ig-node-body {
+  border-color: rgba(120, 169, 255, 0.85) !important;
+  box-shadow: 0 0 0 1px rgba(120, 169, 255, 0.55), 0 10px 24px rgba(120, 169, 255, 0.14) !important;
+}

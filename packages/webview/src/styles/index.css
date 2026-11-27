@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import './wires.css';
 
 @tailwind base;
 @tailwind components;

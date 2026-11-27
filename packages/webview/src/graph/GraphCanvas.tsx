@@ -15,7 +15,13 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+
+import { SPEC_KINDS } from '../transport/live-source.js';
+import { HoverNodeContext, PinContext } from './edges/wire-context.js';
+import { planWires } from './edges/wire-plan.js';
+import { WireEdge } from './edges/WireEdge.js';
+import { WIRE_TUNING } from './view-tuning.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -52,7 +58,11 @@ const NODE_TYPES: NodeTypes = {
   task: TaskNode,
 };
 
-const EDGE_TYPES: EdgeTypes = {};
+// one wire component for every edge kind, colour and dash come from the kind
+const EDGE_TYPES: EdgeTypes = { wire: WireEdge };
+
+// the layout puts spec nodes and code nodes in two blocks. a wire between blocks is counted, not drawn.
+const viewBlock = (n: Node): string => (n.type !== undefined && SPEC_KINDS.has(n.type) ? 'spec' : 'code');
 
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 };
 
@@ -119,6 +129,23 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     [fitNodeIds],
   );
 
+  // wires run under node bodies: boxes at the bottom, then wires, then the nodes in them
+  const plan = useMemo(() => planWires(nodes, edges, viewBlock), [nodes, edges]);
+  const wires = useMemo(() => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire })), [plan]);
+  const stacked = useMemo(() => {
+    const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
+    return nodes.map((n) => ({ ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode }));
+  }, [nodes]);
+  const [hoverNode, setHoverNode] = useState<string | null>(null);
+  const handleNodeEnter = useCallback<NodeMouseHandler>(
+    (event, node) => {
+      setHoverNode(node.id);
+      onNodeMouseEnter?.(event, node);
+    },
+    [onNodeMouseEnter],
+  );
+  const handleNodeLeave = useCallback<NodeMouseHandler>(() => setHoverNode(null), []);
+
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
   const graphReady = graphLoaded && layoutReady;
   const hasMountedGraphRef = useRef(false);
@@ -147,10 +174,13 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   }
 
   return (
+    <PinContext.Provider value={plan.pins}>
+    <HoverNodeContext.Provider value={hoverNode}>
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={stacked}
+        edges={wires}
+        zIndexMode="manual"
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         fitView={fitView}
@@ -168,7 +198,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         onViewportChange={handleViewportChange}
         {...(onNodeClick ? { onNodeClick } : {})}
         {...(onNodesChange ? { onNodesChange } : {})}
-        {...(onNodeMouseEnter ? { onNodeMouseEnter } : {})}
+        onNodeMouseEnter={handleNodeEnter}
+        onNodeMouseLeave={handleNodeLeave}
         {...(onPaneMouseMove ? { onPaneMouseMove } : {})}
         {...(onPaneClick ? { onPaneClick } : {})}
         proOptions={{ hideAttribution: true }}
@@ -182,5 +213,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>
+    </HoverNodeContext.Provider>
+    </PinContext.Provider>
   );
 }
