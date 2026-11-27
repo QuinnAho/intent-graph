@@ -143,9 +143,10 @@ export function buildPrompt(
     }
     break;
   }
-  let note = '';
-  if (cut) {
-    const rest = input.files.slice(next).map((f) => f.path);
+  // the note is built after the cut, so it is measured here and blocks give way until the whole text fits
+  const noteFor = (shownFull: number, firstHidden: number): string => {
+    if (!cut) return '';
+    const rest = input.files.slice(firstHidden).map((f) => f.path);
     const names: string[] = [];
     let n = 0;
     for (const p of rest) {
@@ -155,9 +156,15 @@ export function buildPrompt(
     }
     const left = rest.length - names.length;
     const unseen = names.length > 0 ? ` Not shown: ${names.join(', ')}${left > 0 ? ` and ${left} more` : ''}.` : left > 0 ? ` ${left} files not shown.` : '';
-    note = `\n[CUT: the folder is longer than ${maxChars} characters, so only the first part is shown, ${full} of ${input.files.length} files in full.${unseen} Use "semantic" if what was cut could change your reading.]`;
+    return `\n[CUT: the folder is longer than ${maxChars} characters, so only the first part is shown, ${shownFull} of ${input.files.length} files in full.${unseen} Use "semantic" if what was cut could change your reading.]`;
+  };
+  const assemble = (): string => `${head}${blocks.join('\n\n')}${noteFor(full, blocks.length)}\n\n${tail}`;
+  let text = assemble();
+  while (text.length > maxChars && blocks.length > 0) {
+    blocks.pop();
+    full = Math.min(full, blocks.length);
+    text = assemble();
   }
-  const text = `${head}${blocks.join('\n\n')}${note}\n\n${tail}`;
   return { text, truncated: cut, filesShown: blocks.length, filesTotal: input.files.length };
 }
 

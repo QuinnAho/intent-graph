@@ -502,3 +502,28 @@ describe('planned proposals', () => {
     expect(r.proposals[0]!.title).not.toBe(claim);
   });
 });
+
+describe('the prompt cap with the note', () => {
+  it('holds 12000 characters with the cut note included, whatever the size of the folder', () => {
+    let cutSeen = 0;
+    for (const perFile of [3, 7, 12, 20, 30, 40]) {
+      for (const count of [25, 60, 140, 300]) {
+        const files = Array.from({ length: count }, (_, i) =>
+          digestFile(`packages/skill/src/some-long-folder-name/nested-part/file-number-${i}.ts`, Array.from({ length: perFile }, (_, j) => `export function fn${i}_${j}(a: number, b: string): string { return b + a; }`).join('\n')),
+        );
+        const p = buildPrompt(buildFolderInput('packages/skill/src/some-long-folder-name', files), declared);
+        if (p.truncated) cutSeen += 1;
+        expect(p.text.length, `${perFile} symbols, ${count} files`).toBeLessThanOrEqual(12_000);
+        if (p.truncated) expect(p.text).toContain('[CUT:');
+      }
+    }
+    expect(cutSeen).toBeGreaterThan(5);
+  });
+  it('holds the cap with a long declared list and a cut folder', () => {
+    const many: Declared[] = Array.from({ length: 60 }, (_, i) => ({ id: `intent-${i}`, kind: 'intent', title: 'A fairly long intent title that takes some room in the prompt '.repeat(2) }));
+    const files = Array.from({ length: 150 }, (_, i) => digestFile(`src/big/sub-folder/f${i}.ts`, Array.from({ length: 25 }, (_, j) => `export const c${i}_${j} = ${j};`).join('\n')));
+    const p = buildPrompt(buildFolderInput('src/big', files), many);
+    expect(p.truncated).toBe(true);
+    expect(p.text.length).toBeLessThanOrEqual(12_000);
+  });
+});
