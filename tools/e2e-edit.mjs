@@ -418,6 +418,28 @@ try {
   await page.screenshot({ path: join(runDir, 'extra-long-titles-drift.jpg'), ...FRAME });
   console.log(`ok titles (${secs()}s) - ${titles.length} nodes, none cut, 40 character title whole in ${longOne.lines} line(s), ${marks} drift marks`);
 
+  // 7b4 the open problems list does not cover a node's title
+  const brokenFile = join(w.work, 'spec', 'intents', 'broken-on-purpose.md');
+  writeFileSync(brokenFile, '---\nid: intent-broken\ntitle: [oops\n---\n');
+  await page.locator('[data-problems-count]').waitFor({ timeout: 5000 }).catch(() => {});
+  if ((await page.locator('[data-problems-count]').count()) !== 1) await fail('no problems count for a broken file');
+  await page.locator('[data-problems-count] button').click();
+  await page.locator('[aria-label="spec problems"]').waitFor({ timeout: 3000 });
+  await page.waitForTimeout(500);
+  const covered = await page.evaluate(() => {
+    const list = document.querySelector('[aria-label="spec problems"]').getBoundingClientRect();
+    return [...document.querySelectorAll('[data-node-title]')].filter((e) => {
+      const r = e.getBoundingClientRect();
+      const visible = r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+      return visible && r.left < list.right && list.left < r.right && r.top < list.bottom && list.top < r.bottom;
+    }).map((e) => e.textContent);
+  });
+  if (covered.length) await fail(`the problems list covers ${covered.length} title(s): ${covered[0]}`);
+  await page.screenshot({ path: join(runDir, 'extra-problems-open.jpg'), ...FRAME });
+  await page.locator('[data-problems-count] button').click();
+  rmSync(brokenFile);
+  console.log(`ok problems list (${secs()}s) - open, sits under the canvas, covers no title`);
+
   // 7c a write without the page token is refused
   const noToken = await page.evaluate(async () => (await fetch('/api/intents', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ parent: 'concept-calculator', title: 'No token' }) })).status);
   if (noToken !== 403) await fail(`a write without the token got ${noToken}`);
