@@ -11,11 +11,7 @@ Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules:
 
 The owner on 2026-11-27, paraphrased: editing on the graph has to be easy and intuitive, and every lane ends with polish.
 
-| Lane | What | Branch | Status | Evidence |
-|---|---|---|---|---|
-| 8 editing by wire | Drag from a pin to connect, delete a wire, drag an intent into another concept, undo. Lane note: [[wire-edit]] | `wire-edit` | building | |
-
-Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) is merged into `day-2`. See the [[Devlog]]. Frames: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
+None is building. Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are merged into `day-2`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
 ## An experiment, kept or dropped after a look
 
@@ -25,6 +21,7 @@ Lane 7 (direct editing: rename in place, a right-click menu, a plus in the conce
 
 ## Waiting on the owner
 
+0. **Merge `day-2` into `main`?** Lanes 7 and 8, after a look at the frames or a try: `node tools/e2e-edit.mjs --serve`.
 1. **Nesting, which variant?** Open in place (the intent grows into a box with its code inside), step inside (double-click enters the intent, with a way back), both side by side, or skip. Recommended: both, small, so the pick is made on frames.
 2. **ADR 0030, the anchor format.** Accept it? Until then anchors live only on fixtures, so every node of this repo shows pending, no wire runs from a spec node to code, and nesting has nothing real to show.
 3. **Which words are target kinds?** `spec/intents/README.md` and all 12 intents of this repo use `module` and `api`. The code schema (`packages/shared/src/schemas/node.ts:31`) only knows node kinds such as `code_module`, and the new-intent form offers those nine. Recommended: the README's words.
@@ -44,6 +41,8 @@ Lane 7 (direct editing: rename in place, a right-click menu, a plus in the conce
 
 ## Known
 
+- A spec file can hold one relation today, `parent`. Connecting, disconnecting and moving a node all write that one field. Other relations (constrains, supersedes, depends on) would need a change to the spec format first.
+- A spec file with no `parent` key at all is not a node (ADR 0009 requires the key), so it cannot be given a parent from the canvas.
 - Two constraint wires cross each other on this repo's first view. One pin per node gives the layout nothing to order them by.
 - The new-intent form lists nine raw kind names. See call 3.
 - Anchors are parsed twice: `packages/skill/src/parser/spec-md/anchors.ts` and inside `packages/skill/src/drift/`. One of them should go.

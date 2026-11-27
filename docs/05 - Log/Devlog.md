@@ -134,3 +134,22 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - One red on `day-2` after the merge was the script, not the product: it looked for the server's second start-up line the moment it saw the first. Three reruns passed unchanged. The script now waits for the line it checks.
 
 **Not yet.** A right-click also opens the side panel, so the view shifts under the open menu (lane 8). A code node's title was not tested, since none is on screen in the example.
+
+### 2026-11-27, 3:30 PM  Editing by wire merged to day-2
+
+**What happened.** Lane 8: drag from a node's output pin to another node's input pin and the node hangs under the new parent. While dragging, the nodes that can take the wire are outlined and the rest are dimmed. A selected wire is removed with Delete or from its right-click menu. A node dragged into another concept box moves there, and the box lights up when it would take it. Every change shows a notice in a strip under the canvas with an Undo button, and Ctrl+Z or Cmd+Z undoes it unless a text field has the focus. A right-click now opens the menu and nothing else.
+
+**How it works underneath.** A spec file holds one relation today, `parent`, so connect, disconnect and move are one edit: the writer sets or removes that line and `updated`, and keeps every other byte. The server runs every write one at a time, in the order it arrived. It checks a parent change against the spec files on disk at that moment and refuses a missing target, the node itself, a code node, a pair of kinds that do not fit, and a loop. It remembers its last 20 writes, and undo puts a file back byte for byte, or refuses if the file changed since.
+
+**Why it matters.** The owner's bar is that editing on the graph is easy and intuitive. With lane 7 this makes the graph a place to rearrange a spec by hand, and undo makes it safe to try.
+
+**Evidence.** On `day-2` at `9fc7885`: `PASS all (56.4s) - 4 steps, 391 tests`, `PASS e2e-edit (72.2s)` with real mouse drags, and `e2e-live`, `e2e-wires` and `e2e-drift-marks` pass. The orchestrator's two probes pass: 3 of 3 on loops and the empty parent line, 5 of 5 on the first double-click.
+
+**What the verifier caught.** Fifteen of nineteen checks passed, including byte-exact writes on a file with comments and Windows line endings, undo order, and the token and origin guards. Three were real faults. Two parent changes sent back to back both passed the check against a graph that had not been rebuilt yet, and left a loop on disk. An empty `parent:` line could not be set, because the writer left out a space. A drag made while a rename was still being saved vanished without a word. A second, smaller agent fixed all three. The orchestrator's probe, which wrote a loop six times out of six on the unfixed code, now gets one accepted and one refused every time. A second verifier then passed 10 of 10: ten loop attempts refused, six writes at once each landed whole, and every undo restored its file byte for byte.
+
+**Calls taken.**
+- The fix went to a fresh agent with a tight brief, not back to the builder.
+- That agent reported a green gate, and the gate was red on the orchestrator's run: two of its new tests sent requests together and expected the first one sent to win, which no network promises. The orchestrator rewrote those two tests to check what must always hold. Test code only.
+- On the way the builder found and fixed a crash: a Windows file lock during a write took the server down. Writes now retry.
+
+**Not yet.** Nobody has tried this with a real mouse in a real window. A spec file with no `parent` key is not a node, so it cannot be connected from the canvas. Relations other than `parent` do not exist in the spec format.
