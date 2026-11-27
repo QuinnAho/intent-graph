@@ -32,3 +32,14 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0026 | [Parent ID is concept-only](./0026-parent-id-is-concept-only.md) | Accepted |
 | 0027 | [Playwright MCP as the first UI-driving MCP server](./0027-playwright-mcp-first-ui-driving-server.md) | Proposed (split-rejection clause to be superseded by 0028 on acceptance) |
 | 0028 | [MCP server registrations belong in /.mcp.json, not .claude/settings.json](./0028-mcp-server-registrations-belong-in-mcp-json.md) | Proposed |
+| 0029 | [Slim to the wedge, visual first](./0029-slim-to-the-wedge.md) | Accepted 2026-11-27 |
+| 0030 | [Anchors: how a spec node binds to code and to checks](./0030-anchors-bind-a-node-to-code-and-checks.md) | Proposed, waiting for Quinn |
+
+## Changed by ADR 0029 (2026-11-27)
+
+The ADR files above are not edited. Their standing changed as follows.
+
+- **Parked**: 0004 (Inngest, AgentRunner, leases). Not extended without a new ADR.
+- **Superseded**: 0006, 0007, 0008, 0010, 0013, 0014 (the Codex mirror, the Ralph loop, the Codex audit).
+- **Narrowed**: 0001 (the plugin comes first, the VS Code extension later).
+- **Now the design inputs for what we build**: 0016 (verifier interface), 0019 (obligation attachment), 0025 (stale requirements), 0022 (confidence as a category).
