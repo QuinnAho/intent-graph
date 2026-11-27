@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../graph/nodes/nodeIcons.js';
-import { StatusMark, type CheckStatus } from '../graph/nodes/shared/nodeChrome.js';
+import { DriftMark, StatusMark, type CheckStatus, type DriftInfo } from '../graph/nodes/shared/nodeChrome.js';
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
@@ -132,7 +132,7 @@ function KindHeader(props: { kind: string; file?: string; unsaved?: boolean; onC
 
 function NodeEditor(props: { node: Node }): JSX.Element {
   const { node } = props;
-  const data = node.data as { kind?: string; checkStatus?: CheckStatus; statusReasons?: ReadonlyArray<string>; warnings?: ReadonlyArray<string> };
+  const data = node.data as { kind?: string; checkStatus?: CheckStatus; statusReasons?: ReadonlyArray<string>; drift?: DriftInfo; warnings?: ReadonlyArray<string> };
   const config = useUiStore((s) => s.editConfig);
   const graphVersion = useUiStore((s) => s.graphVersion);
   const [loaded, setLoaded] = useState<EditableNode | null>(null);
@@ -263,6 +263,32 @@ function NodeEditor(props: { node: Node }): JSX.Element {
           </ul>
         ) : null}
       </section>
+      {data.drift ? (
+        <section data-drift-panel={data.drift.verdict}>
+          <h3 style={SECTION_TITLE}>Drift</h3>
+          <div style={ROW}>
+            <DriftMark drift={data.drift} />
+            <span style={MUTED}>
+              {data.drift.entries} {data.drift.entries === 1 ? 'entry' : 'entries'}, decided by {data.drift.decided_by}
+            </span>
+          </div>
+          {data.drift.stale ? (
+            <p style={{ ...MUTED, margin: '6px 0 0' }} data-drift-stale-note="">
+              Stale: a file this node is bound to changed after the report was written. Run the drift check again.
+            </p>
+          ) : null}
+          <dl style={{ margin: '6px 0 0', fontSize: '12px', lineHeight: 1.5, wordBreak: 'break-word' }}>
+            <dt style={MUTED}>Commit</dt>
+            <dd style={{ margin: 0, fontFamily: 'var(--ig-font-mono, monospace)' }} data-drift-commit="">{data.drift.commit}</dd>
+            <dt style={{ ...MUTED, marginTop: '4px' }}>Evidence</dt>
+            <dd style={{ margin: 0 }} data-drift-evidence="">{data.drift.evidence}</dd>
+            <dt style={{ ...MUTED, marginTop: '4px' }}>Suggested action</dt>
+            <dd style={{ margin: 0 }} data-drift-action="">{data.drift.suggested_action}</dd>
+            <dt style={{ ...MUTED, marginTop: '4px' }}>Report written</dt>
+            <dd style={{ margin: 0 }}>{data.drift.reported_at}</dd>
+          </dl>
+        </section>
+      ) : null}
       <section data-anchors="">
         <h3 style={SECTION_TITLE}>Anchors (read only)</h3>
         <AnchorList name="realized_by" items={loaded?.realized_by ?? []} />
