@@ -2,7 +2,7 @@
 // one way to check this repo. usage: node tools/verify.mjs check|build|all
 // prints one line per step, then PASS|FAIL <verb> (time) - note. exit 0 only on pass.
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, createWriteStream } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync, createWriteStream } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,6 +61,14 @@ function firstErrors(log, n = 6) {
   return (hits.length ? hits : lines.filter((l) => l.trim()).slice(-n)).slice(0, n);
 }
 
+// what a green build must leave behind. add a line when a package gains a build output.
+const BUILD_ARTIFACTS = [
+  'packages/shared/dist/index.js',
+  'packages/skill/dist/index.js',
+  'packages/skill/dist/index.d.ts',
+  'packages/extension/dist/extension.js',
+  'packages/webview/dist/index.html',
+];
 
 function judge(r) {
   const step = { name: r.name, result: 'FAIL', seconds: r.seconds, log: r.log, note: '' };
@@ -79,17 +87,10 @@ function judge(r) {
     step.note = `${rep.numPassedTests} tests in ${files} files`;
   }
   if (r.name === 'build') {
-    // every package that builds must leave a non-empty dist
-    const pk = join(root, 'packages');
-    const missing = [];
-    for (const d of readdirSync(pk)) {
-      const pj = join(pk, d, 'package.json');
-      if (!existsSync(pj)) continue;
-      if (!JSON.parse(readFileSync(pj, 'utf8')).scripts?.build) continue;
-      const dist = join(pk, d, 'dist');
-      if (!existsSync(dist) || readdirSync(dist).length === 0) missing.push(d);
-    }
-    if (missing.length) { step.note = `no dist for ${missing.join(', ')}`; return step; }
+    // a build that exits 0 without its artifacts is a fail. the list is explicit because not
+    // every package emits a dist: agent-skill's build only checks that the skill was built.
+    const missing = BUILD_ARTIFACTS.filter((rel) => !existsSync(join(root, rel)));
+    if (missing.length) { step.note = `missing build output: ${missing.join(', ')}`; return step; }
   }
   step.result = 'PASS';
   return step;
