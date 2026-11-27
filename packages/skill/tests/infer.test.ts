@@ -13,7 +13,7 @@ import { filterPlans, inferMain, parseInferArgs } from '../src/infer/cli.js';
 import { anchorCovers, isSourceFolder, planFolders } from '../src/infer/folders.js';
 import { buildFolderInput, digestFile, leadingComment, readFolder, scrubPaths } from '../src/infer/gather.js';
 import { INFER_SYSTEM_PROMPT, buildPrompt, checkAnchors, parseReply, pinDeclaredId, type Declared } from '../src/infer/prompt.js';
-import { cacheKey, proposalId, runInfer, type InferCache, type InferCall } from '../src/infer/run.js';
+import { cacheKey, proposalId, rowsFor, runInfer, type InferCache, type InferCall } from '../src/infer/run.js';
 import { INFER_TUNING, type InferTuning } from '../src/infer/tuning.js';
 
 const WS = join(__dirname, '..', '..', '..', 'tests', 'fixtures', 'infer-cases', 'workspace');
@@ -463,5 +463,42 @@ describe('inferMain on a copy of the example workspace', () => {
     const r = await inferMain(['--root', dir], 'REPO', () => undefined, call);
     expect(r.ok).toBe(true);
     expect(call.calls).toHaveLength(0);
+  });
+});
+
+describe('planned proposals', () => {
+  const stubFile = (p: string) => digestFile(p, ['// Will watch the files and tell the panel about drift.', 'export const WATCH_PLACEHOLDER = 1;', ''].join('\n'));
+  const realFile = (p: string) => digestFile(p, 'export function run(a: number): number {\n  return a + 1;\n}\n');
+  const claim = 'Developers see intent drift in the Problems panel next to compiler errors';
+  const rowsOf = (files: ReturnType<typeof digestFile>[], p: InferProposal) => rowsFor(buildFolderInput('src/p', files), [p], declared).rows[0]!;
+
+  it('is true when every file the proposal cites is a placeholder, and its title no longer claims it works', () => {
+    const row = rowsOf([stubFile('src/p/a.ts'), stubFile('src/p/b.ts')], good(['src/p/a.ts#WATCH_PLACEHOLDER', 'src/p/b.ts#WATCH_PLACEHOLDER'], { title: claim, body: 'Watches files and shows drift.' }));
+    expect(row.planned).toBe(true);
+    expect(row.title).toMatch(/^Planned: /);
+    expect(row.title.length).toBeLessThanOrEqual(90);
+    expect(row.body).toMatch(/^Planned:/);
+    expect(row.body.length).toBeLessThanOrEqual(400);
+  });
+  it('is false when one cited file is real code, and the title is left alone', () => {
+    const row = rowsOf([stubFile('src/p/a.ts'), realFile('src/p/b.ts')], good(['src/p/a.ts#WATCH_PLACEHOLDER', 'src/p/b.ts#run'], { title: claim }));
+    expect(row.planned).toBe(false);
+    expect(row.title).toBe(claim);
+  });
+  it('goes by the files cited, not by the folder, and does not repeat the prefix or trust the model', () => {
+    const planned = rowsOf([stubFile('src/p/a.ts'), realFile('src/p/b.ts')], good(['src/p/a.ts#WATCH_PLACEHOLDER', 'src/p/a.ts'], { title: 'Planned: drift shows in the panel', body: 'Planned: nothing runs yet.' }));
+    expect(planned.planned).toBe(true);
+    expect(planned.title).toBe('Planned: drift shows in the panel');
+    const long = rowsOf([stubFile('src/p/a.ts'), stubFile('src/p/b.ts')], good(['src/p/a.ts#WATCH_PLACEHOLDER', 'src/p/b.ts#WATCH_PLACEHOLDER'], { title: 'x'.repeat(90), body: 'y'.repeat(400) }));
+    expect(long.title.length).toBe(90);
+    expect(long.title).toMatch(/^Planned: /);
+    expect(long.body.length).toBe(400);
+  });
+  it('the whole run carries the field in the report', async () => {
+    const files = [stubFile('src/p/a.ts'), stubFile('src/p/b.ts')];
+    const call = stub(() => reply([good(['src/p/a.ts#WATCH_PLACEHOLDER', 'src/p/b.ts#WATCH_PLACEHOLDER'], { title: claim })]));
+    const r = await runInfer({ root: WS, plans: [{ folder: 'src/p', unclaimed: ['src/p/a.ts', 'src/p/b.ts'], claimed: [] }], declared, call, cache: memoryCache(), tuning: TUNING, inputFor: () => buildFolderInput('src/p', files) });
+    expect(r.proposals[0]!.planned).toBe(true);
+    expect(r.proposals[0]!.title).not.toBe(claim);
   });
 });

@@ -22,3 +22,13 @@ export const InferReplySchema = z.object({
   proposals: z.array(InferProposalSchema).min(1).max(3),
 });
 export type InferReply = z.infer<typeof InferReplySchema>;
+
+/** A proposal as the report carries it: the model's reading plus what the script works out. */
+export const InferProposalRowSchema = InferProposalSchema.extend({
+  id: z.string().min(1),
+  folder: z.string().min(1),
+  /** True when every file the anchors cite is a placeholder. Set from the code, never by the model. */
+  planned: z.boolean(),
+  code_hash: z.string().min(1),
+});
+export type InferProposalRow = z.infer<typeof InferProposalRowSchema>;

@@ -16,7 +16,7 @@ export const INFER_SYSTEM_PROMPT = [
   'The body is at most 400 characters and says how the code gets that outcome, naming the real mechanism you can see in the signatures and comments.',
   'Give one proposal when the folder has one purpose, which is usual. Give two or three only when it clearly serves separate purposes. Never split by file.',
   'If the folder is plumbing or glue, say what it makes possible for the rest of the product, not that it is glue.',
-  'A file marked STUB has no working code. Its comment says what it is meant to do, so propose that, but write the body as a plan: start it with "Planned:", say that nothing runs yet, and use "semantic". Never describe a stub as if it already works.',
+  'A file marked STUB has no working code. Its comment says what it is meant to do, so propose that, but write the body as a plan: start it with "Planned:", say that nothing runs yet, and use "semantic". Never describe a stub as if it already works. When every file you cite is a stub, start the title with "Planned:" too, and word it as something that will be so, never as something that is.',
   'Say only what the shown code supports. If you cannot tell what part of it is for, leave that out and use "semantic" as the confidence.',
   'anchors are two to eight places in the shown code that are your evidence. Copy them exactly from the names shown, as path or path#Symbol. Never invent one.',
   'belongs_under is the id of a declared concept this sits under, or null. restates is the id of a declared intent that this proposal says nearly the same thing as, or null. Use ids exactly as listed. Use null when unsure.',

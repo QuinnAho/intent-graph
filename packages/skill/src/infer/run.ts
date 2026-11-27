@@ -31,6 +31,8 @@ export interface ProposalRow {
   readonly belongs_under: string | null;
   readonly restates: string | null;
   readonly confidence: 'inferred' | 'semantic';
+  /** True when every file the anchors cite is a placeholder, so nothing here works yet. Worked out in code from the stub marking. */
+  readonly planned: boolean;
   readonly code_hash: string;
 }
 
@@ -97,11 +99,20 @@ export interface RunInferOptions {
   readonly inputFor?: (plan: FolderPlan) => FolderInput;
 }
 
+const PLANNED = 'Planned: ';
+
+/** Put the plan marker on the front when it is not there, and cut the end to stay inside the limit. */
+export function withPlanned(text: string, max: number): string {
+  const marked = /^planned:/i.test(text) ? text : `${PLANNED}${text}`;
+  return marked.length > max ? `${marked.slice(0, max - 3).trimEnd()}...` : marked;
+}
+
 /** Turn one folder's parsed proposals into rows. Anchors are checked against the real files. */
 export function rowsFor(
   input: FolderInput,
   proposals: readonly InferProposal[],
   declared: readonly Declared[],
+  tuning: Pick<InferTuning, 'maxTitleChars' | 'maxBodyChars'> = INFER_TUNING,
 ): { rows: ProposalRow[]; droppedProposals: number; droppedAnchors: number } {
   const rows: ProposalRow[] = [];
   let droppedProposals = 0;
@@ -113,11 +124,15 @@ export function rowsFor(
       droppedProposals += 1;
       return;
     }
+    // planned goes by the files the kept anchors cite, never by what the model says
+    const cited = new Set(check.kept.map((a) => a.split('#')[0]));
+    const planned = input.files.filter((f) => cited.has(f.path)).every((f) => f.stub);
     rows.push({
       id: proposalId(input.folder, input.codeHash, i),
       folder: input.folder,
-      title: p.title,
-      body: p.body,
+      title: planned ? withPlanned(p.title, tuning.maxTitleChars) : p.title,
+      body: planned ? withPlanned(p.body, tuning.maxBodyChars) : p.body,
+      planned,
       anchors: check.kept,
       belongs_under: pinDeclaredId(p.belongs_under, 'concept', declared),
       restates: pinDeclaredId(p.restates, 'intent', declared),
@@ -192,7 +207,7 @@ export async function runInfer(opts: RunInferOptions): Promise<InferReport> {
       status = 'proposed';
     }
 
-    const made = rowsFor(input, parsed, opts.declared);
+    const made = rowsFor(input, parsed, opts.declared, tuning);
     proposals.push(...made.rows);
     folders.push({
       ...row,
