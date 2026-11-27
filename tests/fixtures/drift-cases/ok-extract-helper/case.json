@@ -1,0 +1,4 @@
+{
+  "expect": "aligned",
+  "about": "the comparator moves into a helper and the copy is made with slice. same order, input untouched"
+}

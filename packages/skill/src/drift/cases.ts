@@ -98,6 +98,9 @@ export function materialiseCase(caseDir: string): string {
   git(repo, ['add', '-A']);
   git(repo, ['commit', '-q', '--allow-empty', '-m', 'before']);
   copySide('after');
+  // copies keep their mtime on windows, so a same-size edit looks unchanged to git's
+  // stat cache. dropping the index makes git hash every file again.
+  rmSync(join(repo, '.git', 'index'), { force: true });
   git(repo, ['add', '-A']);
   git(repo, ['commit', '-q', '--allow-empty', '-m', 'after']);
   return repo;
@@ -142,6 +145,7 @@ export async function runCases(
         ...(opts.judgeAll ? { judgeAll: true } : {}),
       });
       reports[name] = report;
+      if (report.commits.every((c) => c.files.length === 0)) throw new Error('before and after are identical, the case has no change');
       outcomes.push({ name, expect: spec.expect, verdict: worstVerdict(report.pairs), pairs: report.pairs, no_pair: report.pairs.length === 0, error: null });
     } catch (e) {
       outcomes.push({ name, expect: spec.expect, verdict: 'unclear', pairs: [], no_pair: true, error: (e as Error).message });
