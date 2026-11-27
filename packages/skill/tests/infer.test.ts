@@ -603,3 +603,13 @@ describe('bare file anchors', () => {
     expect(INFER_SYSTEM_PROMPT).toMatch(/cite a symbol/);
   });
 });
+
+describe('restated intents in the prompt', () => {
+  it('tells the model to name a declared intent that a proposal repeats, one id only', () => {
+    expect(INFER_SYSTEM_PROMPT).toMatch(/must say so/);
+    expect(INFER_SYSTEM_PROMPT).toMatch(/one id only/);
+  });
+  it('a cached reading from the old prompt is not reused', () => {
+    expect(cacheKey('src/a', 'h1', declared, TUNING, 'old prompt')).not.toBe(cacheKey('src/a', 'h1', declared, TUNING));
+  });
+});
