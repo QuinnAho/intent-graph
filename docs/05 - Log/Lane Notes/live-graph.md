@@ -62,8 +62,19 @@ The reuse check runs past 30 minutes. The gate cannot be made green in two tries
 
 ## Reuse record
 
-(builder fills this in: candidate, license, what was measured, adopt, borrow or skip, why)
+- **colbymchenry/codegraph** 1.6.4, MIT. Ran the published npm package (it bundles its own runtime per platform, win32-x64 here, and no node-gyp build) on a copy of `packages/` and `spec/`, telemetry off, home redirected to scratch. Index: 139 files, 1,067 nodes, 1,963 edges in 5.0 s (13.5 s for the whole `init`). Ours: 750 nodes (22 spec, 157 modules, 571 symbols), 587 edges (571 produced_by, 16 realizes) in 4.5 s for the seed script. It has import and call edges we lack, and no spec nodes. Its watcher is 1,241 lines of raw recursive `fs.watch` tied to its own SQLite sync engine. Building it from source needs Node 22.12+, this PC has 22.9. Telemetry is on by default. **Skip as a dependency, borrow two ideas**: adaptive debounce (short window for a lone save, long for a burst) and SSE with a `retry` field and keep-alive comments. Worth a second look as a sidecar for call and import edges when lane 2 needs them.
+- **chokidar** 4.0.3, MIT, already a dependency. **Adopt** for watching. No native parts.
+- **vitest JSON reporter**, MIT, vitest 2.1.9 already here. **Adopt**: one `vitest run --globals --reporter=json` over the linked test files, mapped back by file and test name.
+- Node `http` with server-sent events instead of a websocket library. No new dependency in this lane.
 
 ## Builder notes
 
-(builder: anything the next lane must know, in a few lines)
+- Run it: `pnpm --filter @intentgraph/webview build`, then `pnpm exec tsx packages/skill/src/live/cli.ts --root . --port 4777` and open the printed url. `node tools/e2e-live.mjs --serve` does the same on a temp copy of the fixture. `?focus=<node id>` opens on one node. The vite dev page can follow a server with `?live=http://127.0.0.1:4777`.
+- Code: `packages/skill/src/live/` (server, cli, compose, check-status, change-gate, test-runner, tuning) and `packages/skill/src/parser/spec-md/anchors.ts`. Webview: `transport/live-source.ts`, `transport/graph-merge.ts`, `graph/layout/nested.ts`, status mark in `nodeChrome.tsx`.
+- Debounce is 300 ms for a lone save and 2 s once more than 5 files are pending (`tuning.ts`). A flat 2 s would leave too little of the 3 s label budget. The hash check runs when a batch flushes, so a truncate-then-write save with the same bytes does nothing.
+- `graph.json` from the live server adds `status`, `status_reasons` and `warnings` on spec nodes, `realizes` edges from `realized_by` with stable ids, and `_live_version`. The static path ignores them.
+- Fixed an old layout bug on the way: intents inside a concept were clamped onto one spot by `extent: 'parent'`. Children are now laid out inside a parent sized to hold them, and spec nodes sit in a block above the code, so the first view shows the spec.
+- Fixture tests run with `--globals` and import nothing from vitest, so a temp copy needs no node_modules. Vitest leaves a `.vite` cache in the workspace root, which the watcher ignores.
+- `@sig` is parsed and kept but not compared. The binding status (aligned, changed, drift) is lane 2.
+- A spec file that fails to parse has no node, so the live `graph.json` carries a `problems` list (severity, workspace-relative file, first line of the parser message) built from `build()`s own errors and warnings. The server logs each new problem and each fixed file once.
+- The page shows problems as a count in the top left (`ProblemsPanel.tsx`) that opens a list of file and message and disappears when the list is empty. A `?focus=` node inside a concept fits the concept too.

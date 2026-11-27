@@ -5,12 +5,15 @@
 // highlight states, hidden handles" surface called out in the lift plan.
 
 import { Handle, Position } from '@xyflow/react';
+import { CircleCheck, CircleDashed, CircleX, TriangleAlert } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
 
 export type NodeHealth = 'green' | 'yellow' | 'red';
 export type NodeHighlight = 'none' | 'subtle' | 'lead';
+/** check status from verified_by, per adr 0030 */
+export type CheckStatus = 'verified' | 'failed' | 'pending';
 
 export interface NodeChromeData {
   /** Node kind drives the icon + default sizing. */
@@ -29,6 +32,10 @@ export interface NodeChromeData {
   /** Visibility states — drive opacity. */
   isDimmed?: boolean;
   isGhosted?: boolean;
+  /** Check status of a spec node. Absence means no mark (code nodes). */
+  checkStatus?: CheckStatus;
+  /** Anchor warnings for this node, shown as a count with the text on hover. */
+  warnings?: ReadonlyArray<string>;
   /** Hide the four React Flow handles. Default true; only edges in IntentGraph. */
   handlesHidden?: boolean;
 }
@@ -46,6 +53,54 @@ const HEALTH_PIP: Record<NodeHealth, string> = {
   yellow: '#d29922',
   red: '#f85149',
 };
+
+// icon, word and colour together, so the mark reads without colour
+const CHECK_MARK: Record<CheckStatus, { Icon: typeof CircleCheck; color: string; border: string }> = {
+  verified: { Icon: CircleCheck, color: '#3fb950', border: 'rgba(63, 185, 80, 0.55)' },
+  failed: { Icon: CircleX, color: '#f85149', border: 'rgba(248, 81, 73, 0.65)' },
+  pending: { Icon: CircleDashed, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)' },
+};
+
+export function StatusMark(props: { status: CheckStatus }): JSX.Element {
+  const { Icon, color, border } = CHECK_MARK[props.status];
+  return (
+    <span
+      data-check-status={props.status}
+      aria-label={`checks ${props.status}`}
+      title={`checks ${props.status}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 7px 2px 5px',
+        borderRadius: '999px',
+        border: `1px solid ${border}`,
+        color,
+        fontSize: '11px',
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
+    >
+      <Icon size={13} strokeWidth={props.status === 'failed' ? 2.6 : 2.2} />
+      {props.status}
+    </span>
+  );
+}
+
+function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Element {
+  return (
+    <span
+      data-warnings={props.warnings.length}
+      title={props.warnings.join('\n')}
+      aria-label={`${props.warnings.length} anchor warnings`}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#d29922', fontSize: '11px', fontWeight: 600, flexShrink: 0 }}
+    >
+      <TriangleAlert size={13} />
+      {props.warnings.length}
+    </span>
+  );
+}
 
 function pickSurface(data: NodeChromeData): string {
   if (data.healthOverlay && data.health) {
@@ -176,6 +231,8 @@ export function NodeChrome(props: { data: NodeChromeData }): JSX.Element {
           >
             {data.label}
           </span>
+          {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
+          {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
           {showPip && data.health ? (
             <div
               style={{
