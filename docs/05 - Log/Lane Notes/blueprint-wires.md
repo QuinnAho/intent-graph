@@ -94,4 +94,16 @@ Before, on `blueprint-wires` at `c1b70e5` (same as `night-1`), `node tools/e2e-w
 | this repo | 16 / 1094 | 105 | 9 (56%) | 32 | 1 of 16 (6%) | 1908 ms (median of 3) |
 
 Result line: `FAIL e2e-wires (35.5s) - fixture has 40 crossing samples; fixture has 12 loose ends; ...`. Every end is loose because the four-side handles are invisible (opacity 0), so no end sits on a visible pin.
+After, at `4fafaeb`, same script and viewport:
+
+| Page | Wires drawn / in graph | Crossing samples | Wires with a crossing | Loose ends | Left to right | Laid out |
+|---|---|---|---|---|---|---|
+| fixture | 0 / 8 (2 counted as "1 code" on two intents) | 0 | 0 | 0 | 100% | 437 ms |
+| this repo | 4 / 1123 | 0 (was 105, cut 100%) | 0 (0%) | 0 | 4 of 4 (100%) | 2547 ms, 1.33x (runs: 1749 to 2685 ms) |
+| this repo zoomed to 1.66 | 3 on screen | | | 0 on screen | | |
+
+Hover and select on a constraint light its one wire and no other. No console errors on either page.
+Gate: `PASS all (71.4s) - 4 steps, 263 tests` (was 249). `PASS e2e-live`, `PASS e2e-edit`.
+Frames: `.runs/e2e-wires/2026-11-27T12-35-27-301Z/` (a repo at fit, b repo zoomed, c fixture marks, d fixture node selected, e repo constraint selected).
+
 Edge mix: this repo has 12 intent to own concept, 4 constraint to intent, 1078 code symbol to code module. The fixture has 4 node to own concept and 2 code symbol to intent.
