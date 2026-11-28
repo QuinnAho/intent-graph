@@ -2,20 +2,21 @@
 // have, shows the page we have in a panel, and opens files the page asks for.
 // the rules live in plain modules: open-file.ts, panel-html.ts, server-process.ts.
 
-import { writeFileSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { existsSync, writeFileSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import * as vscode from 'vscode';
 
 import { decideOpen, otherColumn } from './open-file.js';
 import { GraphPanel } from './panel.js';
-import { serverCommand, startServer, type RunningServer } from './server-process.js';
+import type { Problem } from './problem-html.js';
+import { ServerStartError, serverCommand, startServer, webDir, type RunningServer } from './server-process.js';
 
 let output: vscode.OutputChannel | null = null;
 let server: Promise<RunningServer> | null = null;
 let panel: GraphPanel | null = null;
 
 // what the end-to-end check reads. only written when INTENTGRAPH_E2E_FILE is set.
-const e2e = { url: null as string | null, pid: null as number | null, received: [] as unknown[], opened: [] as unknown[], refused: [] as unknown[], stopped: false };
+const e2e = { url: null as string | null, pid: null as number | null, received: [] as unknown[], opened: [] as unknown[], refused: [] as unknown[], stopped: false, problem: null as string | null };
 function record(): void {
   const file = process.env['INTENTGRAPH_E2E_FILE'];
   if (!file) return;
@@ -38,7 +39,7 @@ function ensureServer(repo: string, root: vscode.Uri): Promise<RunningServer> {
   const start = (): Promise<RunningServer> => {
     const write = vscode.workspace.getConfiguration('intentgraph').get<boolean>('write', false);
     log(`starting the live server, ${write ? 'editing on' : 'read only'}`);
-    return startServer(serverCommand({ repo, root: root.fsPath, write }), log).then((s) => {
+    return startServer(serverCommand({ repo, root: root.fsPath, write, web: webDir(repo) }), log).then((s) => {
       e2e.url = s.address.url;
       e2e.pid = s.pid;
       record();
@@ -89,10 +90,28 @@ function onMessage(msg: unknown): void {
   else if (type === 'intentgraph.open') void openFile(msg);
 }
 
+function showProblem(problem: Problem): void {
+  e2e.problem = problem.kind;
+  record();
+  if (panel) panel.showProblem(problem);
+  else {
+    panel = GraphPanel.create(null, null, onMessage, () => {
+      panel = null;
+    });
+    panel.showProblem(problem);
+  }
+}
+
 async function openGraph(repo: string, focus: string | null): Promise<void> {
   const root = workspaceRoot();
   if (!root) {
     void vscode.window.showErrorMessage('IntentGraph: open a folder first.');
+    return;
+  }
+  // no built page means no server: say what to run, in the panel
+  if (!existsSync(join(webDir(repo), 'index.html'))) {
+    log('the built page is missing');
+    showProblem({ kind: 'no-page' });
     return;
   }
   let s: RunningServer;
@@ -100,7 +119,8 @@ async function openGraph(repo: string, focus: string | null): Promise<void> {
     s = await ensureServer(repo, root);
   } catch (err) {
     log((err as Error).message);
-    void vscode.window.showErrorMessage(`IntentGraph: ${(err as Error).message}`);
+    const e = err instanceof ServerStartError ? err : null;
+    showProblem(e?.kind === 'no-node' ? { kind: 'no-node' } : { kind: 'failed', lines: e?.lines ?? [(err as Error).message] });
     return;
   }
   if (!panel) {
@@ -109,7 +129,7 @@ async function openGraph(repo: string, focus: string | null): Promise<void> {
     });
     return;
   }
-  if (focus !== null || panel.address.url !== s.address.url) panel.load(focus, s.address);
+  if (focus !== null || panel.address?.url !== s.address.url) panel.load(focus, s.address);
   panel.show();
 }
 

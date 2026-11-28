@@ -38,7 +38,12 @@ export interface ServerCommand {
   readonly cwd: string;
 }
 
-export function serverCommand(opts: { readonly repo: string; readonly root: string; readonly write: boolean }): ServerCommand {
+/** the folder with the built page. INTENTGRAPH_WEB_DIR points it elsewhere, for the end-to-end check. */
+export function webDir(repo: string, env: NodeJS.ProcessEnv = process.env): string {
+  return env['INTENTGRAPH_WEB_DIR'] || join(repo, 'packages', 'webview', 'dist');
+}
+
+export function serverCommand(opts: { readonly repo: string; readonly root: string; readonly write: boolean; readonly web?: string }): ServerCommand {
   const { repo } = opts;
   return {
     command: 'node',
@@ -48,7 +53,7 @@ export function serverCommand(opts: { readonly repo: string; readonly root: stri
       join(repo, 'packages', 'skill', 'src', 'live', 'cli.ts'),
       '--root', opts.root,
       '--port', '0',
-      '--web', join(repo, 'packages', 'webview', 'dist'),
+      '--web', opts.web ?? webDir(repo),
       ...(opts.write ? ['--write'] : []),
     ],
   };
@@ -58,6 +63,17 @@ function killTree(child: ChildProcess): void {
   if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
   if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true });
   else child.kill('SIGKILL');
+}
+
+/** why the server did not start: node missing, or anything else with the child's last lines */
+export class ServerStartError extends Error {
+  constructor(
+    message: string,
+    readonly kind: 'no-node' | 'failed',
+    readonly lines: readonly string[],
+  ) {
+    super(message);
+  }
 }
 
 export interface RunningServer {
@@ -107,7 +123,7 @@ export function startServer(cmd: ServerCommand, log: (line: string) => void = ()
         reject(err);
       } else if (value) resolve(value);
     };
-    const limit = setTimeout(() => settle(new Error(`the live server printed no address within ${SERVER_START_LIMIT_MS / 1000} s. ${errLines.join(' | ')}`)), SERVER_START_LIMIT_MS);
+    const limit = setTimeout(() => settle(new ServerStartError(`the live server printed no address within ${SERVER_START_LIMIT_MS / 1000} s. ${errLines.join(' | ')}`, 'failed', [...errLines])), SERVER_START_LIMIT_MS);
 
     let buf = '';
     child.stdout?.setEncoding('utf8');
@@ -117,6 +133,10 @@ export function startServer(cmd: ServerCommand, log: (line: string) => void = ()
       buf = lines.pop() ?? '';
       for (const line of lines) {
         log(line);
+        if (line.trim()) {
+          errLines.push(line);
+          if (errLines.length > SERVER_ERROR_LINES) errLines.shift();
+        }
         const address = parseLiveLine(line);
         if (address && child.pid !== undefined) {
           const pid = child.pid;
@@ -133,7 +153,7 @@ export function startServer(cmd: ServerCommand, log: (line: string) => void = ()
         if (errLines.length > SERVER_ERROR_LINES) errLines.shift();
       }
     });
-    child.once('error', (e) => settle(new Error(`the live server did not start: ${e.message}`)));
-    child.once('exit', (code) => settle(new Error(`the live server exited with ${code ?? 'a signal'} before it printed an address. ${errLines.join(' | ')}`)));
+    child.once('error', (e) => settle(new ServerStartError(`the live server did not start: ${e.message}`, (e as NodeJS.ErrnoException).code === 'ENOENT' ? 'no-node' : 'failed', [e.message])));
+    child.once('exit', (code) => settle(new ServerStartError(`the live server exited with ${code ?? 'a signal'} before it printed an address. ${errLines.join(' | ')}`, 'failed', [...errLines])));
   });
 }

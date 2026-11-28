@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 
 import { buildPanelHtml, pageUrl } from './panel-html.js';
+import { buildProblemHtml, type Problem } from './problem-html.js';
 import type { LiveAddress } from './server-process.js';
 
 function makeNonce(): string {
@@ -14,14 +15,15 @@ function makeNonce(): string {
 export class GraphPanel {
   private constructor(
     private readonly panel: vscode.WebviewPanel,
-    private current: LiveAddress,
+    private current: LiveAddress | null,
   ) {}
 
-  get address(): LiveAddress {
+  /** null while the panel shows a message instead of the page */
+  get address(): LiveAddress | null {
     return this.current;
   }
 
-  static create(address: LiveAddress, focus: string | null, onMessage: (msg: unknown) => void, onClose: () => void): GraphPanel {
+  static create(address: LiveAddress | null, focus: string | null, onMessage: (msg: unknown) => void, onClose: () => void): GraphPanel {
     const panel = vscode.window.createWebviewPanel(
       'intentgraph.graph',
       'IntentGraph',
@@ -32,7 +34,7 @@ export class GraphPanel {
     const gp = new GraphPanel(panel, address);
     panel.webview.onDidReceiveMessage(onMessage);
     panel.onDidDispose(onClose);
-    gp.load(focus);
+    if (address) gp.load(focus);
     return gp;
   }
 
@@ -43,7 +45,14 @@ export class GraphPanel {
   /** loads the page, focused on a node when one is given. a new address replaces the old one. */
   load(focus: string | null, address?: LiveAddress): void {
     if (address) this.current = address;
+    if (!this.current) return;
     this.panel.webview.html = buildPanelHtml({ address: this.current, src: pageUrl(this.current, focus), nonce: makeNonce() });
+  }
+
+  /** replaces the page with a plain message, no iframe */
+  showProblem(problem: Problem): void {
+    this.current = null;
+    this.panel.webview.html = buildProblemHtml(problem);
   }
 
   show(): void {

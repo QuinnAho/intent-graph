@@ -114,3 +114,10 @@ Checked on `a3b6ec0`, 2026-11-28. Scope steps 1 to 9 done.
 - `e2e-glance`, `e2e-agents`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks`, `e2e-wires`: PASS. `e2e-edit` failed once on its 400 ms limit for a single click (438 ms, right after the other runs) and passed on the rerun (332 ms). The page code it times is unchanged by this lane.
 - `node tools/play-vscode.mjs --print`: exit 0.
 - No dependency or lockfile change, nothing downloaded. Frames under `.runs/e2e-extension/`.
+
+## Builder notes, fixes after the verifier
+
+- A missing built page now shows a message in the panel with the build command, and no server is started.
+- No `node` on the PATH shows a Node.js 20 message. Any other start failure shows the child's last 5 lines, escaped.
+- The message is the webview's own HTML (`problem-html.ts`, strict policy, no script), so the `--vscode-*` colours apply.
+- `INTENTGRAPH_WEB_DIR` points the extension at another page folder. The check uses it for the missing page case.

@@ -5,8 +5,8 @@
 // _electron.launch, with temp user data and extensions folders built by the launcher's own function.
 // proves in order: the panel opens by itself, the server answers, the page inside the panel said ready
 // with the server's node count, an open message from inside the iframe makes src/math.ts the active
-// editor at line 3, a path outside the workspace and an absolute path open nothing, and closing the
-// window stops the server. frames: 01-panel.png, 02-open-file.png, 03-narrow.png.
+// editor at line 3, a path outside the workspace and an absolute path open nothing, closing the
+// window stops the server, and a missing page folder shows the build message and starts no server. frames: 01-panel.png, 02-open-file.png, 03-narrow.png.
 // kills only the process tree it started. prints one line per step, then PASS|FAIL e2e-extension (time) - note.
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -235,6 +235,23 @@ try {
   const stopMs = Date.now() - closedAt;
   const said = readRecord()?.stopped ? 'the extension said stopped' : 'no stopped line from the extension';
   console.log(`ok stop (${secs()}s) - server gone ${stopMs} ms after the window closed, port closed, ${said}`);
+
+  // 9 fault 1: a missing page folder shows the message in the panel and starts no server
+  const e2eFile2 = join(tmp, 'e2e-missing.json');
+  const cmd2 = vscodeCommand({ repo: root, folder: work, userDataDir: join(tmp, 'user-data2'), extensionsDir: join(tmp, 'extensions2'), exe: code.exe });
+  mkdirSync(join(tmp, 'extensions2'), { recursive: true });
+  writeUserSettings(join(tmp, 'user-data2'), { write: false });
+  app = await _electron.launch({ executablePath: cmd2.exe, args: cmd2.args, env: vscodeEnv({ INTENTGRAPH_E2E_FILE: e2eFile2, INTENTGRAPH_WEB_DIR: join(tmp, 'no-such-page') }), timeout: LAUNCH_LIMIT_MS });
+  codePid = app.process().pid;
+  lastWin = await app.firstWindow({ timeout: LAUNCH_LIMIT_MS });
+  const rec3 = await until('the problem in the record', PANEL_LIMIT_MS, () => (JSON.parse(readFileSync(e2eFile2, 'utf8')).problem ? JSON.parse(readFileSync(e2eFile2, 'utf8')) : null));
+  let text = '';
+  await until('the message text in the webview', PANEL_LIMIT_MS, async () => {
+    for (const f of lastWin.frames()) text = (await f.locator('body[data-problem="no-page"]').innerText({ timeout: 500 }).catch(() => '')) || text;
+    return text.includes('pnpm --filter @intentgraph/webview build');
+  });
+  if (rec3.problem !== 'no-page' || rec3.url || rec3.pid) await fail(`the missing page case recorded ${JSON.stringify(rec3)}`);
+  console.log(`ok missing page (${secs()}s) - the panel says to run the build command, no server started`);
 
   for (const f of ['01-panel.png', '02-open-file.png', '03-narrow.png']) if (!existsSync(join(runDir, f))) await fail(`frame ${f} missing`);
   await finish(true, `panel ${panelMs} ms, ${count} nodes, open and refuse, server stopped. frames ${runDir}`);

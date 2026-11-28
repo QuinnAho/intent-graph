@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 
-import { parseLiveLine, serverCommand } from '../src/server-process.js';
+import { ServerStartError, parseLiveLine, serverCommand, startServer, webDir } from '../src/server-process.js';
 
 describe('parseLiveLine', () => {
   it('reads the address the server prints', () => {
@@ -40,5 +40,24 @@ describe('serverCommand', () => {
   it('adds --write only when asked', () => {
     expect(serverCommand({ repo, root: 'ws', write: true }).args.at(-1)).toBe('--write');
     expect(serverCommand({ repo, root: 'ws', write: false }).args).not.toContain('--write');
+  });
+});
+
+describe('start failures', () => {
+  it('a missing command is a no-node error', async () => {
+    const err = await startServer({ command: 'node-that-does-not-exist-xyz', args: [], cwd: process.cwd() }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ServerStartError);
+    expect((err as ServerStartError).kind).toBe('no-node');
+  });
+
+  it('a child that exits early is a failed error with its last lines', async () => {
+    const err = await startServer({ command: process.execPath, args: ['-e', "console.error('boom'); process.exit(2)"], cwd: process.cwd() }).catch((e: unknown) => e);
+    expect((err as ServerStartError).kind).toBe('failed');
+    expect((err as ServerStartError).lines).toContain('boom');
+  });
+
+  it('INTENTGRAPH_WEB_DIR moves the page folder', () => {
+    expect(webDir('/r', { INTENTGRAPH_WEB_DIR: '/x' })).toBe('/x');
+    expect(webDir('/r', {})).toBe(join('/r', 'packages', 'webview', 'dist'));
   });
 });
