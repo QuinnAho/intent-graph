@@ -80,6 +80,24 @@ Stop and report after 60 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
+- The reader follows `drift-reader.ts` and `infer-reader.ts`: pure parsing in `activity-marks.ts`, io in `activity-reader.ts`, a timer in `server.ts`, numbers in `tuning.ts`.
+- `composeLiveGraph` takes activity as an optional 7th argument, the same way as drift and inference. Every old caller is unchanged.
+- The e2e script reuses the spawn spy from `e2e-inferred.mjs`, logging each call as json so the git arguments can be checked one by one.
+
 ## Builder notes
 
+- Git calls: `execFile('git')`, `--no-optional-locks`, `-c core.fsmonitor=false`, a 3 second limit, `-z` output split on NUL. Only `worktree list`, `status`, `diff --name-only` and `log -1`. `GIT_DIR` and its friends are dropped from the env so a caller's variables cannot point the reader at another repo.
+- Committed files are `git diff <served HEAD>...HEAD`, so the merge base decides what the branch changed.
+- The served checkout gets an entry only when it has uncommitted files. A linked worktree is listed even with no change yet, as idle.
+- Paths under `.vite`, `.runs`, `.intentgraph` and `.wt` are left out. The linked test runs leave vitest's cache in `.vite` of the root, and that is nobody's work.
+- A failed call drops only that worktree, with a log line. A failed `worktree list` means no agents at all.
+- Spec nodes are also marked `code_changed` when a lane changes one of their `verified_by` test files. The graph has no `verifies` edges yet, the marks read them when they come.
+- The file walker already ran `git branch --show-current` before this lane. The spawn spy counts it apart from the reader.
+- Code node bodies already carry a `file://` uri with an absolute path from the static build. Older than this lane and left as is. The checks cover what this lane adds: `agents` and `activity`.
+
 ## Results
+
+- Scope steps 1 to 10 done. Drawing on the page is the second half.
+- `node tools/verify.mjs all`: PASS, 516 tests in 50 files.
+- `node tools/e2e-agents.mjs`: PASS five times in a row, about 27 s each. The lane shows within one poll (about 5 s), the commit and the removal follow within one more.
+- `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks`, `e2e-wires`: PASS once each, unchanged.
