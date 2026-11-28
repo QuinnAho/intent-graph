@@ -87,6 +87,22 @@ If time runs short, finish and commit whole scope steps in order and list the on
 
 ## Reuse record
 
+- **Draw.io integration** (GPL-3.0): borrowed the idea only, an iframe in a webview with a relay script. No code copied, the relay is our own 12 lines.
+- **Nx Console** (MIT): borrowed the idea of checking that a path from the graph stays inside the workspace before opening it. Our check is our own and stricter: no backslash, no colon, no `..` that climbs out, then a second check on the joined path.
+- **Playwright** `_electron` (Apache-2.0, already a dev dependency): adopted to drive the machine's own VS Code in the check.
+- **`tools/play.mjs`** (this repo): copied its way of starting the server, reading the `live:` line and ending a tree with `taskkill /t`.
+- Skipped: `@vscode/test-electron` and `@vscode/test-cli` (they download VS Code), `vscode-messenger` (plain `postMessage` is enough for two message types), `portMapping` (not needed for 127.0.0.1 on the same machine).
+
 ## Builder notes
+
+- **Proved first, all on the first try on VS Code 1.113.0:** `--extensionDevelopmentPath` with its own `--user-data-dir` and `--extensions-dir` loads the extension (the title says "[Extension Development Host]"). Playwright `_electron.launch` starts `Code.exe` and can reach the iframe as a frame (`win.frames()` lists `http://127.0.0.1:<port>/`), so the check posts messages from inside the page, no test-only command was needed. The iframe shows inside the webview with `frame-src` naming only the one address.
+- **The binary.** Both the launcher and the check start `Code.exe` directly, found next to the `code` command on the PATH, not `code.cmd`. The `.cmd` sets `ELECTRON_RUN_AS_NODE` and hands off to the same program, and Playwright needs the program itself. Every `VSCODE_*` variable is dropped from the child's environment so a launch from a VS Code terminal cannot join the owner's window. `assertOwnFolders` refuses any user data or extensions folder outside `.runs/` and the temp folder, and VS Code's own folders.
+- **The ready count** is the number of nodes in the page's store once the layout is done. It equals `/graph.json` (11 on the example). The rendered React Flow node count is smaller (5), so the DOM was not used.
+- **One line in `main.tsx`** is a dynamic import of the bridge, so the line both loads and starts it. Vite puts the bridge in its own small chunk.
+- **Panel column.** With no editor open the panel lands in group 1 and files open in group 2. With an editor open it lands beside it, and files open in group 1. Either way the graph stays in sight.
+- **Closing the window** runs `deactivate`, which sends `stop` and the server exits before the window is gone. The check saw the server process gone and the port closed at once.
+- **Settings of the separate window:** panel on start, edit by flag, trust off, no welcome page, no update check, telemetry off, no secondary side bar, AI features off, git does not offer the parent repo.
+- **Keys and focus, for the owner to judge.** Not tested by hand. From the VS Code source (see the recipe): while the page has focus, VS Code's own shortcuts such as Ctrl+P do not fire, and the page's own keys work. The page's right-click menu works, VS Code's does not. Click the code side to get the editor keys back.
+- **Seen in the frames:** the page's "How to read the graph" legend opens on the first visit and covers much of a narrow panel. VS Code shows a toast that installed extensions are off. Both are expected. The legend at 900 px is a page lane matter.
 
 ## Results
