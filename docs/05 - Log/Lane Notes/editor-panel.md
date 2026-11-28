@@ -106,3 +106,11 @@ If time runs short, finish and commit whole scope steps in order and list the on
 - **Seen in the frames:** the page's "How to read the graph" legend opens on the first visit and covers much of a narrow panel. VS Code shows a toast that installed extensions are off. Both are expected. The legend at 900 px is a page lane matter.
 
 ## Results
+
+Checked on `a3b6ec0`, 2026-11-28. Scope steps 1 to 9 done.
+
+- `node tools/verify.mjs all`: exit 0, `PASS all`, 563 tests in 55 files.
+- `node tools/e2e-extension.mjs` three times in a row: exit 0 each, panel in 7.9 to 9.4 s, 11 nodes, server gone when the window closed.
+- `e2e-glance`, `e2e-agents`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks`, `e2e-wires`: PASS. `e2e-edit` failed once on its 400 ms limit for a single click (438 ms, right after the other runs) and passed on the rerun (332 ms). The page code it times is unchanged by this lane.
+- `node tools/play-vscode.mjs --print`: exit 0.
+- No dependency or lockfile change, nothing downloaded. Frames under `.runs/e2e-extension/`.
