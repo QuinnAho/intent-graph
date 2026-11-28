@@ -244,7 +244,14 @@ try {
   app = await _electron.launch({ executablePath: cmd2.exe, args: cmd2.args, env: vscodeEnv({ INTENTGRAPH_E2E_FILE: e2eFile2, INTENTGRAPH_WEB_DIR: join(tmp, 'no-such-page') }), timeout: LAUNCH_LIMIT_MS });
   codePid = app.process().pid;
   lastWin = await app.firstWindow({ timeout: LAUNCH_LIMIT_MS });
-  const rec3 = await until('the problem in the record', PANEL_LIMIT_MS, () => (JSON.parse(readFileSync(e2eFile2, 'utf8')).problem ? JSON.parse(readFileSync(e2eFile2, 'utf8')) : null));
+  const rec3 = await until('the problem in the record', PANEL_LIMIT_MS, () => {
+    try {
+      const r = JSON.parse(readFileSync(e2eFile2, 'utf8'));
+      return r.problem ? r : null;
+    } catch {
+      return null;
+    }
+  });
   let text = '';
   await until('the message text in the webview', PANEL_LIMIT_MS, async () => {
     for (const f of lastWin.frames()) text = (await f.locator('body[data-problem="no-page"]').innerText({ timeout: 500 }).catch(() => '')) || text;
