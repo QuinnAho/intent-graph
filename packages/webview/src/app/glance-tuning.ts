@@ -4,6 +4,8 @@ export const GLANCE_TUNING = {
   barHeight: 36,
   /** the legend takes this much room right of the canvas, so it never sits on a node */
   legendWidth: 340,
+  /** under this window width the legend does not open by itself, and opens full width */
+  narrowPx: 700,
   /** set once the legend has opened by itself, so it stays closed on later visits */
   legendSeenKey: 'intentgraph.legend.seen',
   /** a zero count is drawn this faint, never hidden */

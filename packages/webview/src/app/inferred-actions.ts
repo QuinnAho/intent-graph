@@ -8,6 +8,7 @@ import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { acceptInferred, dismissInferred, type ApiResult } from '../transport/edit-api.js';
 import { focusNode } from './direct-edit-actions.js';
+import { revealNode } from './fold-actions.js';
 import { selectOnly } from './edit-model.js';
 import { acceptedNotice, dismissedNotice, nextInferred } from './inferred-model.js';
 import { refuseEdit } from './wire-edit-actions.js';
@@ -50,12 +51,13 @@ export async function dismissProposal(id: string): Promise<void> {
   else ui.showNotice(dismissedNotice(title), 'done', true);
 }
 
-/** the strip's count: select the next open proposal and bring it into view */
-export function selectNextProposal(): void {
-  const g = useGraphStore.getState();
-  const selected = g.nodes.find((n) => n.selected === true)?.id ?? null;
-  const id = nextInferred(g.nodes as Node[], selected);
+/** the strip's count: select the next open proposal and bring it into view. a folded one unfolds first. */
+export async function selectNextProposal(): Promise<void> {
+  const selected = useGraphStore.getState().nodes.find((n) => n.selected === true)?.id ?? null;
+  const id = nextInferred(useGraphStore.getState().nodes as Node[], selected);
   if (!id) return;
+  await revealNode(id);
+  const g = useGraphStore.getState();
   const next = selectOnly(g.nodes as Node[], id);
   if (next) g.setGraph(next, g.edges);
   useUiStore.getState().closeMenu();

@@ -24,6 +24,8 @@ import { addIntentTo } from '../../app/direct-edit-actions.js';
 import { registerLayoutSizer } from '../layout/sizing.js';
 import { NodeChrome, type NodeChromeData } from './shared/nodeChrome.js';
 import { useUiStore } from '../../store/ui-slice.js';
+import { foldOf } from '../fold-model.js';
+import { ConceptFoldRow } from './FoldRow.js';
 
 const ADD_BUTTON = {
   display: 'inline-flex',
@@ -67,7 +69,14 @@ export function ConceptNode(props: NodeProps): JSX.Element {
       <Plus size={14} aria-hidden />
     </button>
   ) : null;
-  return <NodeChrome data={chromeData} headerAction={plus} />;
+  const fold = foldOf(props);
+  if (!fold) return <NodeChrome data={chromeData} headerAction={plus} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <NodeChrome data={chromeData} headerAction={plus} />
+      <ConceptFoldRow fold={fold} />
+    </div>
+  );
 }
 
 registerLayoutSizer('concept', (node) => {

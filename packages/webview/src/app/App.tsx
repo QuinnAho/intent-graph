@@ -8,7 +8,7 @@
 // store shape is unchanged; only the producer differs.
 
 import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
 import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-edit-actions.js';
@@ -25,6 +25,7 @@ import { isUndoKey } from '../graph/wire-edit-model.js';
 import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
+import { isFoldBox } from '../graph/fold-model.js';
 import {
   useGraphEdges,
   useGraphError,
@@ -109,6 +110,15 @@ function useLiveUpdates(live: LiveSource | null): void {
   }, [live]);
 }
 
+// the first view fits what is drawn: folded proposals are left out, the root fold box is kept
+function firstFit(nodes: ReadonlyArray<Node>, focus: string | null): string[] | null {
+  const shown = nodes.filter((n) => n.hidden !== true);
+  const ids = pickInitialFit(shown, focus);
+  const box = shown.find(isFoldBox);
+  if (!ids || !box || (focus !== null && shown.some((n) => n.id === focus))) return ids;
+  return [...ids, box.id];
+}
+
 // keep selection in the store so a live update does not clear it
 function onSelectionChange(changes: NodeChange[]): void {
   const select = changes.filter((c): c is NodeSelectionChange => c.type === 'select');
@@ -178,7 +188,7 @@ function useWireEditKeys(): void {
   }, []);
 }
 
-// the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
+// the canvas and the edit panel fill what is left under the bar and the problems list, so nothing sits on a node
 const SHELL_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -188,8 +198,8 @@ const SHELL_STYLE: CSSProperties = {
   flexDirection: 'column',
 };
 
-// the state bar sits above this row and the legend beside the canvas, each in its own room
-const MIDDLE_STYLE: CSSProperties = { display: 'flex', flex: '1 1 auto', minHeight: 0 };
+// the state bar sits above this row and the legend lies over its right side, so the canvas keeps its size
+const MIDDLE_STYLE: CSSProperties = { position: 'relative', overflow: 'hidden', display: 'flex', flex: '1 1 auto', minHeight: 0 };
 const CANVAS_AREA_STYLE: CSSProperties = { position: 'relative', flex: '1 1 auto', minHeight: 0, minWidth: 0 };
 
 const ERROR_STYLE: CSSProperties = {
@@ -219,15 +229,23 @@ export function App(): JSX.Element {
   const editNodeId = useSettledId(useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null));
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
+  const focusSelected = useRef(false);
 
   useEffect(() => {
     if (status === 'idle') {
-      void loadGraphFromJson(live ? { url: live.graphUrl } : {});
+      void loadGraphFromJson(live ? { url: live.graphUrl, reveal: focus } : { reveal: focus });
     }
-  }, [status, live]);
+  }, [status, live, focus]);
 
   useEffect(() => {
-    if (layoutReady && fitNodeIds === undefined) setFitNodeIds(pickInitialFit(nodes, focus));
+    if (layoutReady && fitNodeIds === undefined) {
+      setFitNodeIds(firstFit(nodes, focus));
+      // ?focus= also selects the node, so "reveal in graph" shows it picked
+      // once only: a store update can render again before the state above lands
+      const picked = focus !== null && !focusSelected.current ? selectOnly(nodes as Node[], focus) : null;
+      focusSelected.current = true;
+      if (picked) useGraphStore.getState().setGraph(picked, useGraphStore.getState().edges);
+    }
   }, [layoutReady, fitNodeIds, nodes, focus]);
 
   useEffect(() => {
@@ -262,6 +280,7 @@ export function App(): JSX.Element {
   return (
     <div style={SHELL_STYLE}>
       <StateBar />
+      <ProblemsPanel />
       <div style={MIDDLE_STYLE}>
       <div style={CANVAS_AREA_STYLE}>
       <GraphCanvas
@@ -278,7 +297,6 @@ export function App(): JSX.Element {
       <Legend />
       </div>
       <Notice />
-      <ProblemsPanel />
     </div>
   );
 }

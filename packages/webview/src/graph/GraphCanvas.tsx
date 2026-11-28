@@ -38,7 +38,10 @@ import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
 import { dragHold } from './drag-hold.js';
 import { calmHoverUntilMove } from './drop-calm.js';
-import { EDIT_TIMING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, FIT_TUNING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { FOLD_BOX_KIND } from './fold-model.js';
+import { isFitKey, shouldRefit, type Size } from './fit-model.js';
+import { InferredFoldNode } from './nodes/FoldRow.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
 import { CodeSymbolNode } from './nodes/CodeSymbolNode.js';
@@ -73,6 +76,7 @@ const NODE_TYPES: NodeTypes = {
   code_symbol: CodeSymbolNode,
   counterexample: CounterexampleNode,
   task: TaskNode,
+  [FOLD_BOX_KIND]: InferredFoldNode,
 };
 
 // spec nodes that can be dragged into another concept box. a concept box itself stays put,
@@ -123,7 +127,77 @@ function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }
   return null;
 }
 
-const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.2 };
+const FIT_VIEW_OPTIONS = { padding: FIT_TUNING.padding, maxZoom: FIT_TUNING.maxZoom, minZoom: FIT_TUNING.minZoom };
+
+type FitOptions = typeof FIT_VIEW_OPTIONS & { nodes?: Array<{ id: string }> };
+
+// fits again when the canvas changes size, unless the person moved the view since the last fit.
+// F fits too, and after that a change of size fits again. lane 12.
+function FitOnResize(props: { options: FitOptions; moved: { current: boolean } }): null {
+  const rf = useReactFlow();
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
+  const last = useRef<Size | null>(null);
+  const lastAt = useRef(0);
+  const timer = useRef<number | null>(null);
+  const optionsRef = useRef(props.options);
+  optionsRef.current = props.options;
+  const fit = useCallback((): void => {
+    const opts = optionsRef.current;
+    // ids that are folded away now are left out, the fit takes what is drawn
+    const drawn = opts.nodes?.filter((n) => rf.getNode(n.id)?.hidden !== true && rf.getNode(n.id) !== undefined);
+    void rf.fitView(drawn && drawn.length > 0 ? { ...opts, nodes: drawn } : { padding: opts.padding, maxZoom: opts.maxZoom, minZoom: opts.minZoom });
+    props.moved.current = false;
+    lastAt.current = Date.now();
+    const store = document.querySelector('.react-flow')?.getBoundingClientRect();
+    last.current = store ? { width: store.width, height: store.height } : null;
+  }, [rf, props.moved]);
+  // the first fit is the fitView prop, its size is the one to compare with
+  useEffect(() => {
+    if (last.current === null && width > 0 && height > 0) {
+      last.current = { width, height };
+      lastAt.current = Date.now();
+      return undefined;
+    }
+    if (!shouldRefit({ last: last.current, now: { width, height }, moved: props.moved.current, thresholdPx: FIT_TUNING.refitPx })) return undefined;
+    if (timer.current !== null) return undefined;
+    const wait = Math.max(0, FIT_TUNING.refitMs - (Date.now() - lastAt.current));
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      if (!props.moved.current) fit();
+    }, wait);
+    return undefined;
+  }, [width, height, fit, props.moved]);
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target instanceof Element ? e.target : null;
+      const typing = target?.closest('input, textarea, select, [contenteditable="true"]') != null;
+      if (!isFitKey(e, typing)) return;
+      e.preventDefault();
+      fit();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fit]);
+  return null;
+}
+
+// moves the view once when a concept folds or unfolds, so its header stays where it was on screen
+function ApplyViewShift(): null {
+  const rf = useReactFlow();
+  const shift = useUiStore((s) => s.viewShift);
+  const seen = useRef(shift?.seq ?? 0);
+  useEffect(() => {
+    if (!shift || shift.seq === seen.current) return;
+    seen.current = shift.seq;
+    const v = rf.getViewport();
+    void rf.setViewport({ x: v.x - shift.dx * v.zoom, y: v.y - shift.dy * v.zoom, zoom: v.zoom });
+  }, [shift, rf]);
+  return null;
+}
 
 const TRANSITIONING_MESSAGE_STYLE: CSSProperties = {
   position: 'absolute',
@@ -202,18 +276,24 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   const [dragAt, setDragAt] = useState<{ id: string; position: XYPosition } | null>(null);
   // the concept box a held node would land in, lit while it is over it
   const [dropBox, setDropBox] = useState<string | null>(null);
+  // folded proposals are not drawn, and neither is a wire that ends on one
+  const shownNodes = useMemo(() => nodes.filter((n) => n.hidden !== true), [nodes]);
+  const shownEdges = useMemo(() => {
+    const ids = new Set(shownNodes.map((n) => n.id));
+    return edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+  }, [shownNodes, edges]);
   const ends = useMemo(() => endsOf(nodes, edges), [nodes, edges]);
   const rfRef = useRef<ReactFlowInstance | null>(null);
 
   // wires run under node bodies: boxes at the bottom, then wires, then the nodes in them
-  const plan = useMemo(() => planWires(nodes, edges, viewBlock), [nodes, edges]);
+  const plan = useMemo(() => planWires(shownNodes, shownEdges, viewBlock), [shownNodes, shownEdges]);
   const wires = useMemo(
     () => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire, selected: w.id === selectedWire })),
     [plan, selectedWire],
   );
   const stacked = useMemo(() => {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
-    return nodes.map((n) => {
+    return shownNodes.map((n) => {
       const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
       // a proposal is not a file yet, so it cannot be dragged into another concept
       const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type) && inferredOf(n) === null;
@@ -230,7 +310,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       else if (connectFrom === n.id) out.className = 'ig-drop-from';
       return out;
     });
-  }, [nodes, dragAt, connectFrom, dropBox, ends]);
+  }, [nodes, shownNodes, dragAt, connectFrom, dropBox, ends]);
 
   // only position changes of the held node are kept here, the rest go to the store as before
   const handleNodesChange = useCallback<OnNodesChange>(
@@ -388,8 +468,12 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     openPaneMenu({ x: event.clientX, y: event.clientY });
   }, []);
   // only a move the person makes closes the menu, not the page keeping a node clear of the panel
+  // a move the person makes also stops the fit again on a change of size, until F or the next fit
+  const movedRef = useRef(false);
   const handleMoveStart = useCallback((event: unknown): void => {
-    if (event) useUiStore.getState().closeMenu();
+    if (!event) return;
+    movedRef.current = true;
+    useUiStore.getState().closeMenu();
   }, []);
 
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
@@ -431,6 +515,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         edgeTypes={EDGE_TYPES}
         fitView={fitView}
         fitViewOptions={fitViewOptions}
+        minZoom={FIT_TUNING.minZoom}
         nodesDraggable={!interactionLocked}
         nodesConnectable={write && !interactionLocked}
         nodeDragThreshold={WIRE_EDIT_TUNING.dragThresholdPx}
@@ -476,6 +561,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         <Background color="var(--ig-edge)" gap={40} size={1} />
         <KeepInView nodeId={clearPanelFor} nodes={nodes} />
         <ContextMenu fitViewOptions={FIT_VIEW_OPTIONS} />
+        <FitOnResize options={fitViewOptions} moved={movedRef} />
+        <ApplyViewShift />
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>

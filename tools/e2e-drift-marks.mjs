@@ -262,7 +262,11 @@ try {
   while (g.problems.length !== 1 && Date.now() - t1 < 1500) { await page.waitForTimeout(100); g = await graph(); }
   if (g.problems.length !== 1 || !/^\.runs\/drift\/run-\d+\/report\.json$/.test(g.problems[0].file)) await fail(`want one problem for the report, got ${JSON.stringify(g.problems)}`);
   if (g.nodes.some((n) => n.drift)) await fail('a broken report still marked a node');
-  await page.locator('[data-problems-count]').waitFor({ timeout: 2000 });
+  // lane 12: the bar's count is the one place a problem shows, and it opens the list with the report's file
+  await page.waitForFunction(() => document.querySelector('[data-bar-count="problems"]')?.getAttribute('data-count') === '1', null, { timeout: 2000 });
+  await page.locator('[data-state-bar] [data-bar-count="problems"]').click();
+  await page.locator(`[data-problem-file="${g.problems[0].file}"]`).waitFor({ timeout: 2000 });
+  await page.keyboard.press('Escape');
   console.log(`ok broken report (${secs()}s) - 1 problem "${g.problems[0].message}", no marks, in ${Date.now() - tBreak} ms`);
 
   // a schema mismatch counts the same

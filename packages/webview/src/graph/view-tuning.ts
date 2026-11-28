@@ -10,6 +10,32 @@ export const VIEW_TUNING = {
   groupHeader: 64,
 } as const;
 
+// folded proposals (lane 12): one dashed row at a concept's foot, one box at the root for the rest
+export const FOLD_TUNING = {
+  // height of the row, and the room left under it to the concept's border
+  rowPx: 28,
+  rowGapPx: 8,
+  // space between a concept's declared children and its unfolded proposals below them
+  bandGap: 40,
+  // the root box for proposals with no concept
+  boxWidth: 320,
+  boxHeight: 44,
+  // the header of a concept stays this close to where it was when it folds or unfolds, px
+  anchorPx: 40,
+} as const;
+
+// fitting the graph to the canvas, the first time, on F and when the canvas changes size
+export const FIT_TUNING = {
+  padding: 0.2,
+  maxZoom: 1.2,
+  // low enough that a big graph still fits a narrow panel
+  minZoom: 0.05,
+  // a change of size smaller than this does not fit again, px
+  refitPx: 8,
+  // at most one fit again in this time, ms
+  refitMs: 150,
+} as const;
+
 // wires and pins, blueprint style (adr 0031). see docs/03 - Research/2026-11-27 Blueprint Style Graph.md
 export const WIRE_TUNING = {
   // forward wire: control offset is half the run, held between these

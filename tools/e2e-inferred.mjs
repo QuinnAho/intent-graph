@@ -119,6 +119,22 @@ function writeReport(proposals) {
   writeFileSync(join(work, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: `.runs/infer/run-${reportN}/report.json` }));
 }
 
+// lane 12: proposals start folded. open every fold row by its key, so no click closes the legend
+async function unfoldAll(p) {
+  await p.locator('[data-fold-row]').first().waitFor({ timeout: 30000 });
+  // one row at a time: an unfolded concept can push another row out of view, and F brings it back
+  for (let i = 0; i < 10; i++) {
+    const key = await p.evaluate(() => document.querySelector('[data-fold-row][data-fold-open="false"]')?.getAttribute('data-fold-row') ?? null);
+    if (!key) break;
+    await p.locator(`[data-fold-row="${key}"]`).focus();
+    await p.keyboard.press('Enter');
+    await p.waitForFunction((k) => document.querySelector(`[data-fold-row="${k}"]`)?.getAttribute('data-fold-open') === 'true', key, { timeout: 5000 });
+    // the unfolded proposals sit below the declared ones, F fits the view so they are drawn
+    await p.keyboard.press('f');
+    await p.waitForTimeout(400);
+  }
+}
+
 // every byte under spec/, so an undo can be checked byte for byte
 function specBytes() {
   const out = {};
@@ -182,6 +198,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.location().url || '')) errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   await page.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await unfoldAll(page);
   await page.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 3, null, { timeout: 30000 });
   await page.waitForTimeout(400);
 
@@ -217,7 +234,8 @@ try {
     await p.locator(`[data-inferred-panel="${pid}"]`).waitFor({ timeout: SHOW_LIMIT_MS });
     // the view settles after a selection before it pans
     await p.waitForTimeout(700);
-    await p.locator(node(id)).click({ position: { x: 30, y: 60 } });
+    // lane 12: a fitted view of unfolded proposals is smaller, so the click lands on the title row
+    await p.locator(node(id)).click({ position: { x: 30, y: 20 } });
   };
 
   // the selected proposal's box must sit inside the canvas and clear of the side panel
@@ -447,6 +465,7 @@ try {
   const posts = [];
   page2.on('request', (r) => { if (r.method() !== 'GET') posts.push(r.url()); });
   await page2.goto(ro.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await unfoldAll(page2);
   await page2.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 3, null, { timeout: 30000 });
   const specRo = specBytes();
   const settledRo = readOr(settledFile());
@@ -458,7 +477,7 @@ try {
   await page2.locator(node(inf(P_ADD))).locator('[data-node-title]').dblclick();
   const buttons = await page2.evaluate(() => ['accept', 'edit', 'dismiss'].map((k) => document.querySelector(`[data-inferred-${k}]`)?.disabled));
   const reason = await page2.locator('[data-inferred-readonly]').textContent();
-  await page2.locator(node(inf(P_ADD))).click({ button: 'right', position: { x: 30, y: 60 } });
+  await page2.locator(node(inf(P_ADD))).click({ button: 'right', position: { x: 30, y: 20 } });
   const menu = await page2.evaluate(() => [...document.querySelectorAll('[role="menuitem"]')].map((m) => ({ text: m.textContent, disabled: m.getAttribute('aria-disabled') === 'true', reason: m.getAttribute('title') ?? '' })));
   const menuReason = await page2.locator('[data-menu-reason]').textContent().catch(() => '');
   await page2.screenshot({ path: join(runDir, '05-read-only.jpg'), type: 'jpeg', quality: 82 });

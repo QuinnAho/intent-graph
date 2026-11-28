@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // measures the wires on the live page. usage: node tools/e2e-wires.mjs [--no-build] [--baseline]
-// serves a temp copy of the fixture and then this repo through the live server, opens each page
+// serves a temp copy of the fixture, then this repo, then the fixture with 40 folded proposals (lane 12)
+// through the live server, opens each page
 // headless at its first view and samples 40 points along every drawn wire. it counts samples
 // inside a node box that is not an end of the wire and not a box holding an end, and wire ends
 // farther than 6 px (flow units) from a visible pin. also the share of wires that run left to
@@ -301,6 +302,36 @@ try {
   await rp.page.close();
   if (!(await stopServer())) await fail('repo server did not stop');
 
+  // 3 lane 12: the fixture with a canned report of 40 proposals in its one concept, which the wires of
+  // its intents come into. folded, no wire may cross a box. unfolded, the number is only printed.
+  const foldWork = mkdtempSync(join(tmpdir(), 'intentgraph-wires-fold-'));
+  cpSync(fixture, foldWork, { recursive: true });
+  const proposals = Array.from({ length: 40 }, (_, i) => ({ id: `inf-w${i}`, folder: 'src', title: `Proposal ${i + 1} for the calculator`, body: 'Canned.', anchors: ['src/math.ts'], belongs_under: 'concept-calculator', restates: null, confidence: 'inferred', planned: false, code_hash: `hash-w${i}` }));
+  mkdirSync(join(foldWork, '.runs', 'infer', 'run-1'), { recursive: true });
+  writeFileSync(join(foldWork, '.runs', 'infer', 'run-1', 'report.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: { incomplete: false, stopped: null, proposals } }));
+  writeFileSync(join(foldWork, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: '.runs/infer/run-1/report.json' }));
+  url = await startServer(foldWork, 'fold');
+  if (!url) await fail(`fold server did not start, see ${runDir}`);
+  const fd = await measurePage(browser, url, 'fold', errors);
+  await fd.page.screenshot({ path: join(runDir, 'f-fold-folded.jpg'), type: 'jpeg', quality: 85 });
+  const inferredShown = await fd.page.evaluate(() => document.querySelectorAll('[data-inferred]').length);
+  console.log(`ok ${describe('40 folded', fd.m)}, ${inferredShown} proposals drawn`);
+  if (fd.m.crossSamples > 0) problems.push(`40 folded has ${fd.m.crossSamples} crossing samples`);
+  if (inferredShown > 0) problems.push(`40 folded draws ${inferredShown} proposals`);
+  if (await fd.page.locator('[data-legend]').count()) { await fd.page.locator('[data-legend-button]').click(); await fd.page.waitForTimeout(400); }
+  await fd.page.locator('[data-fold-row="concept-calculator"]').click();
+  await fd.page.waitForFunction(() => document.querySelectorAll('[data-inferred]').length > 0, null, { timeout: 10000 }).catch(() => {});
+  await fd.page.keyboard.press('f');
+  await fd.page.waitForTimeout(700);
+  const un = await fd.page.evaluate(measureInPage, { parents: fd.parents, ends: fd.ends, samples: SAMPLES, loosePx: LOOSE_PX, inView: false });
+  un.loadMs = 0;
+  un.graphEdges = fd.m.graphEdges;
+  await fd.page.screenshot({ path: join(runDir, 'g-fold-unfolded.jpg'), type: 'jpeg', quality: 85 });
+  console.log(`measured ${describe('40 unfolded', un)} (no pass or fail)`);
+  await fd.page.close();
+  if (!(await stopServer())) await fail('fold server did not stop');
+  rmSync(foldWork, { recursive: true, force: true });
+
   const m = rp.m;
   if (m.looseEnds > 0) problems.push(`repo has ${m.looseEnds} loose ends`);
   if (m.overLabel > 0) problems.push(`repo has ${m.overLabel} wire samples drawn over a node`);
@@ -319,7 +350,7 @@ try {
   }
   if (left.length) problems.push(`test processes left after 5 s: ${left.join(', ')}`);
 
-  const summary = `fixture ${fx.m.crossSamples} crossing ${fx.m.looseEnds} loose, repo ${m.crossSamples} crossing on ${m.crossWires}/${m.wires} wires ${m.looseEnds} loose ${m.loadMs} ms, frames in ${runDir}`;
+  const summary = `fixture ${fx.m.crossSamples} crossing ${fx.m.looseEnds} loose, 40 folded ${fd.m.crossSamples} crossing, 40 unfolded ${un.crossSamples} measured, repo ${m.crossSamples} crossing on ${m.crossWires}/${m.wires} wires ${m.looseEnds} loose ${m.loadMs} ms, frames in ${runDir}`;
   if (baseline) await finish(true, `baseline only, ${problems.length} problem(s): ${problems.join('; ') || 'none'}. ${summary}`);
   if (problems.length) await fail(`${problems.join('; ')}. ${summary}`);
   await finish(true, summary);
