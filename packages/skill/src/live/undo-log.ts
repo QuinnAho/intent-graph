@@ -6,6 +6,7 @@ import { readFileSync, unlinkSync } from 'node:fs';
 
 import { hashSpecSource, writeSpecFileAtomic } from '../parser/spec-md/writer.js';
 import { apiError, isInsideSpec, type ApiReply } from './edit-api.js';
+import { isInsideInfer } from './infer-reader.js';
 
 export interface UndoEntry {
   readonly file: string;
@@ -15,6 +16,8 @@ export interface UndoEntry {
   readonly before: Buffer | null;
   readonly afterHash: string;
   readonly label: string;
+  /** where the file lives: a spec file, or the settled list under .runs/infer. left out means spec. */
+  readonly area?: 'spec' | 'infer';
 }
 
 export class UndoLog {
@@ -39,7 +42,8 @@ export class UndoLog {
   undo(root: string): ApiReply & { readonly written?: string } {
     const e = this.entries.pop();
     if (!e) return apiError(409, 'conflict', 'Nothing to undo.');
-    if (!isInsideSpec(root, e.file)) return apiError(409, 'conflict', `${e.rel} is gone, that change can no longer be undone.`);
+    const inside = e.area === 'infer' ? isInsideInfer(root, e.file) : isInsideSpec(root, e.file);
+    if (!inside) return apiError(409, 'conflict', `${e.rel} is gone, that change can no longer be undone.`);
     let now: Buffer;
     try {
       now = readFileSync(e.file);

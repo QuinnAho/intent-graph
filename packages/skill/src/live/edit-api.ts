@@ -4,9 +4,11 @@
 // json, so another site in the browser cannot post here. files are only ever written
 // inside the workspace's spec/ folder.
 
-import { readFileSync, readdirSync, realpathSync, type Dirent } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { mkdirSync, readFileSync, readdirSync, realpathSync, type Dirent } from 'node:fs';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
+
+import type { InferProposalRow } from '@intentgraph/shared/schemas';
 
 import { SPEC_WRITE_TUNING } from '../parser/spec-md/write-tuning.js';
 import {
@@ -18,6 +20,9 @@ import {
   slugFromTitle,
   writeSpecFileAtomic,
 } from '../parser/spec-md/writer.js';
+import { missingAnchors } from './compose.js';
+import { addDismissed, settledText, type Settled } from './infer-marks.js';
+import { settledPath } from './infer-reader.js';
 import { checkParentChange, type ParentNode } from './parent-rules.js';
 
 export type EditErrorCode =
@@ -273,4 +278,52 @@ export function parentsOnDisk(root: string): Map<string, string | null> {
 /** the cached nodes with each spec node's parent taken from the files, so the loop check sees what is on disk */
 export function withParentsFromDisk(nodes: ReadonlyArray<ParentNode>, disk: ReadonlyMap<string, string | null>): ParentNode[] {
   return nodes.map((n) => (disk.has(n.id) ? { ...n, parent_id: disk.get(n.id) ?? null } : n));
+}
+
+export interface AcceptInput {
+  /** a new title from the rename field, or left out to keep the proposal's own */
+  readonly title?: unknown;
+}
+
+/** an accepted proposal becomes spec/intents/<slug>.md: its title, body, concept as parent and anchors as realized_by */
+export function acceptProposal(
+  root: string,
+  proposal: InferProposalRow | null,
+  input: AcceptInput,
+  nodes: ReadonlyArray<{ readonly id: string; readonly kind: string }>,
+  today: string,
+): ApiReply & { readonly written?: string; readonly intent?: string } {
+  if (!proposal) return apiError(404, 'not-found', 'that proposal is not open any more, the graph will catch up');
+  if (input.title !== undefined && typeof input.title !== 'string') return apiError(400, 'bad-request', 'title must be text');
+  const title = typeof input.title === 'string' ? input.title : proposal.title;
+  if (title.trim().length === 0) return apiError(422, 'invalid', 'Give the intent a title.');
+  const slug = slugFromTitle(title);
+  if (slug && nodes.some((n) => n.id === `intent-${slug}`)) {
+    return apiError(409, 'duplicate', `an intent with id intent-${slug} already exists, pick another title`);
+  }
+  // a concept the graph does not have would leave the file with a dangling parent, so it goes to the top
+  const parent = proposal.belongs_under !== null && nodes.some((n) => n.id === proposal.belongs_under && n.kind === 'concept') ? proposal.belongs_under : null;
+  const r = createIntentFile(resolve(root, 'spec'), {
+    title,
+    parent,
+    today,
+    targetKinds: [...SPEC_WRITE_TUNING.defaultTargetKinds],
+    body: proposal.body,
+    realizedBy: proposal.anchors,
+  });
+  if (!r.ok) return apiError(r.code === 'duplicate' ? 409 : 422, r.code, r.reason);
+  // still written: a bad anchor is a warning in this tool, never a refusal. the reply says which ones.
+  const missing = missingAnchors(proposal.anchors, nodes);
+  return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file), proposal: proposal.id, missing_anchors: missing }, written: relPath(root, r.file), intent: r.id };
+}
+
+/** write the settled list with one more dismissed proposal. only ever under .runs/infer, never spec/. */
+export function dismissProposal(root: string, proposal: InferProposalRow | null, settled: Settled): ApiReply & { readonly written?: string } {
+  if (!proposal) return apiError(404, 'not-found', 'that proposal is not open any more, the graph will catch up');
+  const next = addDismissed(settled, proposal);
+  if (next === settled) return apiError(409, 'conflict', 'that proposal is already dismissed');
+  const file = settledPath(root);
+  mkdirSync(dirname(file), { recursive: true });
+  writeSpecFileAtomic(file, settledText(next));
+  return { status: 200, body: { ok: true, dismissed: proposal.id }, written: relPath(root, file) };
 }

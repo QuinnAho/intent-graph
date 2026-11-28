@@ -5,9 +5,10 @@
 // highlight states, hidden handles" surface called out in the lift plan.
 
 import { Handle, Position, useNodeId } from '@xyflow/react';
-import { CircleCheck, CircleDashed, CircleHelp, CircleX, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleHelp, CircleX, Equal, OctagonAlert, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react';
 import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
+import { inferredWords, sameAsLabel, type InferredInfo } from '../../../app/inferred-model.js';
 import { useUiStore } from '../../../store/ui-slice.js';
 import { SPEC_KINDS } from '../../../transport/live-source.js';
 import { getNodeIcon, type NodeKind } from '../nodeIcons.js';
@@ -58,6 +59,8 @@ export interface NodeChromeData {
   drift?: DriftInfo;
   /** Anchor warnings for this node, shown as a count with the text on hover. */
   warnings?: ReadonlyArray<string>;
+  /** A proposal a model inferred from the code, not yet accepted. Drawn dashed, with its words. */
+  inferred?: InferredInfo;
   /** Render the in and out pins. Default true. */
   handlesHidden?: boolean;
 }
@@ -163,6 +166,51 @@ function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Element {
       <TriangleAlert size={13} />
       {props.warnings.length}
     </span>
+  );
+}
+
+// an inferred node: dashed, with the word and its confidence, so it never reads by colour alone
+const INFERRED_BORDER = 'rgba(167, 139, 250, 0.8)';
+const INFERRED_HEADER = 'rgba(167, 139, 250, 0.08)';
+// a planned proposal cites only placeholder code, so it is drawn fainter than one whose code works
+const PLANNED_OPACITY = 0.55;
+
+const PILL: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  padding: '1px 7px 1px 5px',
+  borderRadius: '999px',
+  border: '1px dashed var(--ig-edge)',
+  fontSize: '11px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
+  color: 'var(--ig-text)',
+};
+
+function InferredRow(props: { info: InferredInfo }): JSX.Element {
+  const words = inferredWords(props.info);
+  const same = sameAsLabel(props.info);
+  return (
+    <div data-inferred-row="" style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '5px 14px 6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+        <span data-inferred-word="" style={{ ...PILL, borderColor: INFERRED_BORDER }}>
+          <Sparkles size={12} aria-hidden />
+          {words[0]}
+        </span>
+        {words.slice(1).map((w) => (
+          <span key={w} data-inferred-word={w} style={{ ...PILL, fontWeight: 500, opacity: 0.85 }}>
+            {w}
+          </span>
+        ))}
+      </div>
+      {same ? (
+        <div data-inferred-same="" title={same} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', lineHeight: '16px', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <Equal size={12} aria-hidden style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{same}</span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -287,7 +335,8 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
   const Icon = getNodeIcon(data.kind);
   const surface = pickSurface(data);
   const border = pickBorder(data);
-  const opacity = pickOpacity(data);
+  const opacity = pickOpacity(data) * (data.inferred?.planned ? PLANNED_OPACITY : 1);
+  const inferred = data.inferred;
   const showPip = data.health !== undefined && data.health !== 'green';
   const showHandles = data.handlesHidden !== false;
 
@@ -300,14 +349,16 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
         overflow: 'visible',
       }}
     >
-      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind)} /> : null}
+      {/* a proposal is not a file yet, so its pins take no wire */}
+      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind) && !inferred} /> : null}
       <div
         className="ig-node-body"
+        {...(inferred ? { 'data-inferred': inferred.proposal_id, 'data-inferred-planned': inferred.planned ? 'true' : 'false' } : {})}
         style={{
           width: '100%',
           height: '100%',
           backgroundColor: surface,
-          border: `1px solid ${border}`,
+          border: inferred ? `1.5px dashed ${data.isSelected ? border : INFERRED_BORDER}` : `1px solid ${border}`,
           borderRadius: '12px',
           boxShadow: data.isSelected
             ? '0 10px 24px rgba(120, 169, 255, 0.14)'
@@ -323,13 +374,13 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
         <div
           data-node-header={data.kind}
           style={{
-            backgroundColor: HEADER_COLORS[data.kind] ?? 'transparent',
+            backgroundColor: inferred ? INFERRED_HEADER : HEADER_COLORS[data.kind] ?? 'transparent',
             padding: '12px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             minHeight: '44px',
-            borderBottom: data.body !== undefined ? '1px solid var(--ig-edge)' : 'none',
+            borderBottom: data.body !== undefined && !inferred ? '1px solid var(--ig-edge)' : 'none',
           }}
         >
           <Icon size={18} />
@@ -366,6 +417,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
             />
           ) : null}
         </div>
+        {inferred ? <InferredRow info={inferred} /> : null}
         {data.body !== undefined ? (
           <div style={{ padding: '10px 14px', fontSize: '12px', lineHeight: 1.4, flex: 1 }}>
             {data.body}

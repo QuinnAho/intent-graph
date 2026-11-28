@@ -85,6 +85,9 @@ export const TITLE_TUNING = {
   warningMarkPx: 52,
   // node height with a one line title
   baseHeight: 76,
+  // the row of words under an inferred node's title, and the "same as" line when it restates one
+  inferredRowPx: 30,
+  sameAsRowPx: 20,
 } as const;
 
 // the edit panel, and the room the graph keeps clear of it

@@ -26,6 +26,7 @@ import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
 import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
+import { INFERRED_MENU_KIND, inferredOf } from '../app/inferred-model.js';
 import { changeParent, refuseEdit } from '../app/wire-edit-actions.js';
 import { boxUnder, dropOutcome, endsOf, lightedBox, whyNotParent, type Box } from './wire-edit-model.js';
 import { useUiStore } from '../store/ui-slice.js';
@@ -99,11 +100,21 @@ function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }
     const frame = window.setTimeout(() => {
       const canvas = document.querySelector('.react-flow');
       const drawn = Array.from(document.querySelectorAll('.react-flow__node')).find((e) => e.getAttribute('data-id') === id);
-      if (!canvas || !drawn) return;
-      const c = canvas.getBoundingClientRect();
-      const r = drawn.getBoundingClientRect();
+      if (!canvas) return;
       const view = rf.getViewport();
-      const box = { x: (r.left - c.left - view.x) / view.zoom, y: (r.top - c.top - view.y) / view.zoom, width: r.width / view.zoom, height: r.height / view.zoom };
+      let box: { x: number; y: number; width: number; height: number };
+      if (drawn) {
+        const c = canvas.getBoundingClientRect();
+        const r = drawn.getBoundingClientRect();
+        box = { x: (r.left - c.left - view.x) / view.zoom, y: (r.top - c.top - view.y) / view.zoom, width: r.width / view.zoom, height: r.height / view.zoom };
+      } else {
+        // a node far outside the view is not drawn at all (onlyRenderVisibleElements), so its box comes from the store
+        const inner = rf.getInternalNode(id);
+        const width = inner?.measured.width ?? inner?.width ?? node?.width;
+        const height = inner?.measured.height ?? inner?.height ?? node?.height;
+        if (!inner || !width || !height) return;
+        box = { x: inner.internals.positionAbsolute.x, y: inner.internals.positionAbsolute.y, width, height };
+      }
       const next = viewToClearPanel(box, view, { width: canvasWidth, height: canvasHeight });
       if (next) void rf.setViewport(next, { duration: 200 });
     }, PANEL_TUNING.settleMs);
@@ -204,7 +215,8 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
     return nodes.map((n) => {
       const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
-      const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type);
+      // a proposal is not a file yet, so it cannot be dragged into another concept
+      const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type) && inferredOf(n) === null;
       out.draggable = movable;
       // a node held by the pointer may leave its box, the drop decides where it belongs
       if (movable) delete out.extent;
@@ -369,7 +381,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
   const handleNodeContext = useCallback<NodeMouseHandler>((event, node) => {
     if (!node.type || !SPEC_KINDS.has(node.type)) return;
     event.preventDefault();
-    openNodeMenu(node.id, node.type, { x: event.clientX, y: event.clientY });
+    openNodeMenu(node.id, inferredOf(node) ? INFERRED_MENU_KIND : node.type, { x: event.clientX, y: event.clientY });
   }, []);
   const handlePaneContext = useCallback((event: MouseEvent | globalThis.MouseEvent): void => {
     event.preventDefault();

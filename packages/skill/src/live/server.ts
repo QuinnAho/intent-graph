@@ -4,11 +4,11 @@
 // with --write it also takes title and body saves, new intents, parent changes and undo, see edit-api.ts.
 
 import { randomBytes } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { extname, join, relative, resolve, sep } from 'node:path';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 
 import { watch, type FSWatcher } from 'chokidar';
 
@@ -16,11 +16,13 @@ import { build, type BuildGraphResult } from '../build-graph.js';
 import { readSpecAnchors, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { ChangeBatcher, ContentHashGate, isWatchedFile } from './change-gate.js';
 import { needsTestRun, type LinkedFiles, type TestReport } from './check-status.js';
-import { TOKEN_HEADER, apiError, checkWriteRequest, createIntent, loadForEdit, localDate, saveEdit, parentsOnDisk, setParent, withParentsFromDisk, type ApiReply, type EditTarget } from './edit-api.js';
-import { hashSpecSource } from '../parser/spec-md/writer.js';
+import { TOKEN_HEADER, acceptProposal, apiError, checkWriteRequest, createIntent, dismissProposal, loadForEdit, localDate, saveEdit, parentsOnDisk, setParent, withParentsFromDisk, type ApiReply, type EditTarget } from './edit-api.js';
+import { hashSpecSource, writeSpecFileAtomic } from '../parser/spec-md/writer.js';
 import { UndoLog } from './undo-log.js';
 import { buildDriftMarks } from './drift-marks.js';
 import { NO_DRIFT, driftSignature, readDriftSnapshot, type DriftSnapshot } from './drift-reader.js';
+import { INFERRED_PREFIX, addAccepted, openProposals, settledText } from './infer-marks.js';
+import { inferSignature, readInferSnapshot, settledPath, type InferSnapshot } from './infer-reader.js';
 import { composeLiveGraph, diffProblems, type LiveGraph, type LiveProblem } from './compose.js';
 import { runLinkedTests, type TestRunHandle } from './test-runner.js';
 import { LIVE_TUNING, type LiveTuning } from './tuning.js';
@@ -123,6 +125,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let linked: LinkedFiles = { tests: new Set(), realized: new Set() };
   let report: TestReport | null = null;
   let drift: DriftSnapshot = NO_DRIFT;
+  let infer: InferSnapshot = { proposals: null, settled: { dismissed: [], accepted: [] }, problem: null };
   let graph: LiveGraph | null = null;
   let graphText = '';
   let problems: LiveProblem[] = [];
@@ -150,7 +153,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       }
     };
     const marks = drift.pairs ? buildDriftMarks(drift.pairs, drift.writtenAtMs, realized, mtimeOf) : new Map();
-    graph = composeLiveGraph(result, anchors, report, root, { marks, problem: drift.problem });
+    graph = composeLiveGraph(result, anchors, report, root, { marks, problem: drift.problem }, { proposals: openNow(), problem: infer.problem });
     // one log line per new problem and per fixed file, not one per rebuild
     const changes = diffProblems(problems, graph.problems);
     for (const p of changes.added) log(`spec ${p.severity}: ${p.file}: ${p.message}`);
@@ -160,6 +163,13 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     graph['_live_version'] = version;
     graphText = JSON.stringify(graph);
     for (const c of clients) c.write(`event: graph\ndata: ${JSON.stringify({ version })}\n\n`);
+  };
+
+  // proposals nobody settled yet. an accepted one is hidden only while its intent is in the graph.
+  const openNow = () => openProposals(infer.proposals ?? [], infer.settled, new Set((result?.nodes ?? []).map((n) => n.id)));
+  const reloadInfer = (): void => {
+    inferSeen = inferSignature(root);
+    infer = readInferSnapshot(root);
   };
 
   const rebuild = (why: string): void => {
@@ -205,6 +215,8 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   // a new, changed or removed drift report: look at two files on a timer, no model is ever started
   let driftSeen = driftSignature(root);
   drift = readDriftSnapshot(root);
+  let inferSeen = '';
+  reloadInfer();
   rebuild('start');
   linked = linkedFiles(anchors);
   runTests();
@@ -278,7 +290,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       req.on('close', () => clients.delete(res));
       return;
     }
-    if (url.pathname === '/api/node' || url.pathname === '/api/intents' || url.pathname === '/api/parent' || url.pathname === '/api/undo') {
+    if (url.pathname === '/api/node' || url.pathname === '/api/intents' || url.pathname === '/api/parent' || url.pathname === '/api/undo' || url.pathname === '/api/inferred/accept' || url.pathname === '/api/inferred/dismiss') {
       await handleApi(req, res, url);
       return;
     }
@@ -355,6 +367,8 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       }
     };
     const undoing = url.pathname === '/api/undo';
+    const proposalOf = (nodeId: string) => (nodeId.startsWith(INFERRED_PREFIX) ? openNow().find((p) => p.id === nodeId.slice(INFERRED_PREFIX.length)) ?? null : null);
+    let area: 'spec' | 'infer' = 'spec';
     if (url.pathname === '/api/node') {
       const target = editTarget(id);
       before = bytesOf(target);
@@ -365,6 +379,24 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       before = bytesOf(target);
       label = `parent of ${id}`;
       reply = setParent(root, target, id, input, withParentsFromDisk(graph?.nodes ?? [], parentsOnDisk(root)), today());
+    } else if (url.pathname === '/api/inferred/accept') {
+      const proposal = proposalOf(id);
+      const accepted = acceptProposal(root, proposal, input, graph?.nodes ?? [], today());
+      reply = accepted;
+      label = `accept ${String(accepted.body['id'])}`;
+      if (accepted.intent && proposal) {
+        // tool state, not spec: undo removes the intent file, and that alone brings the proposal back
+        const file = settledPath(root);
+        mkdirSync(dirname(file), { recursive: true });
+        writeSpecFileAtomic(file, settledText(addAccepted(infer.settled, proposal, accepted.intent)));
+        reloadInfer();
+      }
+    } else if (url.pathname === '/api/inferred/dismiss') {
+      const proposal = proposalOf(id);
+      before = (() => { try { return readFileSync(settledPath(root)); } catch { return null; } })();
+      label = `dismiss ${id}`;
+      area = 'infer';
+      reply = dismissProposal(root, proposal, infer.settled);
     } else if (undoing) {
       reply = undoLog.undo(root);
     } else {
@@ -373,12 +405,18 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     }
     if (reply.written && !undoing) {
       const file = join(root, reply.written);
-      undoLog.push({ file, rel: reply.written, before, afterHash: hashSpecSource(readFileSync(file)), label });
+      undoLog.push({ file, rel: reply.written, before, afterHash: hashSpecSource(readFileSync(file)), label, area });
     }
     if (reply.written) {
       log(`${undoing ? 'undid' : 'wrote'} ${reply.written}`);
-      // the watcher would catch it too, this just starts the quiet window now
-      batcher.add(reply.written);
+      if (reply.written.startsWith('.runs/')) {
+        // the settled list is not watched, so read it again and redraw now
+        reloadInfer();
+        publish();
+      } else {
+        // the watcher would catch it too, this just starts the quiet window now
+        batcher.add(reply.written);
+      }
     } else if (reply.status >= 400) {
       log(`write refused (${reply.status}): ${String(reply.body['message'])}`);
     }
@@ -395,6 +433,15 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     publish();
     log(`drift report v${version}: ${drift.pairs ? `${drift.pairs.length} entries` : drift.problem ? 'unusable' : 'none'}`);
   }, tuning.driftPollMs);
+
+  // a new inference report or settled list: stat and read files on a timer, no model is ever started
+  const inferPoll = setInterval(() => {
+    if (closed || !result) return;
+    if (inferSignature(root) === inferSeen) return;
+    reloadInfer();
+    publish();
+    log(`inference report v${version}: ${infer.proposals ? `${openNow().length} open of ${infer.proposals.length}` : infer.problem ? 'unusable' : 'none'}`);
+  }, tuning.inferPollMs);
 
   const keepAlive = setInterval(() => {
     for (const c of clients) c.write(': ping\n\n');
@@ -416,6 +463,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       batcher.stop();
       clearInterval(keepAlive);
       clearInterval(driftPoll);
+      clearInterval(inferPoll);
       testRun?.cancel();
       await watcher.close();
       for (const c of clients) c.end();

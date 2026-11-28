@@ -12,6 +12,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { NodeKindSchema } from '@intentgraph/shared/schemas';
 import yaml from 'js-yaml';
 
+import { parseAnchor, readAnchors } from './anchors.js';
 import { parseFrontmatter, type ParsedFrontmatter } from './frontmatter.js';
 import { SPEC_WRITE_TUNING } from './write-tuning.js';
 
@@ -253,11 +254,16 @@ export function slugFromTitle(title: string, maxLength: number = SPEC_WRITE_TUNI
 
 export interface NewIntent {
   readonly title: string;
-  readonly parent: string;
+  /** a concept id, or null for an intent at the top */
+  readonly parent: string | null;
   readonly today: string;
   readonly eol?: '\n' | '\r\n';
   /** node kinds the intent shapes. left out, the file has no target_kinds line. */
   readonly targetKinds?: ReadonlyArray<string>;
+  /** text under the heading, for an accepted proposal */
+  readonly body?: string;
+  /** anchors (path or path#Name) written as realized_by, for an accepted proposal */
+  readonly realizedBy?: ReadonlyArray<string>;
 }
 
 /** a message for a target_kinds list the writer would not write, null when it is fine */
@@ -278,7 +284,7 @@ export function newIntentSource(input: NewIntent): NewIntentResult {
   if (bad) return refuse('invalid', bad);
   const slug = slugFromTitle(title);
   if (!slug) return refuse('invalid', 'the title needs at least one letter or number for the file name');
-  if (!/^[a-z0-9][a-z0-9_-]*$/i.test(input.parent)) {
+  if (input.parent !== null && !/^[a-z0-9][a-z0-9_-]*$/i.test(input.parent)) {
     return refuse('invalid', `bad parent id "${input.parent}"`);
   }
   const kinds = input.targetKinds;
@@ -286,26 +292,38 @@ export function newIntentSource(input: NewIntent): NewIntentResult {
     const badKinds = checkTargetKinds(kinds);
     if (badKinds) return refuse('invalid', badKinds);
   }
+  const realized = input.realizedBy ?? [];
+  for (const a of realized) {
+    const r = /[\r\n]/.test(a) ? null : parseAnchor(a);
+    if (!r || !r.ok || r.anchor.raw !== a) return refuse('invalid', `bad anchor "${a}"`);
+  }
+  const body = input.body === undefined ? '' : plain(input.body).trim();
   const id = `intent-${slug}`;
   const eol = input.eol ?? '\n';
   const text = [
     '---',
     `id: ${id}`,
     `title: ${yamlScalar(title)}`,
-    `parent: ${input.parent}`,
+    `parent: ${input.parent ?? 'null'}`,
     'confidence: asserted',
     'status: draft',
     ...(kinds ? ['target_kinds:', ...kinds.map((k) => `  - ${k}`)] : []),
+    ...(realized.length > 0 ? ['realized_by:', ...realized.map((a) => `  - ${yamlScalar(a)}`)] : []),
     `created: ${input.today}`,
     `updated: ${input.today}`,
     '---',
     '',
     `# ${title}`,
     '',
+    ...(body ? [...body.split('\n'), ''] : []),
   ].join(eol);
   const parsed = parseOrNull(`${slug}.md`, text);
   if (typeof parsed === 'string') return refuse('rejected', parsed);
   if (parsed.minimum.title !== title || parsed.minimum.parent !== input.parent) return refuse('rejected', 'the new file would not read back the same');
+  // an accepted proposal must also read back with the same body and anchors
+  const readBody = plain(splitBody(splitParts(text)!.body, title).rest);
+  const readBack = readAnchors(parsed.raw).realizedBy.map((a) => a.raw);
+  if (readBody !== (body ? `${body}\n` : '') || !isDeepStrictEqual(readBack, [...realized])) return refuse('rejected', 'the new file would not read back the same');
   return { ok: true, text, id, slug };
 }
 
