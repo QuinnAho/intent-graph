@@ -132,6 +132,9 @@ try {
   ].join('\n'));
   writeFileSync(spawnLog, '');
   const spawnCount = () => readFileSync(spawnLog, 'utf8').split('\n').filter(Boolean).length;
+  // the activity reader polls read-only git on its own clock, so on a slow run one poll can land in a window
+  const readerGit = (l) => /^execFile git --no-optional-locks .*\b(worktree list|status|diff --name-only|log -1)\b/.test(l);
+  const spawnLines = (from) => readFileSync(spawnLog, 'utf8').split('\n').filter(Boolean).slice(from);
 
   const port = await freePort();
   const log = createWriteStream(join(runDir, 'server.log'));
@@ -234,7 +237,8 @@ try {
   console.log(`ok changed report (${secs()}s) - marks and panel updated in ${changeMs} ms, no reload`);
 
   // the two report writes so far started no process at all
-  if (spawnCount() !== spawnsBefore) await fail(`report writes started ${spawnCount() - spawnsBefore} process(es)`);
+  const started = spawnLines(spawnsBefore).filter((l) => !readerGit(l));
+  if (started.length) await fail(`report writes started ${started.length} process(es): ${started.join(' | ')}`);
 
   // 4 a bound source file edited after the report makes its mark stale
   await page.waitForTimeout(100);
