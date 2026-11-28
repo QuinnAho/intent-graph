@@ -111,10 +111,16 @@ async function stopServer(s) {
 // lane 12: proposals start folded. open every fold row by its key, so no click closes the legend
 async function unfoldAll(p) {
   await p.locator('[data-fold-row]').first().waitFor({ timeout: 30000 });
-  for (const key of await p.evaluate(() => [...document.querySelectorAll('[data-fold-row][data-fold-open="false"]')].map((b) => b.getAttribute('data-fold-row')))) {
+  // one row at a time: an unfolded concept can push another row out of view, and F brings it back
+  for (let i = 0; i < 10; i++) {
+    const key = await p.evaluate(() => document.querySelector('[data-fold-row][data-fold-open="false"]')?.getAttribute('data-fold-row') ?? null);
+    if (!key) break;
     await p.locator(`[data-fold-row="${key}"]`).focus();
     await p.keyboard.press('Enter');
     await p.waitForFunction((k) => document.querySelector(`[data-fold-row="${k}"]`)?.getAttribute('data-fold-open') === 'true', key, { timeout: 5000 });
+    // the unfolded proposals sit below the declared ones, F fits the view so they are drawn
+    await p.keyboard.press('f');
+    await p.waitForTimeout(400);
   }
 }
 

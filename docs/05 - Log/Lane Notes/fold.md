@@ -93,6 +93,29 @@ Stop and report after 90 minutes, or if the gate cannot be made green in two tri
 
 ## Reuse record
 
+- `layoutNested()` gained two options, a foot height and bands. With neither set it lays out as before, so the old tests and graphs do not move.
+- The canned report rows and the server helpers in `e2e-fold.mjs` are copied from `e2e-inferred.mjs`, the crossing count is a short copy of `measureInPage` in `e2e-wires.mjs`.
+- `inferredOf()`, `nextInferred()`, `selectOnly()`, `focusNode()`, `RobotIcon` and the bar's count are used as they were. React Flow's own `fitView`, `useStore` width and height, and `onMoveStart` do the fitting.
+
 ## Builder notes
+
+- Fold state is a set of concept ids in `useUiStore.unfolded`. `applyFold()` (`W/graph/fold-model.ts`) runs on every load, live update and fold change. It marks folded proposals `hidden` in the store, so the bar still counts all of them, and the canvas and the layout skip hidden nodes.
+- Proposals with no concept fold into one node, `inferred-fold:root`, with no pins. It is left out when a live update is compared, so it never forces a layout.
+- Unfolded proposals are a second band laid out below the declared children. After a fold the view moves by the concept's change of place, so its header stays put (0 px in the script).
+- Fit again: any pan, zoom or wheel by the person stops it, F starts it again. The smallest zoom is now 0.05, the old default of 0.5 could not fit this repo at 480 px.
+- The first-visit legend changes the canvas size when it closes, which now fits again. That is the rule of step 12. The scripts close the legend before they measure.
+- The problems list sits in its own row under the bar, not over the canvas, so it covers no title (the `e2e-edit` check stays). A row selects its node when the message names an id or the file is `<kind>s/<stem>.md` for a node `<kind>-<stem>`.
+- Problem hints (step 16), in `W/store/problems.ts`, for the owner to reword:
+  - no YAML frontmatter: "Start the file with a --- block holding id, title, parent, confidence."
+  - YAML does not parse: "Fix the YAML between the two --- lines."
+  - frontmatter not a mapping: "Write the frontmatter as key: value lines."
+  - required field missing: "Add the missing id, title, parent or confidence field."
+  - id without its kind prefix: "Start the id with its kind, like intent- or concept-."
+  - intent without target_kinds: "Add a target_kinds list to the frontmatter."
+  - constraint without its fields: "Add predicate_kind, expr and scope_node to the frontmatter."
+  - concept without regeneration_scope: "Add regeneration_scope: atomic or cooperative."
+  - parent loop: "Point one parent in the loop at a concept outside it."
+  - drift report unusable: "Run node tools/drift.mjs again for a fresh report."
+  - inference report unusable: "Run node tools/infer.mjs again for a fresh report."
 
 ## Results
