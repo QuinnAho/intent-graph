@@ -8,6 +8,8 @@ import { createPortal } from 'react-dom';
 
 import { focusNode } from '../../../app/direct-edit-actions.js';
 import { renameOutcome, type RenameEnd } from '../../../app/direct-edit-model.js';
+import { acceptProposal } from '../../../app/inferred-actions.js';
+import { inferredRenameOutcome, isInferredId } from '../../../app/inferred-model.js';
 import { useUiStore } from '../../../store/ui-slice.js';
 import { fetchEditableNode, saveNode, type ApiResult, type EditableNode } from '../../../transport/edit-api.js';
 
@@ -64,7 +66,8 @@ export function RenameField(props: { id: string; label: string }): JSX.Element {
   // a layout effect, so the cursor is in the field before the first keystroke can arrive
   useLayoutEffect(() => {
     finished.current = false;
-    fetched.current = fetchEditableNode(config, id);
+    // a proposal has no file yet, there is nothing to load
+    fetched.current = isInferredId(id) ? null : fetchEditableNode(config, id);
     const el = field.current;
     el?.focus({ preventScroll: true });
     el?.select();
@@ -97,8 +100,33 @@ export function RenameField(props: { id: string; label: string }): JSX.Element {
     setError({ message, x: r?.left ?? 0, y: (r?.bottom ?? 0) + 10 });
   };
 
+  // on a proposal Enter accepts under the typed title, Esc and a click away write nothing
+  const finishInferred = async (end: RenameEnd): Promise<void> => {
+    const out = inferredRenameOutcome(text, end);
+    if (out.kind === 'problem') {
+      fail(out.message);
+      return;
+    }
+    if (out.kind === 'cancel') {
+      close(end !== 'blur');
+      return;
+    }
+    finished.current = true;
+    const r = await acceptProposal(id, out.title);
+    if (r && !r.ok) {
+      finished.current = false;
+      fail(r.message);
+      return;
+    }
+    close(false);
+  };
+
   const finish = async (end: RenameEnd): Promise<void> => {
     if (finished.current) return;
+    if (isInferredId(id)) {
+      await finishInferred(end);
+      return;
+    }
     const out = renameOutcome(label, text, end);
     if (out.kind === 'problem') {
       fail(out.message);

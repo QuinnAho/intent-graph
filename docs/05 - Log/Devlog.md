@@ -163,3 +163,56 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Layers: yes, and it is the same question as nesting. The options, what others do and a small experiment are in [[2026-11-27 Layers - Approaches]]. It waits for the owner's go.
 
 **Evidence.** The gate and the end-to-end scripts were run on `main` in a clean checkout before the push. The pass lines are in the run log.
+
+### 2026-11-27, 5:40 PM  The inference script merged to day-2
+
+**What happened.** Lane 9: `node tools/infer.mjs` reads the source folders that no declared intent claims and asks a cheap model what each is for. It sends file names, leading comments and top-level signatures, never whole files, and at most 12,000 characters a folder. Each proposal has a title in the style of this repo's intents, a short body, the symbols it was read from, the concept it belongs under, the declared intent it seems to restate, a confidence word, and a flag for code that is only a placeholder. Every anchor is checked against the real code. Results are cached by a hash of the code, the declared titles and the prompt, so a second run costs nothing. A spending cap stops a run. Nothing is written under `spec/`.
+
+**Why it matters.** This repo has 12 declared intents and no link from any of them to code. The script found 66 things the code does or plans to do, in about 4 minutes and 6 cents. It is the bottom-up half of "declared and inferred": what the code seems to be for, to set beside what a person said it is for.
+
+**Evidence.** On `day-2` at `2c84e63`: `PASS all (68.4s) - 4 steps, 454 tests`, and `PASS infer - 66 proposals from 42 folders, 0 calls, 42 cached`. Of the 66, 21 are marked planned and every one of those titles starts with "Planned:". 229 of 235 anchors name a symbol, and the other 6 are files with no top-level symbol. No anchor points at a missing file.
+
+**Quality, three reads.** The builder's first prompt got 36 of 58 right, mostly because it described placeholder files as working code. After marking placeholders it judged 59 of 64 right and none wrong. An independent verifier drew eight at random and read the code: 6 right, 2 vague, 0 wrong. The owner was shown a sample.
+
+**What the verifier caught.** Ten of twelve checks passed: the cache, the cap, the isolated model call with its arguments quoted, a byte-identical `spec/` folder, and a file comment that told the model to say something else and was ignored. Fixed afterwards by a second agent: planned code that read as built, a prompt 16 characters over its cap, 30 anchors that named a file where a symbol was meant, a restated intent that was not named, and a cache key that did not cover the prompt.
+
+**Not yet.** The model now names a restated intent 14 times, and some are a stretch. A person has to settle those, which is what the next lane is for. Nothing shows on the graph yet.
+
+### 2026-11-27, 6:35 PM  Handoff: lane 10 built, not merged
+
+**What happened.** Lane 10 puts the inferred proposals on the graph: dashed, with the word "inferred" and a confidence word, "planned" where the code is a placeholder, a panel, and a count in the strip. Enter accepts and writes an intent file with `realized_by`, a double-click edits the title first, Delete dismisses, undo takes any of it back. The settled list lives in `.runs/infer/settled.json`. The session ended here on the owner's ask, before the lane was verified.
+
+**Evidence so far.** On `inferred-graph` at `13c4655`, the orchestrator's own run: `PASS all (99.7s) - 4 steps, 491 tests` and `PASS e2e-inferred (49.7s) - accept, edit first, dismiss and undo by keys and clicks, read only sends nothing`. Scope is clean.
+
+**Not done, and why it is not merged.** `tools/e2e-edit.mjs` failed once with a 30 second click timeout, and `tools/e2e-wires.mjs` fails its layout-time check on the lane and on `day-2` (3.2 to 3.7 s, limit 2.86 s). The dev PC was at 93% CPU from another program during those runs and the gate took twice its usual time, so load is the likely cause. It has not been re-run on a quiet machine, so a regression is not ruled out. No independent verifier has checked the lane.
+
+**A lesson for the scripts.** The wires script compares the layout time with a number measured on the first night. A fixed number from another day fails when the machine is busy or the repo grows. It should be a generous cap or a ratio measured in the same run.
+
+**Next.** The three steps are on the [[Board]].
+
+### 2026-11-27, 8:20 PM  Inferred intents on the graph go to main, with one thing not right yet
+
+**What happened.** Lane 10 is on `main` on the owner's OK. The proposals a model reads out of the code are drawn on the graph: dashed, with the word "inferred", a confidence word, "planned" where the code is a placeholder, and "same as" where the model says it restates a declared intent. Enter accepts and writes an intent file with `realized_by`. A double-click edits the title first. Delete dismisses, and a dismissed proposal stays away until its code changes. Undo takes any of it back. A count in the strip steps through them.
+
+**The two reds from the handoff were not the lane.** Both were the test scripts.
+
+- The wires script compared its layout time with a number from the first night. It now has a cap of 10 seconds. A ratio to the example page measured in the same run was tried first and dropped: it was about 5 on a quiet machine and 8 to 12 on a busy one, because laying out this repo is CPU work and loading the example mostly is not.
+- The edit script had three races that only showed on a busy machine. A right-click at a fixed point could land on a node that had just appeared. The side panel could cover a menu in the corner. A listener for requests was removed before the last request was reported. Each now waits on the state of the page. On a busy machine it went 2 of 3 before and 5 of 5 after.
+
+**What the verifier caught.** 14 of 16 held-back checks passed. Three faults, fixed by a second agent that did not build the lane:
+
+- This repo's real report was refused whole. The page asked every proposal for two anchors, and the script keeps a proposal that has one. 7 of the 66 have one.
+- Accept wrote anchors that point at files that are not there and said nothing. It still writes, because a bad anchor is a warning here and never a refusal. Now the notice says how many, and the proposal carries the warning before it is accepted.
+- The count selected a proposal that was off screen and the view stayed where it was.
+
+**Evidence.** On `day-2` at `86d42c2`, in a clean checkout: `PASS all (69.5s) - 4 steps, 494 tests`, and PASS for `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks` and `e2e-wires`. This repo's real report on a temp copy: 66 proposals in `/graph.json`, the strip says "66 inferred", no page error. Frames `10a` to `10h` are in `docs/05 - Log/Frames/2026-11-27 Day 2/`.
+
+**Not right yet.** With its real report this repo shows 66 proposals beside 12 declared intents. The first view no longer fits, and one wire runs through two proposal boxes (frame `10g`). The wires script fails in a checkout that holds a real report and passes in one that does not, so nothing in git catches it. The builder and the verifier both worked in a checkout with no real report, and the fault only showed when the lane met the checkout that has one. The owner was told before the merge. The fix waits for a pick, on the [[Board]].
+
+**Lessons.**
+
+- Try a lane on the real data before it merges, not only on the example. A count and a load time said the real report was fine. A look at the wires said it was not.
+- A time check in a gate needs a wide cap. Anything tighter measures the machine.
+- Twice a run died with "out of memory" and once with "no space left on device" while other programs were open. That is the machine. The run is repeated, the code is not changed.
+
+**Cost.** Verifier: sonnet at medium, 138k tokens, 11 minutes. Fix agent: sonnet at medium, 140k tokens, 23 minutes. Harness agent: sonnet at medium, 100k tokens, 43 minutes in two parts.

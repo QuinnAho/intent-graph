@@ -5,7 +5,7 @@ import { SPEC_KINDS } from '../transport/live-source.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { titleProblem } from './edit-model.js';
 
-export type MenuItemId = 'add-intent' | 'rename' | 'edit-details' | 'fit-view' | 'delete-wire';
+export type MenuItemId = 'add-intent' | 'rename' | 'edit-details' | 'fit-view' | 'delete-wire' | 'accept' | 'dismiss';
 
 export interface MenuItem {
   readonly id: MenuItemId;

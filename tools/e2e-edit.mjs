@@ -174,6 +174,41 @@ async function dragMouse(page, from, to, { hold } = {}) {
   if (hold) await hold();
   await page.mouse.up();
 }
+// resolves when the view transform is the same on 8 animation frames in a row, so a wheel or fit-view move has finished
+async function viewSettled(page, ms = 8000) {
+  await page.waitForFunction(() => new Promise((res) => {
+    const read = () => document.querySelector('.react-flow__viewport')?.style.transform ?? '';
+    let last = read();
+    let same = 0;
+    const tick = () => {
+      const now = read();
+      same = now === last ? same + 1 : 0;
+      last = now;
+      if (same >= 8) res(true); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }), null, { timeout: ms });
+}
+// a point that is bare canvas (no node, wire, menu or panel) on 8 animation frames in a row with the view and every node box unchanged
+async function emptyCanvasPoint(page, ms = 8000) {
+  const h = await page.waitForFunction(() => new Promise((res) => {
+    const pts = [[200, 300], [30, 700], [1270, 740], [640, 40]];
+    const sig = () => document.querySelector('.react-flow__viewport')?.style.transform + '|' + [...document.querySelectorAll('.react-flow__node')].map((n) => { const r = n.getBoundingClientRect(); return `${n.getAttribute('data-id')}:${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`; }).join(';');
+    const bare = ([x, y]) => { const e = document.elementFromPoint(x, y); return !!e && !!e.closest('.react-flow__pane') && !e.closest('.react-flow__node, .react-flow__edge, [data-wire-src], [data-context-menu], [data-edit-panel]'); };
+    let last = sig();
+    let same = 0;
+    const tick = () => {
+      const now = sig();
+      same = now === last ? same + 1 : 0;
+      last = now;
+      const ok = same >= 8 ? pts.find(bare) : null;
+      if (ok) res(ok); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }), null, { timeout: ms });
+  const [x, y] = await h.jsonValue();
+  return { x, y };
+}
 async function waitForFile(file, test, ms = 4000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -220,14 +255,21 @@ async function graphHas(s, needle, ms = 10000) {
 
 async function wireChecks(page, w, nodeSel) {
   // a second concept to move into, written straight into the workspace the way a person would
+  const versionBefore = await page.evaluate(() => document.documentElement.dataset.graphVersion ?? '');
   writeFileSync(join(w.work, 'spec', 'concepts', 'shapes.md'), '---\nid: concept-shapes\ntitle: Shapes\nparent: null\nconfidence: asserted\n---\n\n# Shapes\n\nA second box for the move checks.\n');
   if (!(await graphHas(w, 'concept-shapes'))) await fail('the live graph never showed the new concept');
+  // the page has taken the new graph in (the box may still be outside the view, so it is not drawn yet)
+  await page.waitForFunction((v) => (document.documentElement.dataset.graphVersion ?? '') !== v, versionBefore, { timeout: 10000 });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
-  await page.mouse.click(200, 300, { button: 'right' });
+  if ((await page.locator('[data-edit-panel]').count()) !== 0) await page.locator('[data-edit-panel] button[aria-label="Close panel"]').click();
+  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 });
+  // the layout must be still before a point is picked, or the click can land on a node
+  const empty = await emptyCanvasPoint(page);
+  await page.mouse.click(empty.x, empty.y, { button: 'right' });
+  await page.locator('[data-context-menu="pane"]').waitFor({ timeout: 3000 });
   await page.locator('[data-menu-item="fit-view"]').click();
-  await page.waitForTimeout(700);
+  await viewSettled(page);
   await page.locator(nodeSel('concept-shapes')).waitFor({ timeout: 5000 });
   const done = [];
 
@@ -235,7 +277,7 @@ async function wireChecks(page, w, nodeSel) {
   const viewOf = () => page.evaluate(() => document.querySelector('.react-flow__viewport').style.transform);
   if ((await page.locator('[data-edit-panel]').count()) !== 0) await page.locator('[data-edit-panel] button[aria-label="Close panel"]').click();
   await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 });
-  await page.waitForTimeout(400);
+  await viewSettled(page);
   const v0 = await viewOf();
   await page.locator(nodeSel('intent-adds-numbers')).click({ button: 'right', position: { x: 80, y: 16 } });
   await page.locator('[data-context-menu="intent"]').waitFor({ timeout: 3000 });
@@ -369,6 +411,9 @@ async function wireChecks(page, w, nodeSel) {
   const gb2 = await page.locator(nodeSel(gid)).boundingBox();
   await dragMouse(page, { x: gb2.x + 40, y: gb2.y + 14 }, await centreOf(page, nodeSel('concept-shapes')));
   const fastOk = await waitForFile(gfile, (t) => t.includes('parent: concept-shapes'), 6000);
+  // the request events reach this process a little after the browser sends them: wait for both before the listener goes
+  const postsBy = Date.now() + 3000;
+  while (posts.length < 2 && Date.now() < postsBy) await page.waitForTimeout(50);
   page.off('request', onRequest);
   if (!fastOk) await fail(`a move taken right after a rename was never written, requests were ${JSON.stringify(posts)}`);
   if (!readFileSync(rfile, 'utf8').includes('title: Adds numbers fast')) await fail('the rename taken first was not written');
@@ -1010,6 +1055,13 @@ try {
   await page.locator('[data-create-form]').waitFor({ state: 'detached', timeout: 3000 });
   console.log(`ok concept menu (${secs()}s) - ${labels.join(', ')}, inside the window, Esc and a click close it, "Add intent here" opens the create form`);
 
+  // the click that chose "Add intent here" also reaches the node, and its panel opens about 300 ms later. let it arrive and close it,
+  // or it opens over the corner menu below and covers it
+  await page.locator('[data-edit-panel="concept-calculator"]').waitFor({ timeout: 3000 }).catch(() => {});
+  await page.keyboard.press('Escape');
+  await page.locator('[data-edit-panel]').waitFor({ state: 'detached', timeout: 3000 });
+  await viewSettled(page);
+
   // the menu on empty canvas stays inside the window at the corner, and closes when the view moves
   await page.keyboard.press('Escape');
   await page.mouse.click(30, 700, { button: 'right' });
@@ -1019,15 +1071,19 @@ try {
   await page.mouse.move(600, 500);
   await page.mouse.wheel(0, 120);
   await paneMenu.waitFor({ state: 'detached', timeout: 3000 });
+  // the wheel move may still be running, and a view move closes any menu opened meanwhile
+  await viewSettled(page);
   await page.mouse.click(1270, 740, { button: 'right' });
   await paneMenu.waitFor({ timeout: 3000 });
   if (!(await inWindow(page, '[data-context-menu]'))) await fail('the menu opened at the corner runs outside the window');
   await page.locator('[data-menu-item="fit-view"]').click();
   await paneMenu.waitFor({ state: 'detached', timeout: 3000 });
   // a double-click on empty canvas still zooms
+  await viewSettled(page);
   const tPane = await viewTransform();
   await page.mouse.dblclick(30, 400);
-  await page.waitForTimeout(600);
+  await page.waitForFunction((t) => document.querySelector('.react-flow__viewport').style.transform !== t, tPane, { timeout: 3000 }).catch(() => {});
+  await viewSettled(page);
   if ((await viewTransform()) === tPane) await fail('a double-click on empty canvas no longer zooms');
   console.log(`ok pane menu (${secs()}s) - inside the window at the corner, closes on a wheel move, Fit view works, an empty-canvas double-click zooms`);
 
@@ -1149,5 +1205,7 @@ try {
 } catch (e) {
   if (livePage) await livePage.screenshot({ path: join(runDir, 'crash.jpg'), ...FRAME }).catch(() => {});
     console.log('  page at the crash:', await livePage.evaluate(() => JSON.stringify({ active: document.activeElement?.tagName + ':' + (document.activeElement?.getAttribute('data-rename-field') ?? ''), field: document.querySelector('[data-rename-field]')?.value ?? null })).catch(() => 'n/a'));
-  await fail(`crashed: ${String((e && e.message) || e).split('\n')[0]}`);
+  const detail = String((e && e.message) || e).split('\n');
+  for (const line of detail.slice(0, 20)) console.log(`  ${line}`);
+  await fail(`crashed: ${detail[0]}`);
 }
