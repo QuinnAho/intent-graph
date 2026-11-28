@@ -231,3 +231,21 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **Earlier the same evening.** Builds died with "no space left on device" although the data drive showed free space. The drive promised more space than the disk under it has. The owner freed space, and `main` at `2331256` then got the pass line it was missing: `PASS all (47.9s) - 4 steps, 494 tests`.
 
 **Cost.** Lane 11 builder: opus at high, 211k tokens, 30 minutes. Lane 14 builder: opus at high, 177k tokens, 23 minutes.
+
+### 2026-11-27, 10:26 PM  Lane 14 first half verified and on main
+
+**What happened.** A fresh verifier ran 17 held-back checks against the live server on temp git repos. 16 pass. The data behind "which agent is working on what" is now on `main`: the live server reads the git worktrees and the run log, and `/graph.json` carries an `agents` list and `activity` on the nodes a lane touches. Nothing is drawn yet.
+
+- The one fail, check 9, is not from this lane. Every code node carries an absolute `file://` path in `body.uri`, and it did before the lane. The lane's own `agents` and `activity` hold no absolute path. It is on the [[Board]] under Known.
+- Proven by the verifier: a lane shows within 5 s and is gone within 5 s of its worktree being removed. Hostile file and folder names run nothing. Nothing is written and no lock file appears over 30 s of polling. 20 worktrees with 200 changed files each: one poll takes 1.4 s and `/graph.json` still answers in under 50 ms. With a git that sleeps 8 s, never more than one git process is alive, and none is left after the server stops.
+- Found: the data says who is on what. It does not say since when (only the newest change), and it says doing what only when the run log has a line for the lane.
+
+**Why it matters.** The owner asked to see which agent is working on what. This is the data for it, read from what is already on disk, with nothing installed.
+
+**Evidence.** The orchestrator's gate on the merged head `cc08318`, each with exit 0: `PASS all (53.8s) - 4 steps, 516 tests`, `PASS e2e-agents (26.3s)`, `PASS e2e-live (34.5s)`, `PASS e2e-inferred (39.5s)`, `PASS e2e-drift-marks (24.3s)`, `PASS e2e-edit (71.9s)`.
+
+**Not verified.** `e2e-wires` was not run on the merged head: the main checkout holds a real inference report, which makes it fail there (lane 12 on the Board). It passed on the lane head `a45172b` in its own checkout, and the merge adds only notes to that code. A real git killed in the middle of a write. Linux and macOS.
+
+**Also.** The owner now leans to a VS Code extension as the main interface. Options and a recommendation are in [[2026-11-27 Interface - Approaches]], waiting for a pick. The owner also gave a standing OK to merge green and verified lanes into `main`.
+
+**Cost.** Lane 14 verifier: sonnet at medium, 96k tokens, 8 minutes. Lane 11 verifier: sonnet at medium, 153k tokens, 16 minutes.
