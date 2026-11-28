@@ -86,3 +86,11 @@ Stop and report after 55 minutes, or if the gate cannot be made green in two tri
 - Gate: `node tools/verify.mjs all` PASS, 491 tests in 49 files (454 in 45 before).
 - `node tools/e2e-inferred.mjs` PASS, ran 4 times. Frames in `.runs/e2e-inferred/<stamp>/`: inferred beside declared, the panel, an accept with its notice, the strip count, read only.
 - `e2e-edit`, `e2e-live`, `e2e-drift-marks` PASS. `e2e-wires` fails only its layout time limit, the same on the base commit.
+
+## Fixes after the verifier
+
+- Row schema: `InferProposalRowSchema` takes 1 to 8 anchors. The script drops bad anchors and keeps a proposal while one survives (`rowsFor` in `packages/skill/src/infer/run.ts`), so one anchor is a real row. The model-output rule of 2 to 8 is unchanged. The real report of this repo (66 proposals, 7 with one anchor) now parses to 66. A broken row still gives one problem and no proposals.
+- Accept with anchors that point at nothing: still writes, since a bad anchor is a warning in this tool. The reply carries `missing_anchors` (empty when all are found), the notice says "N of its anchors point at code that is not there.", and the inferred node carries the same `realized_by: X is not in the graph` warning a declared node gets, before accept.
+- The count in the strip: a node far outside the view is not drawn at all (`onlyRenderVisibleElements`), so `KeepInView` found nothing to move. It now reads the box from the store when the node is not drawn. The zoom is kept, and a node already in view is not moved. The move glides and dips the zoom on the way, so check the zoom after it lands.
+- Left alone on purpose: the settled list keeps "accepted" entries after an undo, and a node shows no key hint before it is selected.
+- Checks: `node tools/verify.mjs all` PASS, 494 tests. `e2e-inferred` has new steps for the count move (pans the node out of the window first), one single anchor proposal, and the accept with two missing anchors. Two new frames: `06-count-click-in-view.jpg`, `07-accepted-missing-anchors.jpg`.

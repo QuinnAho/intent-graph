@@ -25,7 +25,7 @@ function canWrite(): boolean {
 }
 
 /** accept as a real intent file, under the typed title when there is one. resolves to the server's answer. */
-export async function acceptProposal(id: string, title?: string): Promise<ApiResult<{ id: string; file: string }> | null> {
+export async function acceptProposal(id: string, title?: string): Promise<ApiResult<{ id: string; file: string; missing_anchors?: string[] }> | null> {
   if (!canWrite()) return null;
   const ui = useUiStore.getState();
   ui.closeMenu();
@@ -35,7 +35,7 @@ export async function acceptProposal(id: string, title?: string): Promise<ApiRes
   else {
     // the new intent is selected once the live update draws it, so Enter goes on from there
     ui.setPendingSelect(r.value.id);
-    ui.showNotice(acceptedNotice(shown, r.value.file), 'done', true);
+    ui.showNotice(acceptedNotice(shown, r.value.file, r.value.missing_anchors?.length ?? 0), 'done', true);
   }
   return r;
 }

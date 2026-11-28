@@ -127,15 +127,32 @@ function addInferred(graph: LiveGraph, proposals: ReadonlyArray<InferProposalRow
     graph.nodes.push(node);
     byId.set(id, node);
     const seen = new Set<string>();
+    const warnings: string[] = [];
     for (const raw of p.anchors) {
       const a = parseAnchor(raw);
-      if (!a.ok) continue;
-      const target = findTarget(a.anchor.path, a.anchor.name, ids, symbolIds);
-      if (!target || seen.has(target)) continue;
+      const target = a.ok ? findTarget(a.anchor.path, a.anchor.name, ids, symbolIds) : null;
+      // same words a declared node gets for its realized_by, so the person sees it before accepting
+      if (!a.ok || !target) {
+        warnings.push(`realized_by: ${raw} is not in the graph`);
+        continue;
+      }
+      if (a.anchor.name !== undefined && !target.startsWith('code_symbol:')) warnings.push(`realized_by: ${raw} symbol not found, linked to the file`);
+      if (seen.has(target)) continue;
       seen.add(target);
       graph.edges.push({ id: `anchor:${target}->${id}`, src: target, dst: id, kind: 'realizes', weight: 1 });
     }
+    if (warnings.length > 0) node.warnings = warnings;
   }
+}
+
+/** the anchors of a proposal that no node of the graph stands for, in the order given. a symbol whose file is there is found. */
+export function missingAnchors(anchors: ReadonlyArray<string>, nodes: ReadonlyArray<{ readonly id: string; readonly kind: string }>): string[] {
+  const ids = new Set(nodes.map((n) => n.id));
+  const symbolIds = nodes.filter((n) => n.kind === 'code_symbol').map((n) => n.id);
+  return anchors.filter((raw) => {
+    const a = parseAnchor(raw);
+    return !a.ok || findTarget(a.anchor.path, a.anchor.name, ids, symbolIds) === null;
+  });
 }
 
 function findTarget(path: string, name: string | undefined, ids: ReadonlySet<string>, symbolIds: ReadonlyArray<string>): string | null {

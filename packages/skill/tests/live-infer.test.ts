@@ -99,6 +99,17 @@ describe('settled list', () => {
     expect(parseInferReport('[]')).toMatchObject({ ok: false });
     expect(parseInferReport(reportText([proposal('inf-1')]))).toMatchObject({ ok: true });
   });
+
+  it('takes a row with one anchor, because the script keeps a proposal while one anchor survives, and refuses one with none', () => {
+    const one = parseInferReport(reportText([proposal('inf-1', { anchors: ['packages/a/src/cli.ts'] }), proposal('inf-2')]));
+    expect(one).toMatchObject({ ok: true });
+    expect(one.ok && one.proposals).toHaveLength(2);
+    const none = parseInferReport(reportText([proposal('inf-1'), proposal('inf-2', { anchors: [] })]));
+    expect(none).toMatchObject({ ok: false });
+    expect(!none.ok && none.message).toMatch(/schema at proposal 2: anchors/);
+    const nine = parseInferReport(reportText([proposal('inf-1', { anchors: Array.from({ length: 9 }, (_, i) => `a/f${i}.ts`) })]));
+    expect(nine).toMatchObject({ ok: false });
+  });
 });
 
 const graphResult = (): BuildGraphResult => {
@@ -132,6 +143,15 @@ describe('inferred nodes in the live graph', () => {
       ['code_symbol:packages/a/src/run.ts#runAll#1', 'realizes'],
     ]);
     expect(n1.status).toBeUndefined();
+  });
+
+  it('warns on an inferred node for each anchor that is not in the graph, the way a declared node does', () => {
+    const g = composeLiveGraph(graphResult(), new Map(), null, root, null, {
+      proposals: [proposal('inf-1', { anchors: ['src/nope.ts#ghost', 'packages/a/src/cli.ts', 'src/also-missing.ts'] }), proposal('inf-2')],
+      problem: null,
+    });
+    expect(g.nodes.find((n) => n.id === 'inferred:inf-1')!.warnings).toEqual(['realized_by: src/nope.ts#ghost is not in the graph', 'realized_by: src/also-missing.ts is not in the graph']);
+    expect(g.nodes.find((n) => n.id === 'inferred:inf-2')!.warnings).toBeUndefined();
   });
 
   it('adds the report problem and no inferred node when the report is unusable', () => {

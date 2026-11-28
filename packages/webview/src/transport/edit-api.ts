@@ -103,7 +103,7 @@ export function createIntent(config: EditConfig, parent: string, title: string, 
 }
 
 /** accept a proposal a model inferred: the server writes it as a real intent file. title is the one typed in the rename field. */
-export function acceptInferred(config: EditConfig, id: string, title?: string): Promise<ApiResult<{ id: string; file: string }>> {
+export function acceptInferred(config: EditConfig, id: string, title?: string): Promise<ApiResult<{ id: string; file: string; missing_anchors?: string[] }>> {
   if (!config.api || !config.write) return Promise.resolve({ ok: false, error: 'read-only', message: config.readOnlyReason ?? NO_WRITE_REASON });
   return pageWrites.run(() => call(`${config.api}/inferred/accept?id=${encodeURIComponent(id)}`, writeInit(config, title === undefined ? {} : { title })));
 }

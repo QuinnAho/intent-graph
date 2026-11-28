@@ -101,6 +101,9 @@ describe('words and notices', () => {
   it('counts and announces', () => {
     expect(inferredCountLabel(14)).toBe('14 inferred');
     expect(acceptedNotice('T', 'spec/intents/t.md')).toBe('Accepted "T" as spec/intents/t.md.');
+    expect(acceptedNotice('T', 'spec/intents/t.md', 0)).toBe('Accepted "T" as spec/intents/t.md.');
+    expect(acceptedNotice('T', 'F', 2)).toBe('Accepted "T" as F. 2 of its anchors point at code that is not there.');
+    expect(acceptedNotice('T', 'F', 1)).toBe('Accepted "T" as F. 1 of its anchors points at code that is not there.');
     expect(dismissedNotice('T')).toMatch(/^Dismissed "T"\./);
   });
 });

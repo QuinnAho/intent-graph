@@ -32,7 +32,7 @@ function workspace(): string {
   writeFileSync(join(d, 'src', 'run.ts'), 'export function runAll(): number {\n  return 1;\n}\n');
   writeFileSync(join(d, 'src', 'cli.ts'), 'export const cli = 1;\n');
   writeFileSync(join(d, 'web', 'index.html'), '<html><head></head><body></body></html>');
-  writeFileSync(join(d, '.runs', 'infer', 'r1', 'report.json'), JSON.stringify({ result: 'PASS', report: { proposals: [row('inf-1'), row('inf-2', { belongs_under: null }), row('inf-3')] } }));
+  writeFileSync(join(d, '.runs', 'infer', 'r1', 'report.json'), JSON.stringify({ result: 'PASS', report: { proposals: [row('inf-1'), row('inf-2', { belongs_under: null }), row('inf-3'), row('inf-4', { anchors: ['src/nope.ts#ghost', 'src/also-missing.ts'] }), row('inf-5', { anchors: ['src/run.ts#runAll', 'src/gone.ts'] })] } }));
   writeFileSync(join(d, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', report: '.runs/infer/r1/report.json' }));
   return d;
 }
@@ -81,7 +81,7 @@ describe('inferred proposals on a --write server', () => {
     const r = await post('api/inferred/accept?id=inferred:inf-1', {});
     expect(r.status).toBe(201);
     const body = (await r.json()) as { id: string; file: string };
-    expect(body).toMatchObject({ id: 'intent-title-inf-1', file: 'spec/intents/title-inf-1.md' });
+    expect(body).toMatchObject({ id: 'intent-title-inf-1', file: 'spec/intents/title-inf-1.md', missing_anchors: [] });
     const text = readFileSync(join(dir, body.file), 'utf8');
     const parsed = parseFrontmatter('x.md', text);
     expect(parsed.minimum).toMatchObject({ title: 'Title inf-1', parent: 'concept-c' });
@@ -107,6 +107,21 @@ describe('inferred proposals on a --write server', () => {
     expect(parsed.minimum).toMatchObject({ title: 'Renamed: first', parent: null });
     expect((await post('api/undo', {})).status).toBe(200);
     expect(existsSync(join(dir, file))).toBe(false);
+  });
+
+  it('writes an accept whose anchors point at nothing and names them in the reply', async () => {
+    const g = (await (await fetch(`${server.url}graph.json`)).json()) as { nodes: Array<{ id: string; warnings?: string[] }> };
+    expect(g.nodes.find((n) => n.id === 'inferred:inf-4')?.warnings).toHaveLength(2);
+    expect(g.nodes.find((n) => n.id === 'inferred:inf-1')?.warnings).toBeUndefined();
+    const r = await post('api/inferred/accept?id=inferred:inf-4', {});
+    expect(r.status).toBe(201);
+    const body = (await r.json()) as { file: string; missing_anchors: string[] };
+    expect(body.missing_anchors).toEqual(['src/nope.ts#ghost', 'src/also-missing.ts']);
+    expect(readFileSync(join(dir, body.file), 'utf8')).toContain('src/nope.ts#ghost');
+    expect((await post('api/undo', {})).status).toBe(200);
+    const half = (await (await post('api/inferred/accept?id=inferred:inf-5', {})).json()) as { missing_anchors: string[] };
+    expect(half.missing_anchors).toEqual(['src/gone.ts']);
+    expect((await post('api/undo', {})).status).toBe(200);
   });
 
   it('dismisses into .runs/infer only, and undo puts the bytes back', async () => {

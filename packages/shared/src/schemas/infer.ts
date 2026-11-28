@@ -25,6 +25,8 @@ export type InferReply = z.infer<typeof InferReplySchema>;
 
 /** A proposal as the report carries it: the model's reading plus what the script works out. */
 export const InferProposalRowSchema = InferProposalSchema.extend({
+  /** the script keeps a proposal while one anchor survives its check, so a row can hold 1 to 8 (the model is asked for 2 to 8) */
+  anchors: z.array(z.string().min(1)).min(1).max(8),
   id: z.string().min(1),
   folder: z.string().min(1),
   /** True when every file the anchors cite is a placeholder. Set from the code, never by the model. */

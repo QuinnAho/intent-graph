@@ -100,11 +100,21 @@ function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }
     const frame = window.setTimeout(() => {
       const canvas = document.querySelector('.react-flow');
       const drawn = Array.from(document.querySelectorAll('.react-flow__node')).find((e) => e.getAttribute('data-id') === id);
-      if (!canvas || !drawn) return;
-      const c = canvas.getBoundingClientRect();
-      const r = drawn.getBoundingClientRect();
+      if (!canvas) return;
       const view = rf.getViewport();
-      const box = { x: (r.left - c.left - view.x) / view.zoom, y: (r.top - c.top - view.y) / view.zoom, width: r.width / view.zoom, height: r.height / view.zoom };
+      let box: { x: number; y: number; width: number; height: number };
+      if (drawn) {
+        const c = canvas.getBoundingClientRect();
+        const r = drawn.getBoundingClientRect();
+        box = { x: (r.left - c.left - view.x) / view.zoom, y: (r.top - c.top - view.y) / view.zoom, width: r.width / view.zoom, height: r.height / view.zoom };
+      } else {
+        // a node far outside the view is not drawn at all (onlyRenderVisibleElements), so its box comes from the store
+        const inner = rf.getInternalNode(id);
+        const width = inner?.measured.width ?? inner?.width ?? node?.width;
+        const height = inner?.measured.height ?? inner?.height ?? node?.height;
+        if (!inner || !width || !height) return;
+        box = { x: inner.internals.positionAbsolute.x, y: inner.internals.positionAbsolute.y, width, height };
+      }
       const next = viewToClearPanel(box, view, { width: canvasWidth, height: canvasHeight });
       if (next) void rf.setViewport(next, { duration: 200 });
     }, PANEL_TUNING.settleMs);

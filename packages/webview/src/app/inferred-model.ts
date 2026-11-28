@@ -95,8 +95,11 @@ export function nextInferred(nodes: ReadonlyArray<Node>, selectedId: string | nu
 
 export const inferredCountLabel = (count: number): string => `${count} inferred`;
 
-export function acceptedNotice(title: string, file: string): string {
-  return `Accepted "${title}" as ${file}.`;
+/** missing is how many of its anchors point at code that is not in the graph. the file is written anyway. */
+export function acceptedNotice(title: string, file: string, missing = 0): string {
+  const base = `Accepted "${title}" as ${file}.`;
+  if (missing <= 0) return base;
+  return `${base} ${missing} of its anchors ${missing === 1 ? 'points' : 'point'} at code that is not there.`;
 }
 
 export function dismissedNotice(title: string): string {

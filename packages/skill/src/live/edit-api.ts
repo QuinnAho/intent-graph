@@ -20,6 +20,7 @@ import {
   slugFromTitle,
   writeSpecFileAtomic,
 } from '../parser/spec-md/writer.js';
+import { missingAnchors } from './compose.js';
 import { addDismissed, settledText, type Settled } from './infer-marks.js';
 import { settledPath } from './infer-reader.js';
 import { checkParentChange, type ParentNode } from './parent-rules.js';
@@ -311,7 +312,9 @@ export function acceptProposal(
     realizedBy: proposal.anchors,
   });
   if (!r.ok) return apiError(r.code === 'duplicate' ? 409 : 422, r.code, r.reason);
-  return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file), proposal: proposal.id }, written: relPath(root, r.file), intent: r.id };
+  // still written: a bad anchor is a warning in this tool, never a refusal. the reply says which ones.
+  const missing = missingAnchors(proposal.anchors, nodes);
+  return { status: 201, body: { ok: true, id: r.id, file: relPath(root, r.file), proposal: proposal.id, missing_anchors: missing }, written: relPath(root, r.file), intent: r.id };
 }
 
 /** write the settled list with one more dismissed proposal. only ever under .runs/infer, never spec/. */

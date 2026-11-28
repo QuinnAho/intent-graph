@@ -104,8 +104,11 @@ const row = (id, title, anchors, over = {}) => ({
 });
 const P_ADD = row('inf-add', 'Adds numbers for the calculator', ['src/math.ts#add', 'src/math.ts']);
 const P_GREET = row('inf-greet', 'Greets a person by their name', ['src/greet.ts#greet', 'src/greet.ts'], { restates: 'intent-greets-by-name', confidence: 'semantic' });
-const P_PLAN = row('inf-plan', 'Keeps a helper for later', ['src/math.ts', 'src/greet.ts'], { planned: true, belongs_under: null, confidence: 'semantic' });
+// one anchor only: the script keeps a proposal while one anchor survives its check, and the page must show it
+const P_PLAN = row('inf-plan', 'Keeps a helper for later', ['src/math.ts'], { planned: true, belongs_under: null, confidence: 'semantic' });
 const P_NEW = row('inf-new', 'Checks the sum of two numbers', ['src/math.ts#add', 'tests/math.test.ts']);
+// two anchors that point at nothing: accept still writes, and the notice and the node both say so
+const P_GHOST = row('inf-ghost', 'Talks to code that is gone', ['src/nope.ts#ghost', 'src/also-missing.ts']);
 let reportN = 0;
 // written the way tools/infer.mjs writes it: a run folder, then latest.json naming it relative to the root
 function writeReport(proposals) {
@@ -217,6 +220,36 @@ try {
     await p.locator(node(id)).click({ position: { x: 30, y: 60 } });
   };
 
+  // the selected proposal's box must sit inside the canvas and clear of the side panel
+  const boxState = (p, id) => p.evaluate((nid) => {
+    const el = [...document.querySelectorAll('.react-flow__node')].find((e) => e.getAttribute('data-id') === nid);
+    if (!el) return { drawn: false };
+    const r = el.getBoundingClientRect();
+    const c = document.querySelector('.react-flow').getBoundingClientRect();
+    const pe = document.querySelector('[data-inferred-panel]');
+    const pr = pe ? pe.getBoundingClientRect() : null;
+    const inside = r.left >= c.left && r.top >= c.top && r.right <= c.right && r.bottom <= c.bottom;
+    const clear = !pr || r.right <= pr.left || r.left >= pr.right || r.bottom <= pr.top || r.top >= pr.bottom;
+    return { drawn: true, inside, clear, box: [r.left, r.top, r.right, r.bottom].map(Math.round), panel: pr ? [pr.left, pr.top, pr.right, pr.bottom].map(Math.round) : null };
+  }, id);
+  const waitInView = async (p, id) => {
+    const end = Date.now() + SHOW_LIMIT_MS;
+    let st = await boxState(p, id);
+    while (!(st.drawn && st.inside && st.clear) && Date.now() < end) { await p.waitForTimeout(100); st = await boxState(p, id); }
+    return st;
+  };
+  // click the count until the panel shows this proposal, with no click on the node itself
+  const countTo = async (p, pid) => {
+    for (let i = 0; i < 6; i++) {
+      const shown = await p.evaluate(() => document.querySelector('[data-inferred-panel]')?.getAttribute('data-inferred-panel') ?? null);
+      if (shown === pid) return true;
+      await p.locator('[data-inferred-count] button').click();
+      // the panel can close for a moment between two proposals, so wait for a new one, not just for a change
+      await p.waitForFunction((w) => { const v = document.querySelector('[data-inferred-panel]')?.getAttribute('data-inferred-panel') ?? null; return v !== null && v !== w; }, shown, { timeout: SHOW_LIMIT_MS });
+    }
+    return false;
+  };
+
   // 1 the proposals show beside the declared intents, dashed and worded, never by colour alone
   const look = await page.evaluate(() => [...document.querySelectorAll('[data-inferred]')].map((e) => ({
     id: e.getAttribute('data-inferred'),
@@ -251,6 +284,8 @@ try {
     evidence: [...document.querySelectorAll('[data-inferred-evidence] li')].map((l) => l.textContent),
   }));
   if (panel.id !== 'inf-add' || !/Read from the code/.test(panel.body ?? '') || panel.folder !== 'src' || panel.evidence.join(',') !== 'src/math.ts#add,src/math.ts') await fail(`panel wrong: ${JSON.stringify(panel)}`);
+  const addView = await waitInView(page, inf(P_ADD));
+  if (!(addView.drawn && addView.inside && addView.clear)) await fail(`after the count click the node is not in view and clear of the panel: ${JSON.stringify(addView)}`);
   await page.waitForTimeout(400);
   await page.screenshot({ path: join(runDir, '02-inferred-panel.jpg'), type: 'jpeg', quality: 82 });
   console.log(`ok panel (${secs()}s) - count click selected ${panel.id}, body, folder ${panel.folder}, ${panel.evidence.length} evidence lines`);
@@ -340,6 +375,65 @@ try {
   if ((await waitCount(3)) !== 3) await fail(`count after the new report is ${await count()}, want 3`);
   if ((await graphIds()).includes(inf(P_GREET))) await fail('a dismissed id came back on a new report');
   console.log(`ok new report (${secs()}s) - the dismissed id stays hidden, the new proposal shows, count 3`);
+
+  // 7b the count click brings a proposal that is off screen into view: pan away on empty canvas, then click the count
+  const pane = page.locator('.react-flow__pane');
+  const scenes = [[1300, 850], [1300, 850], [1300, 20], [20, 850]];
+  let panned = false;
+  for (const [x, y] of scenes) {
+    if (!(await countTo(page, 'inf-plan'))) await fail('count clicks never reached inf-plan');
+    await pane.click({ position: { x: 5, y: 5 } });
+    await page.mouse.move(5, 150);
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    if (!(await boxState(page, inf(P_PLAN))).drawn) { panned = true; break; }
+  }
+  if (!panned) await fail('could not pan the proposal out of the window to prove the move');
+  const zoomBefore = await page.evaluate(() => Number(/matrix\(([\d.]+)/.exec(getComputedStyle(document.querySelector('.react-flow__viewport')).transform)?.[1] ?? 0));
+  // nothing is selected after the pane click, so the count walk starts again and reaches it
+  if (!(await countTo(page, 'inf-plan'))) await fail('count clicks never came back to inf-plan');
+  const planView = await waitInView(page, inf(P_PLAN));
+  if (!(planView.drawn && planView.inside && planView.clear)) await fail(`a count click left the proposal out of view or under the panel: ${JSON.stringify(planView)}`);
+  // the move glides, and the glide dips the zoom on the way, so the zoom is read once it has landed
+  await page.waitForTimeout(800);
+  const planLanded = await boxState(page, inf(P_PLAN));
+  if (!(planLanded.inside && planLanded.clear)) await fail(`the proposal is not in view once the move has landed: ${JSON.stringify(planLanded)}`);
+  const viewNow = await page.evaluate(() => getComputedStyle(document.querySelector('.react-flow__viewport')).transform);
+  const zoomOf = (t) => Number(/matrix\(([\d.]+)/.exec(t)?.[1] ?? 0);
+  if (Math.abs(zoomOf(viewNow) - zoomBefore) > 0.001) await fail(`the count click changed the zoom from ${zoomBefore} to ${zoomOf(viewNow)}`);
+  await page.screenshot({ path: join(runDir, '06-count-click-in-view.jpg'), type: 'jpeg', quality: 82 });
+  console.log(`ok count in view (${secs()}s) - panned the proposal out of the window, a count click moved it to ${JSON.stringify(planView.box)}, panel ${JSON.stringify(planView.panel)}, view ${viewNow}`);
+
+  // 7c accept a proposal whose anchors point at nothing: written anyway, and the node and the notice both say so
+  writeReport([P_ADD, P_GREET, P_PLAN, P_NEW, P_GHOST]);
+  if (!(await waitNode(inf(P_GHOST), true))) await fail('the ghost proposal did not show');
+  if ((await waitCount(4)) !== 4) await fail(`count with the ghost proposal is ${await count()}, want 4`);
+  const ghostWarn = (await (await fetch(`${srv.url}graph.json`)).json()).nodes.find((n) => n.id === inf(P_GHOST))?.warnings ?? [];
+  if (ghostWarn.length !== 2 || !/src\/nope\.ts#ghost is not in the graph/.test(ghostWarn[0])) await fail(`the proposal node carries no warning for its missing anchors: ${JSON.stringify(ghostWarn)}`);
+  const specGhost0 = specBytes();
+  // a one line title makes a short node, so the click lands high on it
+  if (!(await countTo(page, 'inf-ghost'))) await fail('count clicks never reached inf-ghost');
+  const ghostView = await waitInView(page, inf(P_GHOST));
+  if (!(ghostView.inside && ghostView.clear)) await fail(`ghost proposal not in view after the count: ${JSON.stringify(ghostView)}`);
+  await page.waitForTimeout(700);
+  await page.locator(node(inf(P_GHOST))).click({ position: { x: 30, y: 30 } });
+  await page.keyboard.press('Enter');
+  const ghostFile = join(work, 'spec', 'intents', 'talks-to-code-that-is-gone.md');
+  if (!(await waitFile(ghostFile, true))) await fail('Enter did not write the ghost intent file');
+  if (!/src\/nope\.ts#ghost/.test(readFileSync(ghostFile, 'utf8'))) await fail('the ghost intent file lost its anchors');
+  const ghostNotice = await page.locator('[data-notice="done"]').textContent({ timeout: 3000 });
+  if (!/^Accepted "Talks to code that is gone" as spec\/intents\/talks-to-code-that-is-gone\.md\. 2 of its anchors point at code that is not there\./.test(ghostNotice ?? '')) await fail(`ghost accept notice: ${ghostNotice}`);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(runDir, '07-accepted-missing-anchors.jpg'), type: 'jpeg', quality: 82 });
+  console.log(`ok missing anchors (${secs()}s) - the node warned before accept, the file was written, notice "${ghostNotice.replace(/Undo$/, '').trim()}"`);
+  await page.locator('[data-notice-undo]').click();
+  if (!(await waitFile(ghostFile, false))) await fail('undo did not remove the ghost intent file');
+  if (!sameBytes(specBytes(), specGhost0)) await fail('spec/ is not byte for byte after undoing the ghost accept');
+  writeReport([P_ADD, P_GREET, P_PLAN, P_NEW]);
+  if (!(await waitNode(inf(P_GHOST), false))) await fail('the ghost proposal stayed after the report went back');
+  if ((await waitCount(3)) !== 3) await fail(`count after the ghost step is ${await count()}, want 3`);
 
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
   await page.close();
