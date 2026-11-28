@@ -4,7 +4,7 @@
 // severity is a word and an icon, not only a colour.
 
 import { TriangleAlert } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 
 import { problemsLabel, useProblemsStore } from '../store/problems.js';
 
@@ -47,11 +47,12 @@ const LIST: CSSProperties = {
 
 export function ProblemsPanel(): JSX.Element | null {
   const problems = useProblemsStore((s) => s.problems);
-  const [open, setOpen] = useState(false);
+  const open = useProblemsStore((s) => s.open);
+  const setOpen = useProblemsStore((s) => s.setOpen);
   if (problems.length === 0) return null;
   return (
     <div style={BOX} data-problems-count={problems.length}>
-      <button type="button" style={BUTTON} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" style={BUTTON} aria-expanded={open} onClick={() => setOpen(!open)}>
         <TriangleAlert size={14} color="#d29922" aria-hidden />
         {problemsLabel(problems)}
       </button>

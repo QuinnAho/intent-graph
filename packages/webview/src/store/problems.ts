@@ -30,10 +30,15 @@ export function problemsLabel(problems: ReadonlyArray<GraphProblem>): string {
 
 interface ProblemsState {
   readonly problems: ReadonlyArray<GraphProblem>;
+  /** the list under the canvas is open. the strip's button and the bar's count both toggle it. */
+  readonly open: boolean;
   setProblems(problems: ReadonlyArray<GraphProblem>): void;
+  setOpen(open: boolean): void;
 }
 
 export const useProblemsStore = create<ProblemsState>((set) => ({
   problems: [],
+  open: false,
   setProblems: (problems) => set({ problems }),
+  setOpen: (open) => set({ open }),
 }));

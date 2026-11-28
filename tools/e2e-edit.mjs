@@ -516,7 +516,8 @@ async function readOnlyWireChecks(rpage, r, nodeSel) {
   const k0 = readFileSync(kfile, 'utf8').replace('parent: concept-calculator', `parent: ${iid}`);
   writeFileSync(kfile, k0);
   if (!(await graphHas(r, `"src":"${kid}","dst":"${iid}"`))) await fail('the read-only graph never showed the new wire');
-  await rpage.mouse.click(6, 6, { button: 'right' });
+  // below the state bar at the top of the page
+  await rpage.mouse.click(6, 48, { button: 'right' });
   await rpage.locator('[data-context-menu="pane"]').waitFor({ timeout: 3000 }).catch(async () => { await rpage.screenshot({ path: join(runDir, 'crash-read-only.jpg'), ...FRAME }); await fail('no canvas menu on the read-only page'); });
   await rpage.locator('[data-menu-item="fit-view"]').click();
   await rpage.waitForTimeout(700);

@@ -1,51 +1,33 @@
-// the count of open proposals in the strip under the canvas. a click selects the next one,
-// so a person can go through them with Enter and Delete alone. hidden when none is open.
+// the count of open proposals, in the state bar. a click selects the next one, so a person
+// can go through them with Enter and Delete alone. a zero is shown dim, not hidden.
 
 import type { Node } from '@xyflow/react';
-import { Sparkles } from 'lucide-react';
-import type { CSSProperties } from 'react';
 
+import { RobotIcon } from '../graph/nodes/shared/nodeChrome.js';
 import { useGraphStore } from '../store/graph-slice.js';
+import { GLANCE_TUNING } from './glance-tuning.js';
+import { countTitle } from './glance-model.js';
 import { selectNextProposal } from './inferred-actions.js';
 import { inferredCountLabel, openInferred } from './inferred-model.js';
+import { COUNT_BUTTON } from './bar-styles.js';
 
-const BOX: CSSProperties = {
-  flex: '0 0 auto',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  padding: '6px 12px',
-  borderTop: '1px solid var(--ig-edge)',
-  background: 'var(--ig-canvas)',
-  zIndex: 20,
-  fontSize: '12px',
-  color: 'var(--ig-text)',
-};
-
-const BUTTON: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  padding: '5px 10px',
-  borderRadius: '999px',
-  border: '1px dashed rgba(167, 139, 250, 0.8)',
-  background: 'var(--ig-node)',
-  color: 'var(--ig-text)',
-  font: 'inherit',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-export function InferredCount(): JSX.Element | null {
+export function InferredCount(): JSX.Element {
   const count = useGraphStore((s) => openInferred(s.nodes as Node[]).length);
-  if (count === 0) return null;
+  const zero = count === 0;
   return (
-    <div style={BOX} data-inferred-count={count}>
-      <button type="button" style={BUTTON} onClick={selectNextProposal} title="Select the next inferred intent. Enter accepts, Delete dismisses.">
-        <Sparkles size={14} aria-hidden />
+    <span data-inferred-count={count} style={{ display: 'inline-flex' }}>
+      <button
+        type="button"
+        data-bar-count="inferred"
+        data-count={count}
+        aria-disabled={zero}
+        style={{ ...COUNT_BUTTON, border: '1px dashed rgba(167, 139, 250, 0.8)', ...(zero ? { opacity: GLANCE_TUNING.zeroOpacity, cursor: 'default' } : {}) }}
+        onClick={zero ? undefined : selectNextProposal}
+        title={zero ? countTitle('inferred', 0) : `${countTitle('inferred', count)} Enter accepts, Delete dismisses.`}
+      >
+        <RobotIcon size={14} />
         {inferredCountLabel(count)}
       </button>
-      <span style={{ opacity: 0.7 }}>proposals read from the code, not declared yet</span>
-    </div>
+    </span>
   );
 }

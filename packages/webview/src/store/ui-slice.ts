@@ -48,6 +48,8 @@ interface UiState {
   readonly panelDirtyId: string | null;
   /** node whose panel should take focus in its title field, once it can */
   readonly panelFocusId: string | null;
+  /** the legend beside the canvas, opened from the "?" at the end of the state bar */
+  readonly legendOpen: boolean;
   setEditConfig(config: EditConfig): void;
   openCreate(parent: string): void;
   closeCreate(): void;
@@ -62,6 +64,7 @@ interface UiState {
   setSelectedWire(id: string | null): void;
   setPanelDirtyId(id: string | null): void;
   setPanelFocusId(id: string | null): void;
+  setLegendOpen(open: boolean): void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -96,4 +99,6 @@ export const useUiStore = create<UiState>((set) => ({
   setSelectedWire: (selectedWire) => set((s) => (s.selectedWire === selectedWire ? s : { selectedWire })),
   setPanelDirtyId: (panelDirtyId) => set((s) => (s.panelDirtyId === panelDirtyId ? s : { panelDirtyId })),
   setPanelFocusId: (panelFocusId) => set({ panelFocusId }),
+  legendOpen: false,
+  setLegendOpen: (legendOpen) => set((s) => (s.legendOpen === legendOpen ? s : { legendOpen })),
 }));

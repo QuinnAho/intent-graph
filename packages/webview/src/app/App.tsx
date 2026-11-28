@@ -17,7 +17,8 @@ import { acceptProposal, dismissProposal } from './inferred-actions.js';
 import { INFERRED_MENU_KIND, inferredKey, inferredOf } from './inferred-model.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { EditPanel } from './EditPanel.js';
-import { InferredCount } from './InferredCount.js';
+import { Legend, useLegendFirstVisit } from './Legend.js';
+import { StateBar } from './StateBar.js';
 import { Notice } from './Notice.js';
 import { deleteWire, undoLast } from './wire-edit-actions.js';
 import { isUndoKey } from '../graph/wire-edit-model.js';
@@ -187,7 +188,9 @@ const SHELL_STYLE: CSSProperties = {
   flexDirection: 'column',
 };
 
-const CANVAS_AREA_STYLE: CSSProperties = { position: 'relative', flex: '1 1 auto', minHeight: 0 };
+// the state bar sits above this row and the legend beside the canvas, each in its own room
+const MIDDLE_STYLE: CSSProperties = { display: 'flex', flex: '1 1 auto', minHeight: 0 };
+const CANVAS_AREA_STYLE: CSSProperties = { position: 'relative', flex: '1 1 auto', minHeight: 0, minWidth: 0 };
 
 const ERROR_STYLE: CSSProperties = {
   position: 'absolute',
@@ -243,6 +246,7 @@ export function App(): JSX.Element {
   useLiveUpdates(live);
   useDirectEditKeys();
   useWireEditKeys();
+  useLegendFirstVisit();
   const handleNodesChange = useCallback(onSelectionChange, []);
 
   if (status === 'error' && errorMessage) {
@@ -257,6 +261,8 @@ export function App(): JSX.Element {
 
   return (
     <div style={SHELL_STYLE}>
+      <StateBar />
+      <div style={MIDDLE_STYLE}>
       <div style={CANVAS_AREA_STYLE}>
       <GraphCanvas
         nodes={nodes as Parameters<typeof GraphCanvas>[0]['nodes']}
@@ -269,8 +275,9 @@ export function App(): JSX.Element {
       />
       <EditPanel />
       </div>
+      <Legend />
+      </div>
       <Notice />
-      <InferredCount />
       <ProblemsPanel />
     </div>
   );
