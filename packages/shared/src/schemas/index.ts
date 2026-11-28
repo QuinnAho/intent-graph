@@ -11,3 +11,4 @@ export * from './walker.js';
 export * from './drift.js';
 export * from './infer.js';
 export * from './activity.js';
+export * from './code-ref.js';
