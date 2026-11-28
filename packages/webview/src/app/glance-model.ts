@@ -55,6 +55,12 @@ export function glanceCounts(nodes: ReadonlyArray<Node>): GlanceCounts {
   return { counts, driftReport };
 }
 
+/** the node kinds the legend lists: the ones the bar counts, and any other kind the graph holds a node of */
+export function legendKinds(all: ReadonlyArray<string>, nodes: ReadonlyArray<Pick<Node, 'type'>>): string[] {
+  const held = new Set(nodes.map((n) => n.type));
+  return all.filter((k) => SPEC_SET.has(k) || held.has(k));
+}
+
 const labelOf = (n: Node): string => String((n.data as { label?: unknown } | undefined)?.label ?? '');
 
 /** the nodes in a state in reading order: by title, then id. proposals keep the order the inferred count used. */

@@ -71,4 +71,11 @@ Stop and report after 60 minutes, or if the gate cannot be made green in two tri
 
 ## Builder notes
 
+Fix pass after the verifier's four faults:
+- The bar wraps onto more lines in a narrow window instead of cutting buttons off (900 px: 2 lines, 480 px: 4). It stays one 36 px line at 1280. The group dividers are gone, since they stranded at line ends. A group's label wraps with its first count.
+- The legend takes at most 70 percent of the window width and never grows past its row, so it scrolls inside itself. It already did at 600 px tall, the new end to end case now guards it.
+- The legend lists a kind only when the bar counts it or the graph holds a node of it (`legendKinds`, tested first).
+- The chip under the canvas stays. Three other scripts (edit, live, drift-marks) use its selectors and the list under the canvas, which is more than a one or two line change per script.
+- New frames mode: `--lane-frames <dir> [--repo-from <dir>]`.
+
 ## Results

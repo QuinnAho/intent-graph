@@ -5,18 +5,20 @@ import { GLANCE_TUNING } from './glance-tuning.js';
 
 export const BAR: CSSProperties = {
   flex: '0 0 auto',
-  height: `${GLANCE_TUNING.barHeight}px`,
+  // one row at the full width, more rows when the window is narrow. nothing is cut off.
+  minHeight: `${GLANCE_TUNING.barHeight}px`,
   boxSizing: 'border-box',
   display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
-  gap: '2px',
-  padding: '0 6px',
+  columnGap: '2px',
+  rowGap: '2px',
+  padding: '4px 6px',
   borderBottom: '1px solid var(--ig-edge)',
   background: 'var(--ig-node)',
   color: 'var(--ig-text)',
   fontSize: '12px',
   whiteSpace: 'nowrap',
-  overflow: 'hidden',
   zIndex: 25,
 };
 
@@ -36,8 +38,10 @@ export const COUNT_BUTTON: CSSProperties = {
   flexShrink: 0,
 };
 
-export const GROUP: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '1px', flexShrink: 0 };
+export const GROUP: CSSProperties = { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: '1px', marginRight: '6px' };
+
+// the label and the first count wrap as one, so a label never sits alone at a line end
+export const GROUP_HEAD: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '1px', flexShrink: 0 };
 
 export const GROUP_LABEL: CSSProperties = { fontSize: '11px', opacity: 0.6, margin: '0 3px 0 2px', flexShrink: 0 };
 
-export const DIVIDER: CSSProperties = { width: '1px', alignSelf: 'stretch', margin: '8px 3px', background: 'var(--ig-edge)', flexShrink: 0 };

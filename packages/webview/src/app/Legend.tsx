@@ -4,12 +4,14 @@
 // visit, a click elsewhere or Esc closes it, and focus goes back to the "?" in the bar.
 
 import { X } from 'lucide-react';
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import type { Node } from '@xyflow/react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../graph/nodes/nodeIcons.js';
 import { DriftMark, EMPTY_SIDE, InferredPill, PinCount, RobotIcon, StatusMark, WarningMark, pinStyle, type DriftInfo } from '../graph/nodes/shared/nodeChrome.js';
 import { useUiStore } from '../store/ui-slice.js';
-import { ROBOT_DRIFT_TITLE, ROBOT_TITLE } from './glance-model.js';
+import { useGraphStore } from '../store/graph-slice.js';
+import { ROBOT_DRIFT_TITLE, ROBOT_TITLE, legendKinds } from './glance-model.js';
 import { GLANCE_TUNING } from './glance-tuning.js';
 
 const KINDS: ReadonlyArray<{ kind: NodeKind; name: string; line: string }> = [
@@ -39,8 +41,12 @@ const sample = (verdict: DriftInfo['verdict'], over: Partial<DriftInfo> = {}): D
 });
 
 const ASIDE: CSSProperties = {
-  flex: `0 0 ${GLANCE_TUNING.legendWidth}px`,
-  width: `${GLANCE_TUNING.legendWidth}px`,
+  // never wider than most of a narrow window, never taller than its row, so it scrolls inside itself
+  flex: `0 0 min(${GLANCE_TUNING.legendWidth}px, 70vw)`,
+  width: `min(${GLANCE_TUNING.legendWidth}px, 70vw)`,
+  minHeight: 0,
+  maxHeight: '100%',
+  alignSelf: 'stretch',
   boxSizing: 'border-box',
   overflowY: 'auto',
   padding: '12px 14px 16px',
@@ -94,6 +100,8 @@ export function useLegendFirstVisit(): void {
 export function Legend(): JSX.Element | null {
   const open = useUiStore((s) => s.legendOpen);
   const ref = useRef<HTMLElement>(null);
+  const nodes = useGraphStore((s) => s.nodes);
+  const kinds = useMemo(() => new Set(legendKinds(KINDS.map((k) => k.kind), nodes as Node[])), [nodes]);
   useEffect(() => {
     if (!open) return undefined;
     // opened from the "?": the focus moves in, so the keyboard can read it
@@ -132,7 +140,7 @@ export function Legend(): JSX.Element | null {
       <p style={{ ...MUTED, margin: '6px 0 0' }}>The bar at the top counts each state. Click a count to go to the next node in that state.</p>
 
       <h3 style={H3}>Nodes</h3>
-      {KINDS.map(({ kind, name, line }) => {
+      {KINDS.filter((k) => kinds.has(k.kind)).map(({ kind, name, line }) => {
         const Icon = getNodeIcon(kind);
         return (
           <Row key={kind} mark={<><Icon size={15} aria-hidden /><strong style={{ fontWeight: 600 }}>{name}</strong></>}>

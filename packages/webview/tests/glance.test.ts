@@ -8,6 +8,7 @@ import {
   countTitle,
   glanceCounts,
   inferredKeyHint,
+  legendKinds,
   modelDecided,
   nextInState,
   nodesInState,
@@ -141,5 +142,24 @@ describe('words', () => {
     expect(inferredKeyHint(true)).toMatch(/Enter/);
     expect(inferredKeyHint(true)).toMatch(/Delete/);
     expect(inferredKeyHint(false)).toMatch(/read only/i);
+  });
+});
+
+describe('legendKinds', () => {
+  const all = ['concept', 'intent', 'constraint', 'decision', 'rationale', 'counterexample', 'task', 'code_module', 'code_symbol'];
+
+  it('always lists the kinds the bar counts, even on an empty graph', () => {
+    expect(legendKinds(all, [])).toEqual(['concept', 'intent', 'constraint', 'decision']);
+  });
+
+  it('adds a kind only when the graph holds a node of it, in the legend order', () => {
+    expect(legendKinds(all, graph)).toEqual(['concept', 'intent', 'constraint', 'decision', 'rationale', 'code_module', 'code_symbol']);
+    expect(legendKinds(all, [node('t1', 'task')])).toEqual(['concept', 'intent', 'constraint', 'decision', 'task']);
+  });
+
+  it('leaves out kinds that no node holds', () => {
+    const k = legendKinds(all, graph);
+    expect(k).not.toContain('counterexample');
+    expect(k).not.toContain('task');
   });
 });

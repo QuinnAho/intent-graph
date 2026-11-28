@@ -5,14 +5,14 @@
 
 import type { Node } from '@xyflow/react';
 import { CircleHelp, Clock, Lock, TriangleAlert, type LucideIcon } from 'lucide-react';
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { Children, useMemo, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon } from '../graph/nodes/nodeIcons.js';
 import { CHECK_MARK, DRIFT_MARK } from '../graph/nodes/shared/nodeChrome.js';
 import { useGraphStore } from '../store/graph-slice.js';
 import { problemsLabel, useProblemsStore } from '../store/problems.js';
 import { useUiStore } from '../store/ui-slice.js';
-import { BAR, COUNT_BUTTON, DIVIDER, GROUP, GROUP_LABEL } from './bar-styles.js';
+import { BAR, COUNT_BUTTON, GROUP, GROUP_HEAD, GROUP_LABEL } from './bar-styles.js';
 import { selectNextIn } from './glance-actions.js';
 import { CHECK_STATES, DRIFT_STATES, GROUP_TITLES, SPEC_STATES, countLabel, countTitle, glanceCounts, type GlanceState } from './glance-model.js';
 import { GLANCE_TUNING } from './glance-tuning.js';
@@ -54,10 +54,14 @@ function Count(props: { state: GlanceState; n: number }): JSX.Element {
 }
 
 function Group(props: { label: string; title: string; name: string; children: ReactNode }): JSX.Element {
+  const items = Children.toArray(props.children);
   return (
     <div role="group" aria-label={props.title} title={props.title} data-bar-group={props.name} style={GROUP}>
-      <span className="ig-group-label" style={GROUP_LABEL}>{props.label}</span>
-      {props.children}
+      <span style={GROUP_HEAD}>
+        <span className="ig-group-label" style={GROUP_LABEL}>{props.label}</span>
+        {items[0]}
+      </span>
+      {items.slice(1)}
     </div>
   );
 }
@@ -122,11 +126,9 @@ export function StateBar(): JSX.Element {
       <Group label="Spec" title={GROUP_TITLES.spec} name="spec">
         {SPEC_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
       </Group>
-      <span style={DIVIDER} aria-hidden />
       <Group label="Checks" title={GROUP_TITLES.checks} name="checks">
         {CHECK_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
       </Group>
-      <span style={DIVIDER} aria-hidden />
       {driftReport ? (
         <Group label="Drift" title={GROUP_TITLES.drift} name="drift">
           {DRIFT_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
@@ -136,7 +138,6 @@ export function StateBar(): JSX.Element {
           <span data-bar-no-drift="" style={{ color: MUTED, padding: '0 6px' }}>no drift report</span>
         </Group>
       )}
-      <span style={DIVIDER} aria-hidden />
       <InferredCount />
       <ProblemsCount />
       <ReadOnly />

@@ -2,6 +2,7 @@
 // proves the project state bar, the legend and the robot end to end (lane 11).
 // usage: node tools/e2e-glance.mjs [--no-build]
 //        node tools/e2e-glance.mjs --frames-only --root <dir> [--no-build]   frames of another workspace, read only
+//        node tools/e2e-glance.mjs --lane-frames <outdir> [--repo-from <dir>] [--no-build]   the named frames the owner judges
 // copies the fixture to a temp folder with a canned inference report and a canned drift report, starts a
 // --write live server and drives the page headless with real clicks and keys: every number in the bar equals
 // what this script counts in /graph.json, a click on each count selects a node in that state and brings it in
@@ -10,7 +11,7 @@
 // in the bar, and the bar never overlaps the canvas or the side panel. no model call: both reports are canned.
 // prints one line per step, then PASS|FAIL e2e-glance (time) - note. exit 0 only on pass.
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createConnection, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -20,10 +21,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const argOf = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 const framesOnly = args.includes('--frames-only');
+const laneFrames = argOf('--lane-frames');
 const t0 = Date.now();
 const secs = (from = t0) => Math.round((Date.now() - from) / 100) / 10;
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const runDir = join(root, '.runs', framesOnly ? 'e2e-glance-frames' : 'e2e-glance', stamp);
+const runDir = join(root, '.runs', framesOnly || laneFrames ? 'e2e-glance-frames' : 'e2e-glance', stamp);
 mkdirSync(runDir, { recursive: true });
 
 // limits for the checks: a change shows in the bar within this. the test run after a changed test is slower.
@@ -214,6 +216,99 @@ try {
   ]);
   // one verdict from the judge model, one from the hash, one unclear from the judge
   writeDrift([pair('intent-adds-numbers', 'drift', 'judge'), pair('intent-greets-by-name', 'aligned', 'hash'), pair('intent-has-no-checks', 'unclear', 'judge')]);
+  // ---- the named frames: fixture on a write server and a read only one, then this repo with its real inference report
+  if (laneFrames) {
+    const out = resolve(laneFrames);
+    mkdirSync(out, { recursive: true });
+    const shot = (p, name) => p.screenshot({ path: join(out, name), ...FRAME });
+    const open = async (url, w, h) => {
+      // a fresh context is a first visit: empty storage
+      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      const p = await ctx.newPage();
+      watch(p);
+      await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await p.locator('[data-state-bar]').waitFor({ timeout: 30000 });
+      await p.waitForFunction(() => document.querySelectorAll('.react-flow__node').length > 0, null, { timeout: 60000 });
+      return p;
+    };
+    const closeLegendIfOpen = async (p) => {
+      if (await p.locator('[data-legend]').count()) {
+        await p.locator('[data-legend] button[aria-label="Close legend"]').click();
+        await p.locator('[data-legend]').waitFor({ state: 'detached', timeout: 3000 });
+      }
+    };
+    const w1 = await startServer('server-write', true);
+    const p1 = await open(w1.url, 1280, 800);
+    await p1.waitForFunction(() => document.querySelector('[data-check-status="verified"]'), null, { timeout: CHECK_LIMIT_MS });
+    await p1.waitForTimeout(1500);
+    await p1.locator('[data-legend]').waitFor({ timeout: 3000 });
+    await shot(p1, 'a-fixture-first-visit.jpg');
+    await closeLegendIfOpen(p1);
+    await p1.waitForTimeout(400);
+    await shot(p1, 'b-fixture-daily.jpg');
+    await p1.locator('[data-state-bar] [data-bar-count="drift"]').click();
+    await p1.waitForFunction(() => document.querySelector('.react-flow__node.selected'), null, { timeout: SHOW_LIMIT_MS });
+    await p1.waitForTimeout(1200);
+    await shot(p1, 'c-fixture-count-click.jpg');
+    await p1.keyboard.press('Escape');
+    await p1.setViewportSize({ width: 900, height: 700 });
+    await p1.waitForTimeout(1000);
+    await shot(p1, 'd-fixture-900.jpg');
+    await p1.setViewportSize({ width: 480, height: 700 });
+    await p1.waitForTimeout(1000);
+    await shot(p1, 'e-fixture-480.jpg');
+    await p1.context().close();
+    if (!(await stopServer(w1))) await fail('the write server did not stop');
+    const r1 = await startServer('server-read', false);
+    const p2 = await open(r1.url, 1280, 800);
+    await closeLegendIfOpen(p2);
+    await p2.keyboard.press('Escape');
+    await p2.waitForTimeout(1500);
+    await shot(p2, 'f-fixture-read-only.jpg');
+    await p2.context().close();
+    if (!(await stopServer(r1))) await fail('the read only server did not stop');
+    console.log(`ok fixture frames (${secs()}s) - a to f in ${out}`);
+
+    // this repo, a temp copy with the real inference report and a canned drift report on three real intents
+    const from = argOf('--repo-from');
+    const report = from ? join(resolve(from), '.runs', 'infer', 'latest.json') : null;
+    let repoNote = 'g and h skipped, no --repo-from';
+    if (report && existsSync(report)) {
+      const latest = JSON.parse(readFileSync(report, 'utf8'));
+      const skip = /(^|[\\/])(node_modules|\.git|\.wt|\.runs|dist|\.claude)([\\/]|$)/;
+      const copy = mkdtempSync(join(tmpdir(), 'intentgraph-glance-repo-'));
+      cpSync(root, copy, { recursive: true, filter: (s) => !skip.test(s.slice(root.length)) });
+      const repDir = dirname(join(resolve(from), latest.report));
+      mkdirSync(join(copy, dirname(latest.report)), { recursive: true });
+      cpSync(repDir, join(copy, dirname(latest.report)), { recursive: true });
+      writeFileSync(join(copy, '.runs', 'infer', 'latest.json'), JSON.stringify(latest));
+      const idir = join(copy, 'spec', 'intents');
+      const ids = readdirSync(idir).filter((n) => n.endsWith('.md') && n !== 'README.md').sort()
+        .map((n) => /^id:\s*(\S+)/m.exec(readFileSync(join(idir, n), 'utf8'))?.[1]).filter(Boolean).slice(0, 3);
+      if (ids.length === 3) {
+        const prev = work;
+        work = copy;
+        writeDrift([pair(ids[0], 'drift', 'judge'), pair(ids[1], 'unclear', 'judge'), pair(ids[2], 'aligned', 'hash')]);
+        const rs = await startServer('server-repo', false);
+        const p3 = await open(rs.url, 1440, 900);
+        await closeLegendIfOpen(p3);
+        await p3.keyboard.press('Escape');
+        await p3.waitForTimeout(4000);
+        await shot(p3, 'g-repo-daily.jpg');
+        await p3.setViewportSize({ width: 480, height: 800 });
+        await p3.waitForTimeout(1500);
+        await shot(p3, 'h-repo-480.jpg');
+        await p3.context().close();
+        if (!(await stopServer(rs))) await fail('the repo server did not stop');
+        work = prev;
+        repoNote = `g and h on a copy of the repo, drift on ${ids.join(', ')}`;
+      } else repoNote = 'g and h skipped, fewer than three intents';
+      rmSync(copy, { recursive: true, force: true });
+    } else if (from) repoNote = 'g and h skipped, the inference report is missing';
+    if (errors.length) await fail(`console errors: ${errors.slice(0, 3).join(' | ')}`);
+    await finish(true, `frames in ${out}, ${repoNote}`);
+  }
+
   // a spec file the parser rejects, so the problems count has something to open
   writeFileSync(join(work, 'spec', 'intents', 'broken.md'), '---\nid: intent-broken\ntitle: [unclosed\n  bad: : yaml\n---\nbody\n');
 
@@ -359,6 +454,82 @@ try {
   if (!barFits) await fail('the bar runs out of its row at 1280 px');
   console.log(`ok clicks (${secs()}s) - ${visited.join(', ')}, each in view clear of the panel`);
   console.log(`ok layout (${secs()}s) - bar ${Math.round(bar.height)}px, bottom ${Math.round(bar.bottom)} <= canvas top ${Math.round(canvas.top)}, clear of the panel, fits at 1280 px`);
+
+  // narrow windows: the bar wraps, every button stays inside the window and takes a real click, nothing is cut off
+  await page.keyboard.press('Escape');
+  const boxes = () => page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const barEl = document.querySelector('[data-state-bar]');
+    const bar = barEl.getBoundingClientRect();
+    const out = { vw, bar: { top: bar.top, bottom: bar.bottom, height: bar.height }, outside: [], covered: [], count: 0 };
+    for (const b of barEl.querySelectorAll('button')) {
+      const r = b.getBoundingClientRect();
+      out.count += 1;
+      const name = b.getAttribute('data-bar-count') ?? (b.hasAttribute('data-legend-button') ? 'legend' : 'button');
+      if (r.left < 0 || r.right > vw || r.top < bar.top - 0.5 || r.bottom > bar.bottom + 0.5 || r.bottom > vh) out.outside.push(name);
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || !b.contains(hit)) out.covered.push(name);
+    }
+    const ro = document.querySelector('[data-bar-read-only]');
+    if (ro) { const r = ro.getBoundingClientRect(); if (r.right > vw || r.left < 0) out.outside.push('read only'); }
+    out.canvasTop = document.querySelector('.react-flow').getBoundingClientRect().top;
+    const p = document.querySelector('[data-edit-panel]')?.getBoundingClientRect();
+    out.panelTop = p ? p.top : null;
+    const l = document.querySelector('[data-legend]')?.getBoundingClientRect();
+    out.legendTop = l ? l.top : null;
+    out.pageScrollX = document.documentElement.scrollWidth > vw;
+    out.barScrollX = barEl.scrollWidth > barEl.clientWidth;
+    return out;
+  });
+  const narrow = [];
+  for (const w of [900, 700, 480]) {
+    await page.setViewportSize({ width: w, height: 700 });
+    await page.waitForTimeout(400);
+    const m = await boxes();
+    if (m.outside.length) await fail(`at ${w} px these are not fully inside the window: ${m.outside.join(', ')}`);
+    if (m.covered.length) await fail(`at ${w} px a click would not reach: ${m.covered.join(', ')}`);
+    if (m.barScrollX || m.pageScrollX) await fail(`at ${w} px the bar or the page scrolls sideways`);
+    if (m.bar.bottom > m.canvasTop + 0.5) await fail(`at ${w} px the bar's bottom ${m.bar.bottom} is below the canvas top ${m.canvasTop}`);
+    if (m.panelTop !== null && m.bar.bottom > m.panelTop + 0.5) await fail(`at ${w} px the bar's bottom is below the panel top`);
+    narrow.push(`${w}px:${m.count} buttons, bar ${Math.round(m.bar.height)}px`);
+    if (w === 480) {
+      // a real mouse click on the last count, the one that wrapped furthest
+      const last = page.locator('[data-state-bar] [data-bar-count="problems"]');
+      await last.click({ timeout: 3000 });
+      if ((await last.getAttribute('aria-expanded')) !== 'true') await fail('at 480 px a click on the last count did not open the problems list');
+      await last.click({ timeout: 3000 });
+      if ((await last.getAttribute('aria-expanded')) !== 'false') await fail('at 480 px a second click on the last count did not close the list');
+    }
+  }
+  // the legend at 480 starts below the bar too
+  await page.locator('[data-legend-button]').click();
+  await page.locator('[data-legend]').waitFor({ timeout: 3000 });
+  const lg480 = await boxes();
+  if (lg480.legendTop === null || lg480.bar.bottom > lg480.legendTop + 0.5 || lg480.pageScrollX) await fail(`at 480 px the legend starts at ${lg480.legendTop}, the bar ends at ${lg480.bar.bottom}, sideways scroll ${lg480.pageScrollX}`);
+  await page.locator('[data-legend] button[aria-label="Close legend"]').click();
+  // a short window: the legend stays inside it, scrolls inside itself, and its last row can be reached
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.waitForTimeout(400);
+  await page.locator('[data-legend-button]').click();
+  await page.locator('[data-legend]').waitFor({ timeout: 3000 });
+  const lg = await page.evaluate(() => {
+    const el = document.querySelector('[data-legend]');
+    const before = el.getBoundingClientRect();
+    const rows = el.querySelectorAll('kbd');
+    rows[rows.length - 1].scrollIntoView({ block: 'end' });
+    const last = rows[rows.length - 1].getBoundingClientRect();
+    const after = el.getBoundingClientRect();
+    return { bottom: before.bottom, bottomAfter: after.bottom, vh: window.innerHeight, scrolls: el.scrollHeight > el.clientHeight, lastBottom: last.bottom, lastTop: last.top, top: after.top, scrollTop: el.scrollTop, pageY: document.documentElement.scrollHeight > window.innerHeight };
+  });
+  if (lg.bottom > lg.vh + 0.5 || lg.bottomAfter > lg.vh + 0.5) await fail(`at 600 px tall the legend ends at ${lg.bottom}, the window at ${lg.vh}`);
+  if (!lg.scrolls || lg.scrollTop <= 0) await fail(`at 600 px tall the legend does not scroll inside itself: ${JSON.stringify(lg)}`);
+  if (lg.lastBottom > lg.bottomAfter + 0.5 || lg.lastTop < lg.top || lg.pageY) await fail(`at 600 px tall the last legend row is not reachable: ${JSON.stringify(lg)}`);
+  await page.locator('[data-legend] button[aria-label="Close legend"]').click();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.waitForTimeout(400);
+  console.log(`ok narrow (${secs()}s) - ${narrow.join(', ')}, every button inside and clickable, bar above canvas, no sideways scroll, last count clicked at 480`);
+  console.log(`ok legend height (${secs()}s) - at 600 px tall it ends at ${Math.round(lg.bottomAfter)}, scrolls inside itself, last row at ${Math.round(lg.lastBottom)}`);
 
   // the problems count opens the list
   if (eq.want.problems > 0) {
