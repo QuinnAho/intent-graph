@@ -17,21 +17,30 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 |---|---|---|
 | 17 a first view you can read | A floor under the page's own fit so text stays 9 px or more, a minimap, plain words in the bar, bigger pin areas, a sheet in a narrow window. From the walk and the research of 2026-11-28. Held-back checks are written (`.runs/night-2/held-out/readable.md`, not in git) | in work since 2026-11-28, see [[readable]] |
 | steady checks | `e2e-drift-marks`, `e2e-edit` and `e2e-nested` go red on a busy machine. Make them hold with no assertion loosened | in work since 2026-11-28, branch `steady-checks` |
-| 18 steady boxes | Opening a fold or an intent moves only what it must. Keep every other box where it was and push apart what overlaps, from the research of 2026-11-28 | after 17, needs a lane note |
+| 18 steady boxes | Opening a fold or an intent moves only what it must. Keep every other box where it was and push apart what overlaps, from the research of 2026-11-28 | after 17, see [[steady-boxes]] (held-back checks in `.runs/night-2/held-out/steady-boxes.md`) |
 | 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 17, see [[agents-view]] (held-back checks in `.runs/night-2/held-out/agents-draw.md`). The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
 
-### Handoff (2026-11-28, 1:30 AM)
+### Handoff (2026-11-28, 4:10 AM)
 
-Done and on `main`: lane 11 (merge `c5cbcc6`), the first half of lane 14 (merge `cc08318`), lane 16 (merge `5e8a320`) with [[0032-a-thin-vs-code-extension-around-the-page]], and lane 12 (merge `da33e2b`). Nothing is in flight. No agent is running.
+Done: lane 13 is on `day-2` (merge `b4350bd`, lane head `2ab81f7`), not yet on `main`. Lanes 11, 12, 16 and the first half of lane 14 are on `main` at `58a0533`.
+
+In flight:
+
+- Lane 17, branch `readable`, worktree `.wt/readable`, built at `e1271cd` on top of lane 13. The builder reported `PASS all`, 648 tests. Not yet gated by the orchestrator, not yet verified. Known before the verifier: the minimap is a black box with a speck on this repo, because the code block is about 18700 by 16500 px. `e2e-nested` failed 2 of 3 runs on this branch.
+- Steady checks, branch `steady-checks`, worktree `.wt/steady-checks`, an agent at work since 4:00 AM. It runs a CPU burner on purpose, so every timing on the machine is slow until it ends.
 
 Next, in order:
 
-1. Lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor` in `packages/webview/src/transport/shell-bridge.ts`). It needs a lane note and held-back checks first. Every page lane gets narrow-width checks at 900 and 480 px and is tried inside the editor panel.
-2. Done on 2026-11-28: a walk through the page and the editor panel as a first-time user, 18 ranked moments with frames, in [[2026-11-28 First Use Walk]]. The owner asked for polish and UX passes that night, so the fixes that change no direction go into a polish lane after lane 13. The ones that change how the tool is used are calls 10 and 11 below.
-3. For the extension: the line above a bound function (needs call 3), one status bar item, the editor's theme passed into the page, a stable address per workspace so the page remembers what was closed.
+1. When steady checks reports: gate it, merge it into `day-2`, then into `readable`. Run `e2e-nested` five times on `readable`. If it still fails, that is a real fault between lanes 13 and 17: find it before anything merges.
+2. Gate lane 17 (`node tools/verify.mjs all` and all eleven end-to-end scripts), send a verifier with `.runs/night-2/held-out/readable.md`, then one fix round that also deals with the minimap. Merge into `day-2`. With a full clean gate on `day-2`, merge `day-2` into `main`.
+3. Lane 18 ([[steady-boxes]]) and the second half of lane 14 ([[agents-view]]) can run side by side: their files are split in the notes, and held-back checks for both are in `.runs/night-2/held-out/`. Then lane 15, which needs a lane note.
+4. After each lane: frames of the merged state into `docs/05 - Log/Frames/2026-11-28/` with a verdict each. Lane 13's are still to take (`node tools/e2e-nested.mjs --frames`).
+5. For the extension, still open: one status bar item, the editor's theme passed into the page, a stable address per workspace so the page remembers what was closed, the line above a bound function (needs call 3).
 
-Open for the owner: calls 3, 4, 8 and 9 below, and whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, `editor-panel`, `fold`).
+Open for the owner: calls 3, 4, 8, 9, 10 and 11 below. Call 3 unblocks the most: with the anchor format accepted, this repo's own intents can be bound to code and lane 13 has something real to show. Also whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, `editor-panel`, `fold`, and now `nested-code`).
+
+The run log of the night is `.runs/night-2/log.jsonl`.
 
 Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
