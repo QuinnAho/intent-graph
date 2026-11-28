@@ -23,9 +23,11 @@ import { runLayout, type LayoutNodeInput, type LayoutEdgeInput } from '../graph/
 import { getLayoutSize } from '../graph/layout/sizing.js';
 import { idsInParentLoop } from '../graph/parent-loops.js';
 import { layoutNested, parentsFirst, type Placement, type RunLayout } from '../graph/layout/nested.js';
+import { LayoutCache, layoutKey } from '../graph/layout/layout-cache.js';
 import { FOLD_TUNING, VIEW_TUNING } from '../graph/view-tuning.js';
 import { FOLD_BOX_KIND, applyFold, foldKeyOf, foldOf, withoutFoldBox } from '../graph/fold-model.js';
 import { inferredOf } from '../app/inferred-model.js';
+import { applyNest, nestFootPx, nestShape } from '../graph/nest-model.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { mergeGraphUpdate } from './graph-merge.js';
 import { SPEC_KINDS } from './live-source.js';
@@ -59,6 +61,10 @@ interface GraphJsonNode {
   };
   // a proposal a model inferred from the code, not yet accepted (lane 10)
   readonly inferred?: Record<string, unknown>;
+  // lane 13: the code a declared spec node is bound to, and a code node's path from the root and line from 1
+  readonly code?: ReadonlyArray<Record<string, unknown>>;
+  readonly path?: string;
+  readonly line?: number;
 }
 
 interface GraphJsonEdge {
@@ -89,7 +95,13 @@ export interface LoadGraphOptions {
 }
 
 // the folds that are open now, from the ui store. a reload starts with none.
+// the newest layout of each block. opening an intent leaves the code block as it was, so it is not laid out again.
+const blockLayouts = new LayoutCache();
+
 const openFolds = (): ReadonlySet<string> => useUiStore.getState().unfolded;
+
+// the folds, then the intents opened to list their code (lane 13). both come from the ui store.
+const decorate = (nodes: ReadonlyArray<Node>): Node[] => applyNest(applyFold(nodes, openFolds()), useUiStore.getState().nested);
 
 /**
  * Fetch graph.json, convert to React Flow node/edge payloads, run layout,
@@ -131,7 +143,7 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
     const key = hit ? foldKeyOf(hit, new Set(raw.nodes.map((n) => n.id))) : null;
     if (key !== null) useUiStore.getState().openFold(key);
   }
-  const nodes = applyFold(raw.nodes, openFolds());
+  const nodes = decorate(raw.nodes);
 
   // Dispatch the un-laid-out graph first so the canvas can render placeholders;
   // ELK populates positions in a second pass. This avoids a blank canvas
@@ -159,9 +171,9 @@ export async function applyGraphUpdate(envelope: GraphJsonEnvelope): Promise<boo
   const prev = useGraphStore.getState();
   // the merge compares what the server sent, so the root fold box is left out on both sides
   const merged = mergeGraphUpdate(withoutFoldBox(prev.nodes), prev.edges, nodes, edges);
-  const folded = applyFold(merged.nodes, openFolds());
-  // a fold row that came or went changes a concept's size, so that needs a layout too
-  const rowsMoved = foldShape(prev.nodes) !== foldShape(folded);
+  const folded = decorate(merged.nodes);
+  // a fold row that came or went changes a concept's size, so that needs a layout too. so does an open intent whose code changed.
+  const rowsMoved = foldShape(prev.nodes) !== foldShape(folded) || nestShape(prev.nodes) !== nestShape(folded);
   const placed = merged.needsLayout || rowsMoved ? await applyLayout(folded, edges) : keepBoxPlace(prev.nodes, folded);
   useGraphStore.getState().setGraph(placed, edges);
   return true;
@@ -187,7 +199,7 @@ function keepBoxPlace(prev: ReadonlyArray<Node>, next: Node[]): Node[] {
 /** lay the graph out again after a fold opened or closed. the store stays ready throughout. */
 export async function refold(): Promise<void> {
   const s = useGraphStore.getState();
-  const folded = applyFold(s.nodes, openFolds());
+  const folded = decorate(s.nodes);
   const placed = await applyLayout(folded, s.edges);
   // a live update may have landed while the layout ran, then that one wins
   if (useGraphStore.getState().nodes !== s.nodes) return;
@@ -239,6 +251,9 @@ export function envelopeToReactFlow(envelope: GraphJsonEnvelope): {
     if (n.warnings !== undefined && n.warnings.length > 0) baseData['warnings'] = n.warnings;
     if (n.drift !== undefined) baseData['drift'] = n.drift;
     if (n.inferred !== undefined) baseData['inferred'] = n.inferred;
+    if (n.code !== undefined && n.code.length > 0) baseData['code'] = n.code;
+    if (n.path !== undefined) baseData['path'] = n.path;
+    if (n.line !== undefined) baseData['line'] = n.line;
     const node: Node = {
       id: n.id,
       type: n.kind,
@@ -296,7 +311,7 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
   const groups = [shown.filter(isSpec), shown.filter((n) => !isSpec(n))];
   // the fold row at a concept's foot, and unfolded proposals below the declared children
   const nestedOpts = {
-    footOf: (n: Node): number => (n.type === 'concept' && (foldOf(n)?.count ?? 0) > 0 ? FOLD_TUNING.rowPx + FOLD_TUNING.rowGapPx : 0),
+    footOf: (n: Node): number => (n.type === 'concept' ? ((foldOf(n)?.count ?? 0) > 0 ? FOLD_TUNING.rowPx + FOLD_TUNING.rowGapPx : 0) : nestFootPx(n)),
     bandOf: (n: Node): number => (inferredOf(n) !== null || n.type === FOLD_BOX_KIND ? 1 : 0),
     bandGap: FOLD_TUNING.bandGap,
   };
@@ -310,11 +325,14 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
 
   const placed = new Map<string, Placement>();
   let offsetY = 0;
-  for (const group of groups) {
+  for (const [slot, group] of groups.entries()) {
     if (group.length === 0) continue;
     const ids = new Set(group.map((n) => n.id));
     const run: RunLayout = (layoutNodes: LayoutNodeInput[], layoutEdges: LayoutEdgeInput[]) => runLayout(layoutNodes, layoutEdges);
-    const groupPlaced = await layoutNested(group, edges.filter((e) => ids.has(e.source) && ids.has(e.target)), sizeOf, run, VIEW_TUNING, nestedOpts);
+    const inner = edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+    const key = layoutKey(group, inner, sizeOf, nestedOpts);
+    const groupPlaced = blockLayouts.get(String(slot), key) ?? (await layoutNested(group, inner, sizeOf, run, VIEW_TUNING, nestedOpts));
+    blockLayouts.set(String(slot), key, groupPlaced);
     let bottom = offsetY;
     for (const n of group) {
       const p = groupPlaced.get(n.id);
@@ -332,7 +350,11 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
       const p = placed.get(n.id);
       if (!p) return n;
       if (p.size) return { ...n, position: p.position, width: p.size.width, height: p.size.height };
-      return isSpec(n) ? { ...n, position: p.position, width: sizeOf(n).width } : { ...n, position: p.position };
+      if (!isSpec(n)) return { ...n, position: p.position };
+      // a node that was open had its height from the layout, closed it takes its own height again
+      const closed: Node = { ...n, position: p.position, width: sizeOf(n).width };
+      delete closed.height;
+      return closed;
     }),
   );
 }

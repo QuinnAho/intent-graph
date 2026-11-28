@@ -5,7 +5,7 @@ import { SPEC_KINDS } from '../transport/live-source.js';
 import { MENU_TUNING } from './direct-edit-tuning.js';
 import { titleProblem } from './edit-model.js';
 
-export type MenuItemId = 'add-intent' | 'rename' | 'edit-details' | 'fit-view' | 'delete-wire' | 'accept' | 'dismiss';
+export type MenuItemId = 'add-intent' | 'rename' | 'edit-details' | 'fit-view' | 'delete-wire' | 'accept' | 'dismiss' | 'toggle-code';
 
 export interface MenuItem {
   readonly id: MenuItemId;
@@ -22,14 +22,15 @@ export interface CanWrite {
 
 const READ_ONLY_SHORT = 'Read only';
 
-/** entries for a right click. kind null is the empty canvas. a node that is not a spec node gets none. */
-export function menuItems(kind: string | null, can: CanWrite, wireRefusal: string | null = null): MenuItem[] {
+/** entries for a right click. kind null is the empty canvas. a node that is not a spec node gets none. code is the show code entry of an intent (lane 13), it goes last. */
+export function menuItems(kind: string | null, can: CanWrite, wireRefusal: string | null = null, code: MenuItem | null = null): MenuItem[] {
   const edit = (id: MenuItemId, label: string): MenuItem => ({ id, label, disabled: !can.write, reason: can.write ? null : can.reason ?? READ_ONLY_SHORT });
   // a wire's menu: a parent wire can be deleted, any other wire says why not
   if (kind === 'wire') return [wireRefusal && can.write ? { id: 'delete-wire', label: 'Delete wire', disabled: true, reason: wireRefusal } : edit('delete-wire', 'Delete wire')];
   if (kind === null) return [{ id: 'fit-view', label: 'Fit view', disabled: false, reason: null }];
   if (!SPEC_KINDS.has(kind)) return [];
   const items = [edit('rename', 'Rename'), edit('edit-details', 'Edit details')];
+  if (kind === 'intent' && code) return [...items, code];
   return kind === 'concept' ? [edit('add-intent', 'Add intent here'), ...items] : items;
 }
 
