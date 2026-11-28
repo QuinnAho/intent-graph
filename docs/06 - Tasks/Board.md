@@ -15,14 +15,15 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 
 | Lane | What | Status |
 |---|---|---|
-| 12 fold the proposals | One dashed chip per concept such as "9 inferred" that opens on a click, so many proposals stop crowding a real graph. Fixes the fault below. Call 1, the recommended way unless the owner picks the other | next |
+| 12 a first view that fits | Fold the proposals: one dashed row per concept such as "9 inferred" that opens on a click. Fit again when the window changes size. One place for problems, each saying what to do next. The three faults the owner named after lane 11. Lane note: [[fold]] | in work on `fold`, worktree `.wt/fold` |
 | 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
 | 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
+| 16 the graph in an editor panel | The page in a panel of VS Code, started by one launcher, nothing installed in the owner's editor. The first step of [[0032-a-thin-vs-code-extension-around-the-page]]. Lane note: [[editor-panel]] | in work on `editor-panel`, worktree `.wt/editor-panel` |
 
 Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
-Next, in order: lane 12 (fold the proposals), lane 13 (open an intent), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). One page lane at a time: they all touch the same page files. Lane 12 needs a lane note and held-back checks first.
+Two lanes run side by side because they share no file: lane 12 changes the page, lane 16 builds the extension. Held-back checks for both are in the local run folder (`.runs/night-1/held-out/fold.md` and `editor-panel.md`, not in git). After them, one page lane at a time: lane 13 (open an intent, and a click on code opens the file in the editor), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). After lane 16: the line above a bound function (needs call 3), then one status bar item.
 
 Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
@@ -51,7 +52,7 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 5. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
 6. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
 7. **Public repo hygiene.** One small call, written up in the owner's private notes.
-8. **The interface: a VS Code extension?** The owner now leans to one as the main interface, with the three layers linked and one memory. Options and the recommendation: [[2026-11-27 Interface - Approaches]]. Recommended: a thin extension around the page we have, as its own lane after a research pass, and calls 3 and 4 first because they make the links. Needs a new ADR, since ADR 0029 parked the extension host.
+8. **Install the extension in the owner's editor?** The owner said go on the extension, see [[0032-a-thin-vs-code-extension-around-the-page]]. It runs in a separate window until the owner says to install it. Not asked yet: first the panel has to exist.
 9. **One "needs attention" number in the bar?** The verifier of lane 11 missed a single total. Recommended: yes, at the left of the bar, counting failing, drift, unclear, stale and problems, and a click walks through them. Open: whether what a model inferred counts too. On this repo that is 66 and would drown the rest.
 
 ## Next, not started (each needs a go)

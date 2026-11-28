@@ -35,6 +35,7 @@ One ADR per architectural pillar. New ADRs are numbered sequentially. Once accep
 | 0029 | [Slim to the wedge, visual first](./0029-slim-to-the-wedge.md) | Accepted 2026-11-27 |
 | 0030 | [Anchors: how a spec node binds to code and to checks](./0030-anchors-bind-a-node-to-code-and-checks.md) | Proposed, waiting for the owner |
 | 0031 | [The graph follows Blueprint conventions](./0031-the-graph-follows-blueprint-conventions.md) | Accepted 2026-11-27 |
+| 0032 | [A thin VS Code extension around the page](./0032-a-thin-vs-code-extension-around-the-page.md) | Accepted 2026-11-27 |
 
 ## Changed by ADR 0029 (2026-11-27)
 
@@ -44,3 +45,7 @@ The ADR files above are not edited. Their standing changed as follows.
 - **Superseded**: 0006, 0007, 0008, 0010, 0013, 0014 (the Codex mirror, the Ralph loop, the Codex audit).
 - **Narrowed**: 0001 (the plugin comes first, the VS Code extension later).
 - **Now the design inputs for what we build**: 0016 (verifier interface), 0019 (obligation attachment), 0025 (stale requirements), 0022 (confidence as a category).
+
+## Changed by ADR 0032 (2026-11-27)
+
+- **Back in work**: the VS Code extension of ADR 0001, as a thin shell around the page. The rest of the May plan's extension stays parked.
