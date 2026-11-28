@@ -5,9 +5,11 @@
 // highlight states, hidden handles" surface called out in the lift plan.
 
 import { Handle, Position, useNodeId } from '@xyflow/react';
-import { CircleCheck, CircleDashed, CircleHelp, CircleX, Equal, OctagonAlert, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleHelp, CircleX, Equal, OctagonAlert, ShieldCheck, TriangleAlert, Bot } from 'lucide-react';
 import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
+import { GLANCE_TUNING } from '../../../app/glance-tuning.js';
+import { inferredKeyHint, modelDecided, ROBOT_DRIFT_TITLE, ROBOT_TITLE } from '../../../app/glance-model.js';
 import { inferredWords, sameAsLabel, type InferredInfo } from '../../../app/inferred-model.js';
 import { useUiStore } from '../../../store/ui-slice.js';
 import { SPEC_KINDS } from '../../../transport/live-source.js';
@@ -78,10 +80,26 @@ const HEALTH_PIP: Record<NodeHealth, string> = {
 };
 
 // icon, word and colour together, so the mark reads without colour
-const CHECK_MARK: Record<CheckStatus, { Icon: typeof CircleCheck; color: string; border: string }> = {
+export const CHECK_MARK: Record<CheckStatus, { Icon: typeof CircleCheck; color: string; border: string }> = {
   verified: { Icon: CircleCheck, color: '#3fb950', border: 'rgba(63, 185, 80, 0.55)' },
   failed: { Icon: CircleX, color: '#f85149', border: 'rgba(248, 81, 73, 0.65)' },
   pending: { Icon: CircleDashed, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)' },
+};
+
+// the one icon for what a model said and no person confirmed, with its words as the title
+export function RobotIcon(props: { size?: number; title?: string }): JSX.Element {
+  const title = props.title ?? ROBOT_TITLE;
+  return (
+    <span data-robot="" role="img" aria-label={title} title={title} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+      <Bot size={props.size ?? GLANCE_TUNING.robotSize} aria-hidden />
+    </span>
+  );
+}
+
+const CHECK_MEANING: Record<CheckStatus, string> = {
+  verified: 'the tests in verified_by pass',
+  failed: 'a test in verified_by fails',
+  pending: 'no test result yet',
 };
 
 export function StatusMark(props: { status: CheckStatus }): JSX.Element {
@@ -90,7 +108,7 @@ export function StatusMark(props: { status: CheckStatus }): JSX.Element {
     <span
       data-check-status={props.status}
       aria-label={`checks ${props.status}`}
-      title={`checks ${props.status}`}
+      title={`checks ${props.status}: ${CHECK_MEANING[props.status]}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -112,7 +130,7 @@ export function StatusMark(props: { status: CheckStatus }): JSX.Element {
 }
 
 // aligned is quiet, unclear is a caution, drift is loud. icon and word on every one.
-const DRIFT_MARK: Record<DriftVerdict, { Icon: typeof CircleCheck; color: string; border: string; background: string }> = {
+export const DRIFT_MARK: Record<DriftVerdict, { Icon: typeof CircleCheck; color: string; border: string; background: string }> = {
   aligned: { Icon: ShieldCheck, color: 'var(--ig-text-muted, #8b949e)', border: 'var(--ig-edge)', background: 'transparent' },
   unclear: { Icon: CircleHelp, color: '#d29922', border: 'rgba(210, 153, 34, 0.7)', background: 'rgba(210, 153, 34, 0.12)' },
   drift: { Icon: OctagonAlert, color: '#fff', border: '#f85149', background: '#da3633' },
@@ -122,15 +140,22 @@ export function driftTitle(d: DriftInfo): string {
   return `drift ${d.verdict}${d.stale ? ', stale: a bound file changed after the report' : ''}`;
 }
 
+const DRIFT_MEANING: Record<DriftVerdict, string> = {
+  aligned: 'the code still does what the spec says',
+  unclear: 'the drift check could not decide',
+  drift: 'the code no longer does what the spec says',
+};
+
 export function DriftMark(props: { drift: DriftInfo }): JSX.Element {
   const { drift } = props;
   const { Icon, color, border, background } = DRIFT_MARK[drift.verdict];
+  const byModel = modelDecided(drift);
   return (
     <span
       data-drift={drift.verdict}
       data-drift-stale={drift.stale ? 'true' : 'false'}
       aria-label={driftTitle(drift)}
-      title={driftTitle(drift)}
+      title={`${driftTitle(drift)}: ${DRIFT_MEANING[drift.verdict]}${byModel ? `. ${ROBOT_DRIFT_TITLE}` : ''}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -151,15 +176,16 @@ export function DriftMark(props: { drift: DriftInfo }): JSX.Element {
       <Icon size={13} strokeWidth={drift.verdict === 'drift' ? 2.6 : 2.2} />
       {drift.verdict}
       {drift.stale ? ' (stale)' : ''}
+      {byModel ? <RobotIcon title={ROBOT_DRIFT_TITLE} /> : null}
     </span>
   );
 }
 
-function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Element {
+export function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Element {
   return (
     <span
       data-warnings={props.warnings.length}
-      title={props.warnings.join('\n')}
+      title={`${props.warnings.length} anchor ${props.warnings.length === 1 ? 'warning' : 'warnings'}:\n${props.warnings.join('\n')}`}
       aria-label={`${props.warnings.length} anchor warnings`}
       style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#d29922', fontSize: '11px', fontWeight: 600, flexShrink: 0 }}
     >
@@ -188,21 +214,39 @@ const PILL: CSSProperties = {
   color: 'var(--ig-text)',
 };
 
+const WORD_TITLES: Record<string, string> = {
+  'confidence inferred': 'Confidence inferred: the model read it from the code it cites',
+  'confidence semantic': 'Confidence semantic: the model read it from what the code seems to mean',
+  planned: 'Planned: it cites only placeholder code, so it is drawn fainter',
+};
+
+/** the dashed pill with the robot that every proposal carries */
+export function InferredPill(props: { word?: string }): JSX.Element {
+  return (
+    <span data-inferred-word="" title={ROBOT_TITLE} style={{ ...PILL, borderColor: INFERRED_BORDER }}>
+      <RobotIcon />
+      {props.word ?? 'inferred'}
+    </span>
+  );
+}
+
 function InferredRow(props: { info: InferredInfo }): JSX.Element {
   const words = inferredWords(props.info);
   const same = sameAsLabel(props.info);
+  const write = useUiStore((s) => s.editConfig.write);
   return (
-    <div data-inferred-row="" style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '5px 14px 6px' }}>
+    <div data-inferred-row="" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '2px', padding: '5px 14px 6px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', overflow: 'hidden' }}>
-        <span data-inferred-word="" style={{ ...PILL, borderColor: INFERRED_BORDER }}>
-          <Sparkles size={12} aria-hidden />
-          {words[0]}
-        </span>
+        <InferredPill word={words[0] ?? 'inferred'} />
         {words.slice(1).map((w) => (
-          <span key={w} data-inferred-word={w} style={{ ...PILL, fontWeight: 500, opacity: 0.85 }}>
+          <span key={w} data-inferred-word={w} title={WORD_TITLES[w] ?? w} style={{ ...PILL, fontWeight: 500, opacity: 0.85 }}>
             {w}
           </span>
         ))}
+      </div>
+      {/* the keys, over the words on hover and on keyboard focus, so the box never changes size (see index.css) */}
+      <div className="ig-key-hint" data-key-hint="">
+        {inferredKeyHint(write)}
       </div>
       {same ? (
         <div data-inferred-same="" title={same} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', lineHeight: '16px', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -236,9 +280,9 @@ function pickOpacity(data: NodeChromeData): number {
   return 1;
 }
 
-const EMPTY_SIDE: PinSide = { drawn: 0, hidden: {}, kinds: [] };
+export const EMPTY_SIDE: PinSide = { drawn: 0, hidden: {}, kinds: [] };
 
-function pinStyle(s: PinSide): CSSProperties {
+export function pinStyle(s: PinSide): CSSProperties {
   const color = s.kinds.length > 0 ? wireStyle(s.kinds[0]!).color : 'var(--ig-edge)';
   const connected = s.drawn > 0 || Object.keys(s.hidden).length > 0;
   return {
@@ -257,7 +301,7 @@ function pinStyle(s: PinSide): CSSProperties {
 }
 
 // "3 code": wires to the other block are not drawn, the pin says how many there are
-function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Element {
+export function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Element {
   // above the node corner on the pin's side, so it never sits on a box border
   return (
     <span
@@ -408,6 +452,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
           {props.headerAction}
           {showPip && data.health ? (
             <div
+              title={`health ${data.health}`}
               style={{
                 width: '8px',
                 height: '8px',

@@ -4,11 +4,11 @@
 // also holds the short form a concept's add button opens.
 
 import type { Node } from '@xyflow/react';
-import { Equal, Sparkles, X } from 'lucide-react';
+import { Equal, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../graph/nodes/nodeIcons.js';
-import { DriftMark, StatusMark, type CheckStatus, type DriftInfo } from '../graph/nodes/shared/nodeChrome.js';
+import { DriftMark, RobotIcon, StatusMark, type CheckStatus, type DriftInfo } from '../graph/nodes/shared/nodeChrome.js';
 import { useGraphStore } from '../store/graph-slice.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { createIntent, fetchEditableNode, saveNode, type EditableNode } from '../transport/edit-api.js';
@@ -491,7 +491,7 @@ function InferredPanel(props: { node: Node; info: InferredInfo }): JSX.Element {
   return (
     <aside style={PANEL} data-edit-panel={node.id} data-inferred-panel={info.proposal_id} aria-label="Inferred intent">
       <div style={HEADER}>
-        <Sparkles size={18} aria-hidden />
+        <RobotIcon size={18} />
         <span style={{ fontWeight: 600 }}>Inferred intent</span>
         <button type="button" style={ICON_BUTTON} aria-label="Close panel" onClick={clearSelection}>
           <X size={16} />

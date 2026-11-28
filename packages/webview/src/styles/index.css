@@ -13,3 +13,13 @@
 .ig-add-intent:hover { background: rgba(120, 169, 255, 0.2) !important; }
 .ig-add-intent:focus-visible, [data-edit-panel] button:focus-visible, [data-create-form] button:focus-visible, [data-edit-panel] input:focus-visible, [data-edit-panel] textarea:focus-visible, [data-create-form] input:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 1px; }
 [data-context-menu]:focus-visible { outline: none; }
+
+/* the state bar's counts: a quiet hover and a visible focus ring. a zero count takes no hover. */
+.ig-bar-count:hover:not([aria-disabled="true"]) { background: rgba(120, 169, 255, 0.14) !important; }
+.ig-bar-count:focus-visible, [data-legend] button:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 1px; }
+/* a proposal's keys, over its words on hover and on keyboard focus, gone once it is selected (the panel says them) */
+.ig-key-hint { display: none; position: absolute; inset: 0; align-items: center; padding: 0 14px; background: var(--ig-node); font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.react-flow__node:hover .ig-key-hint, .react-flow__node:focus-visible .ig-key-hint { display: flex; }
+.react-flow__node.selected .ig-key-hint { display: none; }
+/* a narrow page drops the bar's group names, the counts keep their words and the groups their titles */
+@media (max-width: 1360px) { .ig-group-label { display: none; } }

@@ -516,7 +516,8 @@ async function readOnlyWireChecks(rpage, r, nodeSel) {
   const k0 = readFileSync(kfile, 'utf8').replace('parent: concept-calculator', `parent: ${iid}`);
   writeFileSync(kfile, k0);
   if (!(await graphHas(r, `"src":"${kid}","dst":"${iid}"`))) await fail('the read-only graph never showed the new wire');
-  await rpage.mouse.click(6, 6, { button: 'right' });
+  // below the state bar at the top of the page
+  await rpage.mouse.click(6, 48, { button: 'right' });
   await rpage.locator('[data-context-menu="pane"]').waitFor({ timeout: 3000 }).catch(async () => { await rpage.screenshot({ path: join(runDir, 'crash-read-only.jpg'), ...FRAME }); await fail('no canvas menu on the read-only page'); });
   await rpage.locator('[data-menu-item="fit-view"]').click();
   await rpage.waitForTimeout(700);
@@ -1069,7 +1070,8 @@ try {
   await paneMenu.waitFor({ timeout: 3000 });
   if (!(await inWindow(page, '[data-context-menu]'))) await fail('the empty-canvas menu is not inside the window');
   await page.mouse.move(600, 500);
-  await page.mouse.wheel(0, 120);
+  // zoom in: with the state bar the canvas is shorter and the fit already sits at the smallest zoom, where zooming out moves nothing
+  await page.mouse.wheel(0, -120);
   await paneMenu.waitFor({ state: 'detached', timeout: 3000 });
   // the wheel move may still be running, and a view move closes any menu opened meanwhile
   await viewSettled(page);
