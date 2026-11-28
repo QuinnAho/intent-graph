@@ -1,11 +1,11 @@
 ---
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 # Board
 
 Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules: [[How We Work]].
 
-`main` holds everything through lane 12, the first half of lane 14 and lane 16. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
+`main` holds everything through lane 12, the first half of lane 14 and lane 16. `day-2` also holds lane 13 since 2026-11-28 (merge `b4350bd`). It goes to `main` after a full clean gate, see the [[Devlog]]. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
 
 ## Lanes with a go
 
@@ -15,8 +15,10 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 
 | Lane | What | Status |
 |---|---|---|
-| 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | in work since 2026-11-28, see [[nested-code]] |
-| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
+| 17 a first view you can read | A floor under the page's own fit so text stays 9 px or more, a minimap, plain words in the bar, bigger pin areas, a sheet in a narrow window. From the walk and the research of 2026-11-28. Held-back checks are written (`.runs/night-2/held-out/readable.md`, not in git) | in work since 2026-11-28, see [[readable]] |
+| steady checks | `e2e-drift-marks`, `e2e-edit` and `e2e-nested` go red on a busy machine. Make them hold with no assertion loosened | in work since 2026-11-28, branch `steady-checks` |
+| 18 steady boxes | Opening a fold or an intent moves only what it must. Keep every other box where it was and push apart what overlaps, from the research of 2026-11-28 | after 17, needs a lane note |
+| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 17, see [[agents-view]] (held-back checks in `.runs/night-2/held-out/agents-draw.md`). The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
 
 ### Handoff (2026-11-28, 1:30 AM)
@@ -81,12 +83,10 @@ Lane 9 (the inference script, `node tools/infer.mjs`) and lane 10 (the proposals
 - The ESLint guard and the two edit hooks still enforce the AgentRunner rule from the May plan. Harmless, but tied to parked code.
 - `claudemap/` is an empty link to the fork source. Nothing can be lifted until it is restored.
 - The two launcher files were tested through their script with no browser window.
-- The right-click menu may be drawn under the side panel when it opens near the right edge with the panel open. Seen once in a test log, where the panel took the click meant for a menu entry. Not confirmed by eye.
 - On the calculator example the wires script draws 0 of 8 wires, because all of them run between the spec block and the code block. Its crossing check proves nothing there.
 - The settled list under `.runs/infer` keeps its "accepted" entries after an undo. Harmless: an accepted proposal is hidden only while its intent file exists.
 - An inferred node shows no key hint until it is selected.
 - A run that dies with "out of memory" or "no space left on device" is the dev machine, not the code. Both happened on the evening of 2026-11-27 while other programs were open.
-- Code nodes in `/graph.json` carry an absolute `file://` path in `body.uri`, every module and symbol. Confirmed by the lane 14 verifier on 2026-11-27, and it is the same on `main` before that lane. The data is served on the dev machine only and is not in git, but a paste of it would show a local path. An "open in editor" link needs a path, so settle this in the lane that adds one: a path from the root, and the server knows the root.
 - The run log reader takes the last 1 MB of a log. One line longer than that makes a lane's role, model, effort and task fall back to none, and the branch name is shown.
 - What a real git leaves behind when it is killed at the 3 second limit in the middle of a write is not tested. With a slow fake git: no process and no lock file left.
 - The group names in the bar ("Spec", "Checks", "Drift") show only in a wide window.
@@ -102,3 +102,8 @@ Lane 9 (the inference script, `node tools/infer.mjs`) and lane 10 (the proposals
 - At 480 px wide this repo's graph fits but its text is too small to read, and the code files lie outside the first view. A narrow panel needs levels of detail (ADR 0031, step 7) or a layout that stacks.
 - On a first visit in a wide window the legend lies over the right edge of the graph until it is closed.
 - The third block of `e2e-wires` (40 proposals in one concept) has no wire coming into that concept, so its "0 crossings" proves little. The repo block with the real report is the real proof.
+- The code block lies below the spec block and outside the first view, on the example too. A row of an open intent leads there, nothing else on the first view says it exists. Seen by the walk and by the lane 13 verifier.
+- Proposals do not open to show the code they cite. Lane 15 is where that belongs.
+- In a browser tab a click on a code row selects the code node, and the side panel of the intent closes without a word.
+- The frames in the lane 13 folder were taken before its fix round. Frames of the merged state are still to take.
+

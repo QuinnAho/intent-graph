@@ -121,3 +121,14 @@ Looked at before the start, the builder adds what it finds:
 ## Results
 
 ## Orchestrator's check
+
+Written on 2026-11-28.
+
+- Built at `74032e7`. Scope inside the list, no dependency change, no assertion removed. Gate in the lane's checkout, each with exit 0: `PASS all (85.8s) - 4 steps, 623 tests`, `PASS e2e-nested (67.4s)` and nine other end-to-end scripts PASS, the extension check among them.
+- An independent verifier ran 21 held-back checks: 19 pass. One fail was real: up to 69 px of dead room at the foot of an open node, more with a chip or a wrapped title. One was the orchestrator's own Board line in the lane's base commit, not the builder's. The verifier also said it was not clear how to close an open node.
+- Fixed by a second agent at `2ab81f7`: an open intent is as tall as its rows, 9 px under the last row in all 13 measured cases, and the open count reads "hide 2 code".
+- Gate on `2ab81f7` while another lane's gate ran on the same machine: `PASS all (109.6s) - 4 steps, 624 tests`, `PASS e2e-nested (91.5s)` and seven others PASS. `e2e-edit` crashed once and then passed 3 of 3. `e2e-drift-marks` failed 2 of 4 runs with "report writes started 1 process", only on slow runs. Neither script nor the code they test was touched by this lane. A lane to make the scripts hold on a busy machine started the same hour.
+- Merged into `day-2` at `b4350bd`. The merged tree differs from the gated head in notes only. `main` waits for a full clean gate.
+- From the verifier, measured: rows read back exactly and in the file's order, closing everything puts every node back within 0 px, click to settled on a copy of this repo 882 ms median, no `file://` and no absolute path in `/graph.json`, only GET on a read-only server. In the editor panel a click on a row opened the file at its line, and Enter and a double-click on a code node did too.
+- Left open: on the [[Board]] under Known.
+

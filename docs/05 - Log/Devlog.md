@@ -322,3 +322,31 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Two lanes side by side worked because their files were split before the start: the page lane was told which two page files belong to the extension lane, and the other way round.
 
 **Cost.** Lane 12 fix: sonnet at medium, 132k tokens in two parts, 23 minutes. The other agents of the night are in the entry before this one.
+
+### 2026-11-28, 4:00 AM  Lane 13: an intent opens and shows its code, on day-2
+
+**What happened.** The owner asked for a night of work: lane 13, then polish, research and UX passes.
+
+- An intent with code shows one count such as "2 code". A click, the key O or the menu opens it in place, and it lists the code it is bound to: the symbol and the file, in the spec file's order. Open, the count reads "hide 2 code".
+- A row is a way to the code. In the editor panel a click opens the file at the line. In a browser tab it selects the code node and brings it into view. A double-click or Enter on a code node opens the editor too.
+- An anchor whose code is gone says "code not found" on its row. A missing symbol says the file was linked instead.
+- The live server now lists each node's anchors in order, and code nodes carry a path from the root and a line. The absolute `file://` path that every code node carried is gone.
+- The right-click menu is drawn above the side panel, a fault on the Board since lane 7.
+- A first-time walk through the page and the editor panel ranked 18 confusing moments with 28 frames ([[2026-11-28 First Use Walk]]). A research pass measured the worst, a first view too small to read, and what fixes it ([[2026-11-28 Readable First View]]). Lane 17 takes those fixes.
+
+**Why it matters.** Until tonight the graph never led from an intent to its code. Now it does, and from there into the editor.
+
+**Evidence.** A verifier ran 21 held-back checks: 19 pass, and a second agent fixed the one real fault. The numbers are in [[nested-code]] under the orchestrator's check. Gate on the lane head `2ab81f7`: `PASS all (109.6s) - 4 steps, 624 tests`, `PASS e2e-nested (91.5s)`.
+
+**Not verified.** The gate on `2ab81f7` was not clean in one pass: `e2e-edit` crashed once and `e2e-drift-marks` failed 2 of 4 runs, both on a busy machine and both in code this lane did not touch. So the lane is on `day-2` and not on `main`. The fix round had no second verifier. The frames in the lane's folder were taken before the fix.
+
+**Not yet.** On this repo no declared intent is bound to code (the anchor format, ADR 0030, is still proposed), so only an accepted proposal has anything to open. Proposals themselves do not open. The code block lies below the first view.
+
+**Lessons.**
+
+- A held-back check on scope must name the lane's base commit. The verifier compared against an older commit and counted the orchestrator's own Board line as the builder's.
+- Three end-to-end scripts go red when two gates run at once. A gate that is only green on a quiet machine is not a gate for a night with several lanes.
+- The session's host program restarted once in the night. Both agents came back from their transcripts and lost nothing, because each had committed or written its files as it went.
+
+**Cost.** Lane 13 builder: opus at high, 308k tokens, 43 minutes. Verifier: sonnet at medium, 170k tokens, about 20 minutes. Fix: sonnet at medium, 140k tokens, 41 minutes, most of it spent on the flaky script. The walk: sonnet at medium, 139k tokens, 11 minutes. The research: sonnet at medium, 108k tokens, 4 minutes.
+
