@@ -1070,7 +1070,8 @@ try {
   await paneMenu.waitFor({ timeout: 3000 });
   if (!(await inWindow(page, '[data-context-menu]'))) await fail('the empty-canvas menu is not inside the window');
   await page.mouse.move(600, 500);
-  await page.mouse.wheel(0, 120);
+  // zoom in: with the state bar the canvas is shorter and the fit already sits at the smallest zoom, where zooming out moves nothing
+  await page.mouse.wheel(0, -120);
   await paneMenu.waitFor({ state: 'detached', timeout: 3000 });
   // the wheel move may still be running, and a view move closes any menu opened meanwhile
   await viewSettled(page);
