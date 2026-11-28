@@ -89,3 +89,4 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - The graph is not fitted again when the window narrows, so at 480 px it is cut off on the right. A first load at that width was not tried.
 - The group names in the bar ("Spec", "Checks", "Drift") show only in a wide window.
 - 6 of 16 pin handles have no title, on code file and inferred nodes. Seen by the lane 11 verifier, not checked on the commit before that lane.
+- `open-graph.cmd` builds the page only when there is no built page. After a merge that changes the page it shows the old one until `pnpm --filter @intentgraph/webview build` or any end-to-end script has run in that checkout. Found on 2026-11-27 after lane 11 merged. A small harness fix: build when a source file is newer than the built page.
