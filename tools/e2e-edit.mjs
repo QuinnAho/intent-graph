@@ -831,9 +831,11 @@ try {
   // 7b4 the open problems list does not cover a node's title
   const brokenFile = join(w.work, 'spec', 'intents', 'broken-on-purpose.md');
   writeFileSync(brokenFile, '---\nid: intent-broken\ntitle: [oops\n---\n');
-  await page.locator('[data-problems-count]').waitFor({ timeout: 5000 }).catch(() => {});
-  if ((await page.locator('[data-problems-count]').count()) !== 1) await fail('no problems count for a broken file');
-  await page.locator('[data-problems-count] button').click();
+  // lane 12: the bar's count is the only count, and it opens the list
+  const problemsCount = page.locator('[data-state-bar] [data-bar-count="problems"]');
+  await page.waitForFunction(() => Number(document.querySelector('[data-bar-count="problems"]')?.getAttribute('data-count')) > 0, null, { timeout: 5000 }).catch(() => {});
+  if (Number(await problemsCount.getAttribute('data-count')) < 1) await fail('no problems count for a broken file');
+  await problemsCount.click();
   await page.locator('[aria-label="spec problems"]').waitFor({ timeout: 3000 });
   await page.waitForTimeout(500);
   const covered = await page.evaluate(() => {
@@ -846,9 +848,9 @@ try {
   });
   if (covered.length) await fail(`the problems list covers ${covered.length} title(s): ${covered[0]}`);
   await page.screenshot({ path: join(runDir, 'extra-problems-open.jpg'), ...FRAME });
-  await page.locator('[data-problems-count] button').click();
+  await problemsCount.click();
   rmSync(brokenFile);
-  console.log(`ok problems list (${secs()}s) - open, sits under the canvas, covers no title`);
+  console.log(`ok problems list (${secs()}s) - open from the bar's count, sits under the bar, covers no title`);
 
   // 7d lane 7, direct editing: rename in place, the right-click menu, the keyboard, the plus button
   const gid = 'intent-greets-by-name';

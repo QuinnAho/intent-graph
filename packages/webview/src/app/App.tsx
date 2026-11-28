@@ -25,6 +25,7 @@ import { isUndoKey } from '../graph/wire-edit-model.js';
 import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
+import { isFoldBox } from '../graph/fold-model.js';
 import {
   useGraphEdges,
   useGraphError,
@@ -109,6 +110,15 @@ function useLiveUpdates(live: LiveSource | null): void {
   }, [live]);
 }
 
+// the first view fits what is drawn: folded proposals are left out, the root fold box is kept
+function firstFit(nodes: ReadonlyArray<Node>, focus: string | null): string[] | null {
+  const shown = nodes.filter((n) => n.hidden !== true);
+  const ids = pickInitialFit(shown, focus);
+  const box = shown.find(isFoldBox);
+  if (!ids || !box || (focus !== null && shown.some((n) => n.id === focus))) return ids;
+  return [...ids, box.id];
+}
+
 // keep selection in the store so a live update does not clear it
 function onSelectionChange(changes: NodeChange[]): void {
   const select = changes.filter((c): c is NodeSelectionChange => c.type === 'select');
@@ -178,7 +188,7 @@ function useWireEditKeys(): void {
   }, []);
 }
 
-// the canvas and the edit panel fill what is left above the problems strip, so nothing sits on a node
+// the canvas and the edit panel fill what is left under the bar and the problems list, so nothing sits on a node
 const SHELL_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -222,12 +232,12 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     if (status === 'idle') {
-      void loadGraphFromJson(live ? { url: live.graphUrl } : {});
+      void loadGraphFromJson(live ? { url: live.graphUrl, reveal: focus } : { reveal: focus });
     }
-  }, [status, live]);
+  }, [status, live, focus]);
 
   useEffect(() => {
-    if (layoutReady && fitNodeIds === undefined) setFitNodeIds(pickInitialFit(nodes, focus));
+    if (layoutReady && fitNodeIds === undefined) setFitNodeIds(firstFit(nodes, focus));
   }, [layoutReady, fitNodeIds, nodes, focus]);
 
   useEffect(() => {
@@ -262,6 +272,7 @@ export function App(): JSX.Element {
   return (
     <div style={SHELL_STYLE}>
       <StateBar />
+      <ProblemsPanel />
       <div style={MIDDLE_STYLE}>
       <div style={CANVAS_AREA_STYLE}>
       <GraphCanvas
@@ -278,7 +289,6 @@ export function App(): JSX.Element {
       <Legend />
       </div>
       <Notice />
-      <ProblemsPanel />
     </div>
   );
 }

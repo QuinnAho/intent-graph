@@ -50,6 +50,10 @@ interface UiState {
   readonly panelFocusId: string | null;
   /** the legend beside the canvas, opened from the "?" at the end of the state bar */
   readonly legendOpen: boolean;
+  /** folds that are open (lane 12): concept ids, and the root box id. a reload starts with none. */
+  readonly unfolded: ReadonlySet<string>;
+  /** a move of the view the canvas makes once, so a concept stays put on screen when it folds. seq bumps each time. */
+  readonly viewShift: { readonly dx: number; readonly dy: number; readonly seq: number } | null;
   setEditConfig(config: EditConfig): void;
   openCreate(parent: string): void;
   closeCreate(): void;
@@ -65,6 +69,9 @@ interface UiState {
   setPanelDirtyId(id: string | null): void;
   setPanelFocusId(id: string | null): void;
   setLegendOpen(open: boolean): void;
+  openFold(key: string): void;
+  closeFold(key: string): void;
+  shiftView(dx: number, dy: number): void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -101,4 +108,9 @@ export const useUiStore = create<UiState>((set) => ({
   setPanelFocusId: (panelFocusId) => set({ panelFocusId }),
   legendOpen: false,
   setLegendOpen: (legendOpen) => set((s) => (s.legendOpen === legendOpen ? s : { legendOpen })),
+  unfolded: new Set<string>(),
+  openFold: (key) => set((s) => (s.unfolded.has(key) ? s : { unfolded: new Set([...s.unfolded, key]) })),
+  closeFold: (key) => set((s) => (s.unfolded.has(key) ? { unfolded: new Set([...s.unfolded].filter((k) => k !== key)) } : s)),
+  viewShift: null,
+  shiftView: (dx, dy) => set((s) => ({ viewShift: { dx, dy, seq: (s.viewShift?.seq ?? 0) + 1 } })),
 }));

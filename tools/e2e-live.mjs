@@ -217,20 +217,22 @@ try {
   const tBreak = Date.now();
   writeFileSync(brokenFile, '---\nid: intent-has-no-checks\ntitle: [unclosed\n  bad: : yaml\n---\nbody\n');
   try {
-    await page.locator('[data-problems-count] button').waitFor({ timeout: PROBLEM_LIMIT_MS });
-    await page.locator('[data-problems-count] button').click();
+    // lane 12: the list opens from the bar's count
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-count="problems"]')?.getAttribute('data-count')) > 0, null, { timeout: PROBLEM_LIMIT_MS });
+    await page.locator('[data-state-bar] [data-bar-count="problems"]').click();
     await page.locator(`[data-problem-file="${brokenRel}"]`).waitFor({ timeout: Math.max(1, PROBLEM_LIMIT_MS - (Date.now() - tBreak)) });
   } catch {
     await fail(`broken spec file not shown with its name within ${PROBLEM_LIMIT_MS} ms`);
   }
   const problemMs = Date.now() - tBreak;
-  const problemText = (await page.locator('[data-problems-count]').innerText()).replace(/\s+/g, ' ');
+  const problemText = `${await page.locator('[data-bar-count="problems"]').innerText()} ${await page.locator('[aria-label="spec problems"]').innerText()}`.replace(/\s+/g, ' ');
   if ((await markOf('intent-adds-numbers')) !== 'verified') await fail('other nodes lost their status while a file was broken');
   if ((await page.locator('.react-flow__node[data-id="intent-has-no-checks"] [data-check-status="verified"]').count()) > 0) await fail('broken file shows verified');
   await page.screenshot({ path: join(runDir, '02b-live-problem.jpg'), type: 'jpeg', quality: 82 });
   writeFileSync(brokenFile, goodText);
   try {
-    await page.locator('[data-problems-count]').waitFor({ state: 'detached', timeout: PROBLEM_LIMIT_MS });
+    await page.waitForFunction(() => document.querySelector('[data-bar-count="problems"]')?.getAttribute('data-count') === '0', null, { timeout: PROBLEM_LIMIT_MS });
+    await page.locator('[aria-label="spec problems"]').waitFor({ state: 'detached', timeout: PROBLEM_LIMIT_MS });
     await waitMark('intent-has-no-checks', 'pending', PROBLEM_LIMIT_MS);
   } catch {
     await fail('problem did not clear or the node did not come back after the fix');

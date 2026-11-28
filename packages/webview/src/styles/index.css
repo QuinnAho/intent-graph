@@ -23,3 +23,5 @@
 .react-flow__node.selected .ig-key-hint { display: none; }
 /* a narrow page drops the bar's group names, the counts keep their words and the groups their titles */
 @media (max-width: 1360px) { .ig-group-label { display: none; } }
+.ig-fold-row:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 2px; }
+.ig-fold-row:hover { background: rgba(167, 139, 250, 0.16) !important; }

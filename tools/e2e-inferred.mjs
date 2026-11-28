@@ -119,6 +119,16 @@ function writeReport(proposals) {
   writeFileSync(join(work, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: `.runs/infer/run-${reportN}/report.json` }));
 }
 
+// lane 12: proposals start folded. open every fold row by its key, so no click closes the legend
+async function unfoldAll(p) {
+  await p.locator('[data-fold-row]').first().waitFor({ timeout: 30000 });
+  for (const key of await p.evaluate(() => [...document.querySelectorAll('[data-fold-row][data-fold-open="false"]')].map((b) => b.getAttribute('data-fold-row')))) {
+    await p.locator(`[data-fold-row="${key}"]`).focus();
+    await p.keyboard.press('Enter');
+    await p.waitForFunction((k) => document.querySelector(`[data-fold-row="${k}"]`)?.getAttribute('data-fold-open') === 'true', key, { timeout: 5000 });
+  }
+}
+
 // every byte under spec/, so an undo can be checked byte for byte
 function specBytes() {
   const out = {};
@@ -182,6 +192,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.location().url || '')) errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   await page.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await unfoldAll(page);
   await page.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 3, null, { timeout: 30000 });
   await page.waitForTimeout(400);
 
@@ -447,6 +458,7 @@ try {
   const posts = [];
   page2.on('request', (r) => { if (r.method() !== 'GET') posts.push(r.url()); });
   await page2.goto(ro.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await unfoldAll(page2);
   await page2.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 3, null, { timeout: 30000 });
   const specRo = specBytes();
   const settledRo = readOr(settledFile());

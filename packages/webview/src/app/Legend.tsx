@@ -34,6 +34,7 @@ const KEYS: ReadonlyArray<{ keys: string; what: string }> = [
   { keys: 'Right-click', what: 'The menu for a node, a wire or the canvas.' },
   { keys: 'Drag from a pin', what: 'Drag from the right pin onto another node to hang this one under it.' },
   { keys: 'Esc', what: 'Close the menu, the panel or this legend.' },
+  { keys: 'F', what: 'Fit the graph to the window. A resize fits again until you pan or zoom.' },
 ];
 
 const sample = (verdict: DriftInfo['verdict'], over: Partial<DriftInfo> = {}): DriftInfo => ({
@@ -153,6 +154,7 @@ export function Legend(): JSX.Element | null {
       <Row mark={<span style={{ ...BOX, border: '1px solid var(--ig-edge)' }}>declared</span>}>Solid: a file in spec/ that a person wrote or accepted.</Row>
       <Row mark={<span style={{ ...BOX, border: '1.5px dashed rgba(167, 139, 250, 0.8)' }}><InferredPill /></span>}>Dashed with the robot: a model read it from the code, no person confirmed it yet.</Row>
       <Row mark={<RobotIcon size={15} />}>{ROBOT_TITLE}.</Row>
+      <Row mark={<span data-legend-fold='' style={{ ...BOX, border: '1px dashed rgba(167, 139, 250, 0.85)' }}><RobotIcon size={13} />9 inferred</span>}>Folded proposals at the foot of a concept. Click, Enter or Space shows them.</Row>
 
       <h3 style={H3}>Checks</h3>
       <Row mark={<StatusMark status="verified" />}>The tests in verified_by pass.</Row>

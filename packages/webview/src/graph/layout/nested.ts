@@ -23,13 +23,26 @@ export interface Placement {
   readonly size?: { width: number; height: number };
 }
 
+/** lane 12: room at a box's foot, and bands laid out one below the other in a level */
+export interface NestedOptions {
+  /** extra height at the foot of a box, below its children (the fold row) */
+  readonly footOf?: (n: Node) => number;
+  /** members of a level with a higher band go below the lower ones. unset is band 0. */
+  readonly bandOf?: (n: Node) => number;
+  readonly bandGap?: number;
+}
+
 export async function layoutNested(
   nodes: ReadonlyArray<Node>,
   edges: ReadonlyArray<Edge>,
   sizeOf: (n: Node) => { width: number; height: number },
   run: RunLayout,
   t: NestedTuning,
+  opts: NestedOptions = {},
 ): Promise<Map<string, Placement>> {
+  const footOf = opts.footOf ?? (() => 0);
+  const bandOf = opts.bandOf ?? (() => 0);
+  const bandGap = opts.bandGap ?? 0;
   const ids = new Set(nodes.map((n) => n.id));
   const childrenOf = new Map<string, Node[]>();
   const top: Node[] = [];
@@ -53,25 +66,39 @@ export async function layoutNested(
   const level = async (members: ReadonlyArray<Node>, depth: number): Promise<{ width: number; height: number }> => {
     for (const m of members) {
       const kids = childrenOf.get(m.id);
-      if (!kids || depth > nodes.length) continue;
+      const foot = footOf(m);
+      if (!kids || depth > nodes.length) {
+        // a box with its children all folded still needs room for its fold row
+        if (foot > 0) {
+          const own = sizeOf(m);
+          sizes.set(m.id, { width: own.width, height: own.height + foot });
+        }
+        continue;
+      }
       const inner = await level(kids, depth + 1);
       const own = sizeOf(m);
-      sizes.set(m.id, { width: Math.max(own.width, inner.width + 2 * t.groupPad), height: inner.height + t.groupHeader + t.groupPad });
+      sizes.set(m.id, { width: Math.max(own.width, inner.width + 2 * t.groupPad), height: inner.height + t.groupHeader + t.groupPad + foot });
     }
-    const memberIds = new Set(members.map((m) => m.id));
-    const layoutNodes = members.map((m) => ({ id: m.id, ...(sizes.get(m.id) ?? sizeOf(m)) }));
-    const layoutEdges = hoistEdges(memberIds, edges, parentOf);
-    const placed = await run(layoutNodes, layoutEdges);
     const nested = depth > 0;
     let width = 0;
     let height = 0;
-    for (const p of placed) {
-      const box = layoutNodes.find((l) => l.id === p.id);
-      const pos = nested ? { x: p.x + t.groupPad, y: p.y + t.groupHeader } : { x: p.x, y: p.y };
-      const size = sizes.get(p.id);
-      out.set(p.id, size ? { position: pos, size } : { position: pos });
-      width = Math.max(width, p.x + (box?.width ?? 0));
-      height = Math.max(height, p.y + (box?.height ?? 0));
+    const bands = [...new Set(members.map(bandOf))].sort((a, b) => a - b);
+    for (const band of bands) {
+      const inBand = members.filter((m) => bandOf(m) === band);
+      const top = height === 0 ? 0 : height + bandGap;
+      const memberIds = new Set(inBand.map((m) => m.id));
+      const layoutNodes = inBand.map((m) => ({ id: m.id, ...(sizes.get(m.id) ?? sizeOf(m)) }));
+      const layoutEdges = hoistEdges(memberIds, edges, parentOf);
+      const placed = await run(layoutNodes, layoutEdges);
+      for (const p of placed) {
+        const box = layoutNodes.find((l) => l.id === p.id);
+        const y = p.y + top;
+        const pos = nested ? { x: p.x + t.groupPad, y: y + t.groupHeader } : { x: p.x, y };
+        const size = sizes.get(p.id);
+        out.set(p.id, size ? { position: pos, size } : { position: pos });
+        width = Math.max(width, p.x + (box?.width ?? 0));
+        height = Math.max(height, y + (box?.height ?? 0));
+      }
     }
     return { width, height };
   };

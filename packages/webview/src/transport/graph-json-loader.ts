@@ -23,7 +23,10 @@ import { runLayout, type LayoutNodeInput, type LayoutEdgeInput } from '../graph/
 import { getLayoutSize } from '../graph/layout/sizing.js';
 import { idsInParentLoop } from '../graph/parent-loops.js';
 import { layoutNested, parentsFirst, type Placement, type RunLayout } from '../graph/layout/nested.js';
-import { VIEW_TUNING } from '../graph/view-tuning.js';
+import { FOLD_TUNING, VIEW_TUNING } from '../graph/view-tuning.js';
+import { FOLD_BOX_KIND, applyFold, foldKeyOf, foldOf, withoutFoldBox } from '../graph/fold-model.js';
+import { inferredOf } from '../app/inferred-model.js';
+import { useUiStore } from '../store/ui-slice.js';
 import { mergeGraphUpdate } from './graph-merge.js';
 import { SPEC_KINDS } from './live-source.js';
 import { readProblems, useProblemsStore } from '../store/problems.js';
@@ -81,7 +84,12 @@ export interface LoadGraphOptions {
   readonly url?: string;
   /** Test seam: bypass fetch and pass a payload directly. */
   readonly payload?: GraphJsonEnvelope;
+  /** a node id to show on the first view (?focus=). a folded proposal unfolds its concept first. */
+  readonly reveal?: string | null;
 }
+
+// the folds that are open now, from the ui store. a reload starts with none.
+const openFolds = (): ReadonlySet<string> => useUiStore.getState().unfolded;
 
 /**
  * Fetch graph.json, convert to React Flow node/edge payloads, run layout,
@@ -115,8 +123,15 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
     return;
   }
 
-  const { nodes, edges } = envelopeToReactFlow(envelope);
+  const raw = envelopeToReactFlow(envelope);
+  const edges = raw.edges;
   useProblemsStore.getState().setProblems(readProblems(envelope));
+  if (opts.reveal) {
+    const hit = raw.nodes.find((n) => n.id === opts.reveal);
+    const key = hit ? foldKeyOf(hit, new Set(raw.nodes.map((n) => n.id))) : null;
+    if (key !== null) useUiStore.getState().openFold(key);
+  }
+  const nodes = applyFold(raw.nodes, openFolds());
 
   // Dispatch the un-laid-out graph first so the canvas can render placeholders;
   // ELK populates positions in a second pass. This avoids a blank canvas
@@ -142,10 +157,41 @@ export async function applyGraphUpdate(envelope: GraphJsonEnvelope): Promise<boo
   const { nodes, edges } = envelopeToReactFlow(envelope);
   useProblemsStore.getState().setProblems(readProblems(envelope));
   const prev = useGraphStore.getState();
-  const merged = mergeGraphUpdate(prev.nodes, prev.edges, nodes, edges);
-  const placed = merged.needsLayout ? await applyLayout(merged.nodes, edges) : merged.nodes;
+  // the merge compares what the server sent, so the root fold box is left out on both sides
+  const merged = mergeGraphUpdate(withoutFoldBox(prev.nodes), prev.edges, nodes, edges);
+  const folded = applyFold(merged.nodes, openFolds());
+  // a fold row that came or went changes a concept's size, so that needs a layout too
+  const rowsMoved = foldShape(prev.nodes) !== foldShape(folded);
+  const placed = merged.needsLayout || rowsMoved ? await applyLayout(folded, edges) : keepBoxPlace(prev.nodes, folded);
   useGraphStore.getState().setGraph(placed, edges);
   return true;
+}
+
+/** which folds have a row and which are open, as one string to compare */
+function foldShape(nodes: ReadonlyArray<Node>): string {
+  return nodes
+    .map((n) => foldOf(n))
+    .filter((f) => f !== null)
+    .map((f) => `${f!.key}:${f!.count > 0 ? 1 : 0}:${f!.open ? 1 : 0}`)
+    .sort()
+    .join('|');
+}
+
+// the root box is made again on every update, it keeps the place the layout gave it
+function keepBoxPlace(prev: ReadonlyArray<Node>, next: Node[]): Node[] {
+  const old = prev.find((n) => n.type === FOLD_BOX_KIND);
+  if (!old) return next;
+  return next.map((n) => (n.type === FOLD_BOX_KIND ? { ...n, position: old.position, ...(old.width !== undefined ? { width: old.width } : {}), ...(old.height !== undefined ? { height: old.height } : {}) } : n));
+}
+
+/** lay the graph out again after a fold opened or closed. the store stays ready throughout. */
+export async function refold(): Promise<void> {
+  const s = useGraphStore.getState();
+  const folded = applyFold(s.nodes, openFolds());
+  const placed = await applyLayout(folded, s.edges);
+  // a live update may have landed while the layout ran, then that one wins
+  if (useGraphStore.getState().nodes !== s.nodes) return;
+  useGraphStore.getState().setGraph(placed, s.edges);
 }
 
 export async function fetchGraphJson(url: string): Promise<GraphJsonEnvelope> {
@@ -244,13 +290,23 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
   // spec nodes get their own block above the code, so the first view can show
   // them without hunting through hundreds of code nodes. edges that cross the
   // two blocks (code realizes intent) are drawn but not laid out.
-  const isSpec = (n: Node): boolean => n.type !== undefined && SPEC_KINDS.has(n.type);
-  const groups = [nodes.filter(isSpec), nodes.filter((n) => !isSpec(n))];
+  // the root fold box sits with the spec. folded proposals are not laid out at all.
+  const isSpec = (n: Node): boolean => n.type !== undefined && (SPEC_KINDS.has(n.type) || n.type === FOLD_BOX_KIND);
+  const shown = nodes.filter((n) => n.hidden !== true);
+  const groups = [shown.filter(isSpec), shown.filter((n) => !isSpec(n))];
+  // the fold row at a concept's foot, and unfolded proposals below the declared children
+  const nestedOpts = {
+    footOf: (n: Node): number => (n.type === 'concept' && (foldOf(n)?.count ?? 0) > 0 ? FOLD_TUNING.rowPx + FOLD_TUNING.rowGapPx : 0),
+    bandOf: (n: Node): number => (inferredOf(n) !== null || n.type === FOLD_BOX_KIND ? 1 : 0),
+    bandGap: FOLD_TUNING.bandGap,
+  };
 
   // spec nodes render at the width the layout gave them, so a long title
   // ellipsises instead of pushing the status mark past its concept's border
-  const sizeOf = (n: Node): { width: number; height: number } =>
-    isSpec(n) ? { width: VIEW_TUNING.specNodeWidth, height: getLayoutSize(n).height } : getLayoutSize(n);
+  const sizeOf = (n: Node): { width: number; height: number } => {
+    if (n.type === FOLD_BOX_KIND) return { width: FOLD_TUNING.boxWidth, height: FOLD_TUNING.boxHeight };
+    return isSpec(n) ? { width: VIEW_TUNING.specNodeWidth, height: getLayoutSize(n).height } : getLayoutSize(n);
+  };
 
   const placed = new Map<string, Placement>();
   let offsetY = 0;
@@ -258,7 +314,7 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
     if (group.length === 0) continue;
     const ids = new Set(group.map((n) => n.id));
     const run: RunLayout = (layoutNodes: LayoutNodeInput[], layoutEdges: LayoutEdgeInput[]) => runLayout(layoutNodes, layoutEdges);
-    const groupPlaced = await layoutNested(group, edges.filter((e) => ids.has(e.source) && ids.has(e.target)), sizeOf, run, VIEW_TUNING);
+    const groupPlaced = await layoutNested(group, edges.filter((e) => ids.has(e.source) && ids.has(e.target)), sizeOf, run, VIEW_TUNING, nestedOpts);
     let bottom = offsetY;
     for (const n of group) {
       const p = groupPlaced.get(n.id);

@@ -22,7 +22,7 @@ export function InferredCount(): JSX.Element {
         data-count={count}
         aria-disabled={zero}
         style={{ ...COUNT_BUTTON, border: '1px dashed rgba(167, 139, 250, 0.8)', ...(zero ? { opacity: GLANCE_TUNING.zeroOpacity, cursor: 'default' } : {}) }}
-        onClick={zero ? undefined : selectNextProposal}
+        onClick={zero ? undefined : () => void selectNextProposal()}
         title={zero ? countTitle('inferred', 0) : `${countTitle('inferred', count)} Enter accepts, Delete dismisses.`}
       >
         <RobotIcon size={14} />

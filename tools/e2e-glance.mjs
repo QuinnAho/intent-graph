@@ -108,6 +108,16 @@ async function stopServer(s) {
   return !open;
 }
 
+// lane 12: proposals start folded. open every fold row by its key, so no click closes the legend
+async function unfoldAll(p) {
+  await p.locator('[data-fold-row]').first().waitFor({ timeout: 30000 });
+  for (const key of await p.evaluate(() => [...document.querySelectorAll('[data-fold-row][data-fold-open="false"]')].map((b) => b.getAttribute('data-fold-row')))) {
+    await p.locator(`[data-fold-row="${key}"]`).focus();
+    await p.keyboard.press('Enter');
+    await p.waitForFunction((k) => document.querySelector(`[data-fold-row="${k}"]`)?.getAttribute('data-fold-open') === 'true', key, { timeout: 5000 });
+  }
+}
+
 // canned reports, written the way tools/infer.mjs and tools/drift.mjs write them
 const row = (id, title, anchors, over = {}) => ({
   id, folder: 'src', title, body: `${title}. Read from the code in src.`, anchors, belongs_under: 'concept-calculator', restates: null, confidence: 'inferred', planned: false, code_hash: `hash-${id}`, ...over,
@@ -322,6 +332,7 @@ try {
   page.on('load', () => { loads += 1; });
   await page.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.locator('[data-state-bar]').waitFor({ timeout: 30000 });
+  await unfoldAll(page);
   await page.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 2, null, { timeout: 30000 });
 
   // 1 the legend opens by itself on the first visit
@@ -348,6 +359,7 @@ try {
   if (!(await page.evaluate(() => document.activeElement?.hasAttribute('data-legend-button')))) await fail('focus did not go back to the legend button');
   // a reload: the legend stays closed, the "?" opens it again
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await unfoldAll(page);
   await page.waitForFunction(() => document.querySelectorAll('[data-inferred]').length === 2, null, { timeout: 30000 });
   await page.waitForTimeout(800);
   if ((await page.locator('[data-legend]').count()) !== 0) await fail('the legend opened again after a reload');
@@ -534,9 +546,16 @@ try {
   // the problems count opens the list
   if (eq.want.problems > 0) {
     await page.locator('[data-state-bar] [data-bar-count="problems"]').click();
-    await page.locator('[data-problems-count] ul').waitFor({ timeout: 3000 }).catch(() => fail('the problems count did not open the list'));
+    await page.locator('ul[aria-label="spec problems"]').waitFor({ timeout: 3000 }).catch(() => fail('the problems count did not open the list'));
     await page.locator('[data-state-bar] [data-bar-count="problems"]').click();
-    await page.locator('[data-problems-count] ul').waitFor({ state: 'detached', timeout: 3000 }).catch(() => fail('a second click did not close the problems list'));
+    await page.locator('ul[aria-label="spec problems"]').waitFor({ state: 'detached', timeout: 3000 }).catch(() => fail('a second click did not close the problems list'));
+    // lane 12: Esc closes it too and the focus goes back to the count
+    await page.locator('[data-state-bar] [data-bar-count="problems"]').click();
+    await page.locator('ul[aria-label="spec problems"]').waitFor({ timeout: 3000 });
+    await page.keyboard.press('Escape');
+    await page.locator('ul[aria-label="spec problems"]').waitFor({ state: 'detached', timeout: 3000 }).catch(() => fail('Esc did not close the problems list'));
+    if (!(await page.evaluate(() => document.activeElement?.getAttribute('data-bar-count') === 'problems'))) await fail('Esc on the problems list did not give the focus back to the count');
+    if (await page.locator('[data-problems-count]').count()) await fail('the chip under the canvas is still there');
   }
 
   // 5 the robot sits on every inferred thing and on no declared one, but for a verdict the judge gave
@@ -547,7 +566,8 @@ try {
       const inf = n.querySelector('[data-inferred]');
       if (inf && !inf.querySelector('[data-inferred-row] [data-robot]')) out.inferredWithout.push(id);
       if (!inf) {
-        const outside = [...n.querySelectorAll('[data-robot]')].filter((r) => !r.closest('[data-drift]'));
+        // a fold row (lane 12) stands for the proposals it holds, so its robot is an inferred thing too
+        const outside = [...n.querySelectorAll('[data-robot]')].filter((r) => !r.closest('[data-drift]') && !r.closest('[data-fold-row]'));
         if (outside.length) out.declaredWith.push(id);
         const d = n.querySelector('[data-drift]');
         if (d) out.judgeDrift[id] = d.querySelector('[data-robot]') !== null;
