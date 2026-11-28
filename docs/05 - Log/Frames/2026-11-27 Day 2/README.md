@@ -28,3 +28,25 @@ Every frame was taken by a script on committed code, on the small calculator exa
 - **8e, a refused drop** (`8e-refused-drop.jpg`). Works: "An intent can only hang under a concept, not a constraint. Nothing was changed."
 
 Not yet, for both lanes: these frames are zoomed out, so the text is small. A code node's title was never tested. Nobody has tried any of it with a real mouse in a real browser window.
+
+## Lane 10: inferred intents on the graph
+
+Frames 10a to 10f were taken by the lane's end-to-end script on committed code, on the calculator example with a canned report. Frames 10g and 10h are this repo with its real report of 66 proposals, served from a temp copy. That report lives on the dev machine and is not in git.
+
+| | |
+|---|---|
+| ![10a](10a-inferred-beside-declared.jpg) | ![10b](10b-panel.jpg) |
+| ![10c](10c-accepted.jpg) | ![10f](10f-missing-anchors.jpg) |
+| ![10e](10e-count-brings-into-view.jpg) | ![10d](10d-read-only.jpg) |
+| ![10g](10g-real-repo-first-view.jpg) | ![10h](10h-real-repo-count-click.jpg) |
+
+- **10a, inferred beside declared.** Works: a proposal has a dashed outline, the word "inferred" and a confidence word. A planned one is fainter and says "planned". One that restates a declared intent says "same as" and its title. The strip under the canvas counts them.
+- **10b, the panel.** Works: what the code is for, the folder it was read from, the evidence, and three buttons with their keys spelled out.
+- **10c, accepted.** Works: Enter wrote a real intent file, the node turned solid, and the notice has Undo.
+- **10f, anchors that point at nothing.** Works: the file is still written, the notice says how many anchors point at code that is not there, and the node carries the warning mark. Found by the verifier and fixed by a second agent.
+- **10e, the count brings a proposal into view.** Works: a click on the count selects the next proposal and moves the view to it, clear of the panel. Found by the verifier and fixed by a second agent.
+- **10d, read only.** Works: proposals show, the buttons are off and the panel says why.
+- **10g, this repo, first view.** Not yet: 66 proposals swamp the 12 declared intents. The view no longer fits the graph, and the wire from the lower constraint runs through two proposal boxes.
+- **10h, this repo after one click on the count.** Works, with small text: the proposal is selected and in view, and its panel names the declared intent it restates.
+
+Not yet for lane 10: frame 10g. A node shows no key hint until it is selected. Nobody has tried it with a real mouse in a real browser window.

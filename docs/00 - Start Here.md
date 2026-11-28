@@ -11,11 +11,12 @@ This vault is the project's memory. Every session reads this note and [[Board]] 
 |---|---|
 | Direction | Slim to the wedge, visual first. Decided by the owner on 2026-11-27, recorded in [[0029-slim-to-the-wedge]]. |
 | Built | The static graph (L0): a tree-sitter walk of the code plus the `/spec` markdown, stored in SQLite, shown with React Flow and ELK. Signed off 2026-05-04. |
-| On `main` since 2026-11-27 | Six lanes, squashed into one commit: the live graph with status marks from linked tests, the drift check, editing on the canvas, Blueprint-style wires and pins ([[0031-the-graph-follows-blueprint-conventions]]), drift marks on the graph, and editing polish. Each was gated by script and checked by an independent verifier. 304 tests. |
-| See it | Double-click `open-graph.cmd` to view this repo's graph, or `open-graph-edit.cmd` to edit it. A small example with marks and wires to code: `node tools/e2e-live.mjs --serve`. Drift check: `node tools/drift.mjs`. Frames with verdicts: `docs/05 - Log/Frames/2026-11-27 Night 1/README.md`. |
+| On `main` since 2026-11-27 | Six lanes, squashed into one commit: the live graph with status marks from linked tests, the drift check, editing on the canvas, Blueprint-style wires and pins ([[0031-the-graph-follows-blueprint-conventions]]), drift marks on the graph, and editing polish. Each was gated by script and checked by an independent verifier. Added the same day: direct editing and editing by wire (lanes 7 and 8), the inference script (lane 9), and inferred intents on the graph (lane 10). 494 tests. |
+| Not right yet | Many proposals on a real graph: on this repo 66 of them crowd the first view and one wire runs through proposal boxes. See the [[Board]]. |
+| See it | Double-click `open-graph.cmd` to view this repo's graph, or `open-graph-edit.cmd` to edit it. A small example with marks and wires to code: `node tools/e2e-live.mjs --serve`. Drift check: `node tools/drift.mjs`. Proposals show on the graph when a report exists under `.runs/infer`, and `node tools/infer.mjs` writes one (it calls a model, a few cents for this repo). Frames with verdicts: `docs/05 - Log/Frames/2026-11-27 Night 1/README.md` and `2026-11-27 Day 2/README.md`. |
 | Parked | The May 2026 plan's plumbing: Inngest, AgentRunner, leases, Yjs, retrieval, the VS Code extension. See the ADR for the list. |
 | Repo | `github.com/QuinnAho/intent-graph`. Lanes build in `.wt/<lane>`. Work lands on an integration branch (`day-2` now) before `main`. |
-| Gate | `node tools/verify.mjs all`, then the end-to-end scripts `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs` and `e2e-drift-marks.mjs`. Frames: `node tools/frames.mjs`. |
+| Gate | `node tools/verify.mjs all`, then the end-to-end scripts `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs`, `e2e-drift-marks.mjs` and `e2e-inferred.mjs`. Frames: `node tools/frames.mjs`. |
 | Before the overhaul | Everything as it was on 2026-05-20 is tagged `pre-overhaul-2026-11-27`, including the old Ralph loop and the Codex mirror. |
 
 ## Map of the vault

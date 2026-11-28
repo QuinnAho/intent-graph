@@ -27,7 +27,7 @@ The vault is `docs/`. Read `docs/00 - Start Here.md`, then `docs/06 - Tasks/Boar
 
 `node tools/verify.mjs all` is the only gate: typecheck, lint, tests, build. It prints one PASS or FAIL line and exits 0 only on pass.
 `node tools/frames.mjs` takes frames of the graph.
-The end-to-end scripts are `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs` and `e2e-drift-marks.mjs`. `node tools/drift.mjs` runs the drift check on its seeded cases. Each prints one PASS or FAIL line.
+The end-to-end scripts are `tools/e2e-live.mjs`, `e2e-edit.mjs`, `e2e-wires.mjs`, `e2e-drift-marks.mjs` and `e2e-inferred.mjs`. `node tools/drift.mjs` runs the drift check on its seeded cases. Each prints one PASS or FAIL line.
 
 ## Git
 
