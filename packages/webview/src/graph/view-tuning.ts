@@ -48,6 +48,20 @@ export const FIT_TUNING = {
   refitPx: 8,
   // at most one fit again in this time, ms
   refitMs: 150,
+  // lane 17: a fit the page does by itself never goes below this, so a 13 px title stays 9.1 px or more
+  readableZoom: 0.7,
+  // when the graph does not fit at that zoom, the top left of the block sits this far in from the canvas corner, px
+  startInsetPx: 24,
+} as const;
+
+// the minimap and the line that says the view holds part of the graph (lane 17)
+export const OVERVIEW_TUNING = {
+  // no minimap in a window narrower than this, px
+  minimapMinPx: 700,
+  minimapWidth: 180,
+  minimapHeight: 120,
+  // gap between the minimap and the canvas edges, px
+  minimapMargin: 12,
 } as const;
 
 // wires and pins, blueprint style (adr 0031). see docs/03 - Research/2026-11-27 Blueprint Style Graph.md
@@ -102,6 +116,20 @@ export const HEADER_COLORS: Readonly<Record<string, string>> = {
   counterexample: 'rgba(248, 81, 73, 0.14)',
   task: 'rgba(219, 97, 162, 0.14)',
 };
+
+// a kind's colour where it is drawn as a plain box, the minimap (lane 17). concepts hold the others, so they are faint
+export const KIND_COLORS: Readonly<Record<string, string>> = {
+  intent: '#78a9ff',
+  constraint: '#d29922',
+  decision: '#a371f7',
+  rationale: '#3fb950',
+  concept: 'rgba(57, 197, 207, 0.22)',
+  code_module: '#8b949e',
+  code_symbol: '#6e7681',
+  counterexample: '#f85149',
+  task: '#db61a2',
+};
+export const KIND_DEFAULT_COLOR = '#8b949e';
 
 // elk options for every layout pass. right means left to right.
 export const LAYOUT_TUNING = {

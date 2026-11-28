@@ -6,6 +6,7 @@
 
 import {
   Background,
+  MiniMap,
   ReactFlow,
   type Connection,
   type Edge,
@@ -23,7 +24,7 @@ import {
   type XYPosition,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 
 import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
 import { INFERRED_MENU_KIND, inferredOf } from '../app/inferred-model.js';
@@ -39,9 +40,10 @@ import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
 import { dragHold } from './drag-hold.js';
 import { calmHoverUntilMove } from './drop-calm.js';
-import { EDIT_TIMING, FIT_TUNING, NEST_TUNING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, FIT_TUNING, KIND_COLORS, KIND_DEFAULT_COLOR, NEST_TUNING, OVERVIEW_TUNING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { GLANCE_TUNING } from '../app/glance-tuning.js';
 import { FOLD_BOX_KIND } from './fold-model.js';
-import { isFitKey, shouldRefit, type Size } from './fit-model.js';
+import { isFitKey, nextFitKind, pageFit, shouldRefit, type Size } from './fit-model.js';
 import { InferredFoldNode } from './nodes/FoldRow.js';
 
 import { CodeModuleNode } from './nodes/CodeModuleNode.js';
@@ -130,60 +132,182 @@ function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }
 
 const FIT_VIEW_OPTIONS = { padding: FIT_TUNING.padding, maxZoom: FIT_TUNING.maxZoom, minZoom: FIT_TUNING.minZoom };
 
-type FitOptions = typeof FIT_VIEW_OPTIONS & { nodes?: Array<{ id: string }> };
+// the legend lies over the canvas at the right. a fit leaves its width free, unless it takes the whole window.
+const legendCover = (canvasWidth: number): number => {
+  if (!useUiStore.getState().legendOpen || window.innerWidth < GLANCE_TUNING.narrowPx) return 0;
+  return Math.min(GLANCE_TUNING.legendWidth, canvasWidth);
+};
 
-// fits again when the canvas changes size, unless the person moved the view since the last fit.
-// F fits too, and after that a change of size fits again. lane 12.
-function FitOnResize(props: { options: FitOptions; moved: { current: boolean } }): null {
+// lane 17: every fit the page does. the first one, again on a change of size unless the person moved
+// the view since, again when the legend closes, and F. a fit by the page never goes under the
+// readable zoom; F fits everything, and F again goes back to the readable start.
+function PageFitter(props: { fitIds: ReadonlyArray<string> | null; enabled: boolean; moved: { current: boolean } }): null {
   const rf = useReactFlow();
   const width = useStore((s) => s.width);
   const height = useStore((s) => s.height);
+  const ready = useStore((s) => s.panZoom !== null && s.nodeLookup.size > 0);
+  const rfNodes = useStore((s) => s.nodes);
   const last = useRef<Size | null>(null);
   const lastAt = useRef(0);
+  const lastF = useRef<'all' | 'readable' | null>(null);
   const timer = useRef<number | null>(null);
-  const optionsRef = useRef(props.options);
-  optionsRef.current = props.options;
-  const fit = useCallback((): void => {
-    const opts = optionsRef.current;
-    // ids that are folded away now are left out, the fit takes what is drawn
-    const drawn = opts.nodes?.filter((n) => rf.getNode(n.id)?.hidden !== true && rf.getNode(n.id) !== undefined);
-    void rf.fitView(drawn && drawn.length > 0 ? { ...opts, nodes: drawn } : { padding: opts.padding, maxZoom: opts.maxZoom, minZoom: opts.minZoom });
-    props.moved.current = false;
-    lastAt.current = Date.now();
-    const store = document.querySelector('.react-flow')?.getBoundingClientRect();
-    last.current = store ? { width: store.width, height: store.height } : null;
-  }, [rf, props.moved]);
-  // the first fit is the fitView prop, its size is the one to compare with
-  useEffect(() => {
-    if (last.current === null && width > 0 && height > 0) {
-      last.current = { width, height };
+  const idsRef = useRef(props.fitIds);
+  idsRef.current = props.fitIds;
+  const fit = useCallback(
+    (kind: 'all' | 'readable', byPage: boolean): void => {
+      const s = rf;
+      // ids that are folded away now are left out, the fit takes what is drawn
+      const wanted = idsRef.current?.filter((id) => s.getNode(id) !== undefined && s.getNode(id)?.hidden !== true) ?? [];
+      const ids = wanted.length > 0 ? wanted : s.getNodes().filter((n) => n.hidden !== true).map((n) => n.id);
+      if (ids.length === 0) return;
+      const el = document.querySelector('.react-flow')?.getBoundingClientRect();
+      const canvas = el ? { width: el.width, height: el.height } : null;
+      if (!canvas || canvas.width <= 0 || canvas.height <= 0) return;
+      const result = pageFit({
+        bounds: s.getNodesBounds(ids),
+        canvas,
+        padding: FIT_TUNING.padding,
+        maxZoom: FIT_TUNING.maxZoom,
+        floor: kind === 'readable' ? FIT_TUNING.readableZoom : FIT_TUNING.minZoom,
+        mode: kind,
+        reserveRight: legendCover(canvas.width),
+        insetPx: FIT_TUNING.startInsetPx,
+      });
+      void s.setViewport(result.viewport);
+      props.moved.current = false;
       lastAt.current = Date.now();
-      return undefined;
-    }
+      last.current = canvas;
+      useUiStore.getState().setPartialHint(byPage && result.partial);
+    },
+    [rf, props.moved],
+  );
+  // the first fit, before the first paint so the view never flashes at the default place
+  useLayoutEffect(() => {
+    if (!props.enabled || !ready || last.current !== null || width <= 0 || height <= 0) return;
+    fit('readable', true);
+  }, [props.enabled, ready, width, height, fit]);
+  useEffect(() => {
+    if (last.current === null) return undefined;
     if (!shouldRefit({ last: last.current, now: { width, height }, moved: props.moved.current, thresholdPx: FIT_TUNING.refitPx })) return undefined;
     if (timer.current !== null) return undefined;
     const wait = Math.max(0, FIT_TUNING.refitMs - (Date.now() - lastAt.current));
     timer.current = window.setTimeout(() => {
       timer.current = null;
-      if (!props.moved.current) fit();
+      if (!props.moved.current) fit('readable', true);
     }, wait);
     return undefined;
   }, [width, height, fit, props.moved]);
   useEffect(() => () => {
     if (timer.current !== null) window.clearTimeout(timer.current);
   }, []);
+  // any change to the nodes (a click, a fold, a live update) ends a run of F presses
+  useEffect(() => {
+    lastF.current = null;
+  }, [rfNodes]);
+  // closing the legend gives its room back, the view takes it when the person has not moved it
+  const legendOpen = useUiStore((s) => s.legendOpen);
+  const legendWas = useRef(legendOpen);
+  useEffect(() => {
+    const was = legendWas.current;
+    legendWas.current = legendOpen;
+    if (was && !legendOpen && last.current !== null && !props.moved.current) fit('readable', true);
+  }, [legendOpen, fit, props.moved]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const target = e.target instanceof Element ? e.target : null;
       const typing = target?.closest('input, textarea, select, [contenteditable="true"]') != null;
       if (!isFitKey(e, typing)) return;
       e.preventDefault();
-      fit();
+      const kind = nextFitKind(lastF.current, props.moved.current);
+      fit(kind, false);
+      lastF.current = kind;
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [fit]);
+  }, [fit, props.moved]);
   return null;
+}
+
+// the line at the foot of the canvas while a fit by the page shows part of the graph. a click is F.
+function PartialHint(): JSX.Element | null {
+  const on = useUiStore((s) => s.partialHint);
+  if (!on) return null;
+  return (
+    <button
+      type="button"
+      data-partial-hint=""
+      title="The graph is bigger than the window at a size you can read. Press F or click here to fit all of it, F again comes back here."
+      onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }))}
+      style={HINT_STYLE}
+    >
+      {PARTIAL_HINT_TEXT}
+    </button>
+  );
+}
+
+export const PARTIAL_HINT_TEXT = 'Part of the graph. F shows all';
+
+const HINT_STYLE: CSSProperties = {
+  position: 'absolute',
+  left: '50%',
+  bottom: `${OVERVIEW_TUNING.minimapMargin}px`,
+  transform: 'translateX(-50%)',
+  zIndex: 6,
+  padding: '4px 10px',
+  borderRadius: '999px',
+  border: '1px solid var(--ig-edge)',
+  background: 'var(--ig-node)',
+  color: 'var(--ig-text)',
+  fontSize: '12px',
+  whiteSpace: 'nowrap',
+  cursor: 'pointer',
+};
+
+function useWindowWidth(): number {
+  const [w, setW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const on = (): void => setW(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return w;
+}
+
+const kindColor = (n: Node): string => KIND_COLORS[n.type ?? ''] ?? KIND_DEFAULT_COLOR;
+
+// the built-in minimap, bottom right, in a window 700 px wide or more. left of the legend while it is open.
+function Overview(props: { moved: { current: boolean } }): JSX.Element | null {
+  const rf = useReactFlow();
+  const winWidth = useWindowWidth();
+  const legendOpen = useUiStore((s) => s.legendOpen);
+  if (winWidth < OVERVIEW_TUNING.minimapMinPx) return null;
+  const right = OVERVIEW_TUNING.minimapMargin + (legendOpen ? GLANCE_TUNING.legendWidth : 0);
+  const moved = (): void => {
+    props.moved.current = true;
+    useUiStore.getState().setPartialHint(false);
+  };
+  // a press on the minimap is a move the person makes: the fit again on resize stops, the line goes
+  return (
+    <div style={{ display: 'contents' }} onPointerDownCapture={moved} onWheelCapture={moved}>
+    <MiniMap
+      className="ig-minimap"
+      ariaLabel="Minimap: the whole graph. Click or drag to move the view."
+      position="bottom-right"
+      pannable
+      zoomable
+      nodeColor={kindColor}
+      nodeStrokeColor={kindColor}
+      nodeBorderRadius={3}
+      maskColor="rgba(0, 0, 0, 0.45)"
+      bgColor="var(--ig-node)"
+      style={{ width: OVERVIEW_TUNING.minimapWidth, height: OVERVIEW_TUNING.minimapHeight, right, bottom: OVERVIEW_TUNING.minimapMargin, margin: 0, border: '1px solid var(--ig-edge)', borderRadius: '6px' }}
+      onClick={(_, at) => {
+        moved();
+        void rf.setCenter(at.x, at.y, { zoom: rf.getViewport().zoom, duration: 150 });
+      }}
+    />
+    </div>
+  );
 }
 
 // moves the view once when a concept folds or unfolds, so its header stays where it was on screen
@@ -279,10 +403,6 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     onNodesChange,
     clearPanelFor = null,
   } = props;
-  const fitViewOptions = useMemo(
-    () => (fitNodeIds && fitNodeIds.length > 0 ? { ...FIT_VIEW_OPTIONS, nodes: fitNodeIds.map((id) => ({ id })) } : FIT_VIEW_OPTIONS),
-    [fitNodeIds],
-  );
 
   const write = useUiStore((s) => s.editConfig.write);
   const selectedWire = useUiStore((s) => s.selectedWire);
@@ -310,10 +430,15 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     () => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire, selected: w.id === selectedWire })),
     [plan, selectedWire],
   );
+  // the drawn size of each node, handed back the way react flow's applyNodeChanges would, so the minimap can draw it (lane 17)
+  const measuredRef = useRef(new Map<string, { width: number; height: number }>());
+  const [measuredSeq, setMeasuredSeq] = useState(0);
   const stacked = useMemo(() => {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
     return shownNodes.map((n) => {
       const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
+      const size = measuredRef.current.get(n.id);
+      if (size) out.measured = size;
       // a proposal is not a file yet, so it cannot be dragged into another concept
       const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type) && inferredOf(n) === null;
       out.draggable = movable;
@@ -329,14 +454,21 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       else if (connectFrom === n.id) out.className = 'ig-drop-from';
       return out;
     });
-  }, [nodes, shownNodes, dragAt, connectFrom, dropBox, ends]);
+    // measuredSeq is read so a new size draws again
+  }, [nodes, shownNodes, dragAt, connectFrom, dropBox, ends, measuredSeq]);
 
   // only position changes of the held node are kept here, the rest go to the store as before
   const handleNodesChange = useCallback<OnNodesChange>(
     (changes: NodeChange[]) => {
+      let sized = false;
       for (const c of changes) {
         if (c.type === 'position' && c.position && c.dragging) setDragAt({ id: c.id, position: c.position });
+        if (c.type === 'dimensions' && c.dimensions) {
+          measuredRef.current.set(c.id, c.dimensions);
+          sized = true;
+        }
       }
+      if (sized) setMeasuredSeq((n) => n + 1);
       const rest = changes.filter((c) => c.type !== 'position');
       if (rest.length > 0) onNodesChange?.(rest);
     },
@@ -500,6 +632,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     if (!event) return;
     movedRef.current = true;
     useUiStore.getState().closeMenu();
+    useUiStore.getState().setPartialHint(false);
   }, []);
 
   const { zoomLevel, onViewportChange: onZoomViewportChange } = useZoomLevel();
@@ -539,8 +672,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         zIndexMode="manual"
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
-        fitView={fitView}
-        fitViewOptions={fitViewOptions}
+        fitView={false}
         minZoom={FIT_TUNING.minZoom}
         nodesDraggable={!interactionLocked}
         nodesConnectable={write && !interactionLocked}
@@ -587,10 +719,12 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         <Background color="var(--ig-edge)" gap={40} size={1} />
         <KeepInView nodeId={clearPanelFor} nodes={nodes} />
         <ContextMenu fitViewOptions={FIT_VIEW_OPTIONS} />
-        <FitOnResize options={fitViewOptions} moved={movedRef} />
+        <PageFitter fitIds={fitNodeIds} enabled={fitView} moved={movedRef} />
+        <Overview moved={movedRef} />
         <ApplyViewShift />
         <ApplyViewFocus />
       </ReactFlow>
+      <PartialHint />
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>
     </HoverNodeContext.Provider>

@@ -58,6 +58,11 @@ interface UiState {
   readonly nested: ReadonlySet<string>;
   /** a node the canvas brings into view once, seq bumps each time */
   readonly viewFocus: { readonly id: string; readonly seq: number } | null;
+  /** lane 17: a fit by the page left part of the graph outside the view, the canvas says so until a move or F */
+  readonly partialHint: boolean;
+  /** the legend was opened once in this browser, so the "?" no longer needs its words */
+  readonly legendOpenedOnce: boolean;
+  setPartialHint(on: boolean): void;
   setEditConfig(config: EditConfig): void;
   openCreate(parent: string): void;
   closeCreate(): void;
@@ -79,6 +84,23 @@ interface UiState {
   openNest(id: string): void;
   closeNest(id: string): void;
   focusView(id: string): void;
+}
+
+// storage can be missing or throw: then the "?" keeps its words, which is safe
+const LEGEND_OPENED_KEY = 'intentgraph.legend.opened';
+function legendOpenedBefore(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem(LEGEND_OPENED_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+function rememberLegendOpened(): void {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(LEGEND_OPENED_KEY, '1');
+  } catch {
+    // nothing to remember into
+  }
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -114,7 +136,15 @@ export const useUiStore = create<UiState>((set) => ({
   setPanelDirtyId: (panelDirtyId) => set((s) => (s.panelDirtyId === panelDirtyId ? s : { panelDirtyId })),
   setPanelFocusId: (panelFocusId) => set({ panelFocusId }),
   legendOpen: false,
-  setLegendOpen: (legendOpen) => set((s) => (s.legendOpen === legendOpen ? s : { legendOpen })),
+  setLegendOpen: (legendOpen) =>
+    set((s) => {
+      if (s.legendOpen === legendOpen) return s;
+      if (legendOpen && !s.legendOpenedOnce) rememberLegendOpened();
+      return { legendOpen, legendOpenedOnce: s.legendOpenedOnce || legendOpen };
+    }),
+  partialHint: false,
+  setPartialHint: (partialHint) => set((s) => (s.partialHint === partialHint ? s : { partialHint })),
+  legendOpenedOnce: legendOpenedBefore(),
   unfolded: new Set<string>(),
   openFold: (key) => set((s) => (s.unfolded.has(key) ? s : { unfolded: new Set([...s.unfolded, key]) })),
   closeFold: (key) => set((s) => (s.unfolded.has(key) ? { unfolded: new Set([...s.unfolded].filter((k) => k !== key)) } : s)),

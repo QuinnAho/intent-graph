@@ -35,7 +35,7 @@ const KEYS: ReadonlyArray<{ keys: string; what: string }> = [
   { keys: 'Right-click', what: 'The menu for a node, a wire or the canvas.' },
   { keys: 'Drag from a pin', what: 'Drag from the right pin onto another node to hang this one under it.' },
   { keys: 'Esc', what: 'Close the menu, the panel or this legend.' },
-  { keys: 'F', what: 'Fit the graph to the window. A resize fits again until you pan or zoom.' },
+  { keys: 'F', what: 'Fit the whole graph to the window. F again goes back to the start, where the text can be read. A resize fits again until you pan or zoom.' },
   { keys: 'O', what: 'Show or hide the code of the selected intent.' },
 ];
 
@@ -199,6 +199,10 @@ export function Legend(): JSX.Element | null {
       <Row mark={<span style={{ ...pinStyle({ drawn: 1, hidden: {}, kinds: [] }), position: 'static', display: 'inline-block' }} />}>A filled pin has wires. Left pin in, right pin out.</Row>
       <Row mark={<span style={{ ...pinStyle(EMPTY_SIDE), position: 'static', display: 'inline-block' }} />}>A ring: nothing is wired to it.</Row>
       <Row mark={<span style={{ position: 'relative', display: 'inline-block', width: '64px', height: '18px' }}><span style={{ position: 'absolute', left: 0, top: '18px', width: '64px' }}><PinCount side="in" label="3 code" /></span></span>}>Wires to the other block are counted on the pin, not drawn.</Row>
+
+      <h3 style={H3}>The view</h3>
+      <Row mark={<span data-legend-minimap="" style={{ ...BOX, border: '1px solid var(--ig-edge)' }}>minimap</span>}>Bottom right: the whole graph, each box in its kind's colour. Click or drag it to move the view.</Row>
+      <Row mark={<span style={{ ...BOX, borderRadius: '999px', border: '1px solid var(--ig-edge)' }}>Part of the graph</span>}>The view holds part of the graph, so the text can be read. Press F to see all of it.</Row>
 
       <h3 style={H3}>Keys</h3>
       {KEYS.map(({ keys, what }) => (

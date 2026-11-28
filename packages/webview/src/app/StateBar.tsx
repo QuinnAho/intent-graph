@@ -5,7 +5,7 @@
 
 import type { Node } from '@xyflow/react';
 import { CircleHelp, Clock, Lock, TriangleAlert, type LucideIcon } from 'lucide-react';
-import { Children, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { Children, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon } from '../graph/nodes/nodeIcons.js';
 import { CHECK_MARK, DRIFT_MARK } from '../graph/nodes/shared/nodeChrome.js';
@@ -31,7 +31,17 @@ function markOf(state: GlanceState): { Icon: LucideIcon; color: string } {
   return { Icon: getNodeIcon(state === 'inferred' ? 'intent' : state), color: 'currentColor' };
 }
 
-const zeroStyle = (n: number): CSSProperties => (n === 0 ? { opacity: GLANCE_TUNING.zeroOpacity, cursor: 'default' } : {});
+function useNarrowWindow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < GLANCE_TUNING.narrowPx);
+  useEffect(() => {
+    const on = (): void => setNarrow(window.innerWidth < GLANCE_TUNING.narrowPx);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return narrow;
+}
+
+const zeroStyle =(n: number): CSSProperties => (n === 0 ? { opacity: GLANCE_TUNING.zeroOpacity, cursor: 'default' } : {});
 
 function Count(props: { state: GlanceState; n: number }): JSX.Element {
   const { state, n } = props;
@@ -99,8 +109,14 @@ function ReadOnly(): JSX.Element | null {
   );
 }
 
+export const LEGEND_BUTTON_WORDS = 'what the marks mean';
+
 export function LegendButton(): JSX.Element {
   const open = useUiStore((s) => s.legendOpen);
+  const openedOnce = useUiStore((s) => s.legendOpenedOnce);
+  const narrow = useNarrowWindow();
+  // lane 17: under 700 px the legend does not open by itself, so the "?" says what it is until it was opened once
+  const words = narrow && !openedOnce;
   return (
     <button
       type="button"
@@ -110,10 +126,11 @@ export function LegendButton(): JSX.Element {
       aria-label="Legend: what the marks and keys mean"
       title="Legend: what the marks and keys mean"
       className="ig-bar-count"
-      style={{ ...COUNT_BUTTON, padding: '0 5px', marginLeft: 'auto', border: '1px solid var(--ig-edge)' }}
+      style={{ ...COUNT_BUTTON, padding: '0 5px', marginLeft: 'auto', border: '1px solid var(--ig-edge)', gap: '4px' }}
       onClick={() => useUiStore.getState().setLegendOpen(!open)}
     >
       <CircleHelp size={15} aria-hidden />
+      {words ? <span data-legend-words="">{LEGEND_BUTTON_WORDS}</span> : null}
     </button>
   );
 }

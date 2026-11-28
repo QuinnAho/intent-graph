@@ -100,7 +100,10 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
   const pick = (item: MenuItem): void => {
     if (item.disabled) return;
     closeMenu();
-    if (item.id === 'fit-view') void rf.fitView(props.fitViewOptions);
+    if (item.id === 'fit-view') {
+      useUiStore.getState().setPartialHint(false);
+      void rf.fitView(props.fitViewOptions);
+    }
     else if (item.id === 'delete-wire') {
       if (menu.wireId) deleteWire(menu.wireId);
     }
