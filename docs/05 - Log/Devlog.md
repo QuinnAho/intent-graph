@@ -272,3 +272,28 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - The first builder left its sections of the lane note empty. The orchestrator fills Results from its own gate, so the note is whole either way.
 
 **Cost.** Fix agent: sonnet at medium, 127k tokens, 10 minutes.
+
+### 2026-11-28, 12:58 AM  Lane 16: the graph in a panel of VS Code, on main
+
+**What happened.** The owner said to go on with a VS Code extension as the main interface. A research pass wrote the recipe from the official docs, [[0032-a-thin-vs-code-extension-around-the-page]] records the decision, and lane 16 built the first step.
+
+- A thin extension starts the live server we have and shows the page we have in a panel, as an iframe with a small relay. The page and the server did not change, apart from one new file on the page that tells its parent window when the graph is laid out.
+- `open-in-vscode.cmd` opens a separate VS Code window with its own profile and the graph in a panel. Nothing is installed in the owner's editor.
+- The shell's half of "graph to code" works: a message from the page opens a file at a line beside the panel, and any path outside the workspace is refused.
+- Both launchers now rebuild a page that is older than its sources. Before, the browser launcher showed the old page after a merge.
+
+**Why it matters.** The owner wants one place to work: the graph and the code side by side, linked. This is the frame for it. The links themselves still need anchors (call 3 on the [[Board]]).
+
+**Evidence.** A verifier ran 17 held-back checks on the machine's real VS Code: 16 pass. The owner's own VS Code folders were identical before and after, a bystander window survived, no process was left. The one fail (no built page showed a faint "not found") was fixed by a second agent. The orchestrator's gate on `5d7f4d7`, each with exit 0: `PASS all (57.9s) - 4 steps, 571 tests`, `PASS e2e-extension (20.8s) - panel 6072 ms, 11 nodes, open and refuse, server stopped`, and seven other end-to-end scripts PASS.
+
+**Not verified.** The fix had no second verifier: its proof is unit tests and one new end-to-end case. The messages for a missing `node` and a server that exits early are unit tested only. Nobody has used the panel by hand.
+
+**Not yet.** The first-visit legend covers a narrow panel. The page is dark in a light editor. The editor's shortcuts do not fire while the page has the focus. A click on a node opens no code yet.
+
+**Lessons.**
+
+- Proving the three risky parts first (the development flag with its own profile, Playwright starting VS Code, the iframe inside the webview) took minutes and all three held. The lane then ran straight through.
+- Every VS Code a script starts gets its own user data folder, and a guard refuses to start without one. The verifier listed the owner's real folders before and after to prove nothing leaked.
+- Two held-back checks for lane 12 asked for more than its lane note did. A held-back check may be stricter than the note only on purpose, and then it is information, not a fail.
+
+**Cost.** Research: sonnet at medium, 94k tokens, 4 minutes. Code facts for lane 12: sonnet at medium, 65k tokens, 1 minute. Lane 16 builder: opus at high, 161k tokens, 23 minutes. Lane 16 verifier: sonnet at medium, 159k tokens, 16 minutes. Lane 16 fix: sonnet at medium, 76k tokens, 8 minutes. Lane 12 builder: opus at high, 270k tokens, 26 minutes. Lane 12 verifier: sonnet at medium, 180k tokens, 26 minutes.

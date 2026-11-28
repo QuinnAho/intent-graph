@@ -5,7 +5,7 @@ updated: 2026-11-27
 
 Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules: [[How We Work]].
 
-`main` holds everything through lane 11 and the first half of lane 14. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
+`main` holds everything through lane 11, the first half of lane 14 and lane 16. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
 
 ## Lanes with a go
 
@@ -19,11 +19,10 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 | 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
 | 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
-| 16 the graph in an editor panel | The page in a panel of VS Code, started by one launcher, nothing installed in the owner's editor. The first step of [[0032-a-thin-vs-code-extension-around-the-page]]. Lane note: [[editor-panel]] | in work on `editor-panel`, worktree `.wt/editor-panel` |
 
 Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
-Two lanes run side by side because they share no file: lane 12 changes the page, lane 16 builds the extension. Held-back checks for both are in the local run folder (`.runs/night-1/held-out/fold.md` and `editor-panel.md`, not in git). After them, one page lane at a time: lane 13 (open an intent, and a click on code opens the file in the editor), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). After lane 16: the line above a bound function (needs call 3), then one status bar item.
+Lane 16 (the graph in a panel of VS Code, a launcher, nothing installed) is on `main` since 2026-11-28. See the [[Devlog]]. Frames: `docs/05 - Log/Frames/2026-11-28/README.md`. Lane 12 is in its fix round after the verifier. After it, one page lane at a time: lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor`), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). For the extension, next: the line above a bound function (needs call 3), then one status bar item, then passing the editor's theme into the page.
 
 Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
@@ -52,7 +51,7 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 5. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
 6. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
 7. **Public repo hygiene.** One small call, written up in the owner's private notes.
-8. **Install the extension in the owner's editor?** The owner said go on the extension, see [[0032-a-thin-vs-code-extension-around-the-page]]. It runs in a separate window until the owner says to install it. Not asked yet: first the panel has to exist.
+8. **Install the extension in the owner's editor?** It works in a separate window today (`open-in-vscode.cmd`). Installing it means packaging a `.vsix` first, which needs the server bundled (ADR 0032). Recommended: use the separate window for a few days, then decide.
 9. **One "needs attention" number in the bar?** The verifier of lane 11 missed a single total. Recommended: yes, at the left of the bar, counting failing, drift, unclear, stale and problems, and a click walks through them. Open: whether what a model inferred counts too. On this repo that is 66 and would drown the rest.
 
 ## Next, not started (each needs a go)
@@ -90,4 +89,9 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - The graph is not fitted again when the window narrows, so at 480 px it is cut off on the right. A first load at that width was not tried.
 - The group names in the bar ("Spec", "Checks", "Drift") show only in a wide window.
 - 6 of 16 pin handles have no title, on code file and inferred nodes. Seen by the lane 11 verifier, not checked on the commit before that lane.
-- `open-graph.cmd` builds the page only when there is no built page. After a merge that changes the page it shows the old one until `pnpm --filter @intentgraph/webview build` or any end-to-end script has run in that checkout. Found on 2026-11-27 after lane 11 merged. A small harness fix: build when a source file is newer than the built page.
+
+- In the editor panel, while the page has the focus, VS Code's own shortcuts (Ctrl+P, Ctrl+Shift+P, Ctrl+B) do not fire, and Esc does not give the focus back. A click on the code, a tab or the explorer does. The page's own keys work. Seen by the lane 16 verifier.
+- In the editor panel the page stays dark when the editor is light. The theme is not passed in yet.
+- Nothing on the page names the open folder or says that it is live.
+- The live server picks a new port each run, and the page remembers "legend closed" per address. So the legend very likely opens again on every start. Reasoned, not yet seen by running it twice. A stable address per workspace would fix it.
+- The panel's messages for a missing `node` and for a server that exits early are proven by unit tests only. The missing page case is proven end to end.

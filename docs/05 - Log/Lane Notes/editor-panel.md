@@ -121,3 +121,13 @@ Checked on `a3b6ec0`, 2026-11-28. Scope steps 1 to 9 done.
 - No `node` on the PATH shows a Node.js 20 message. Any other start failure shows the child's last 5 lines, escaped.
 - The message is the webview's own HTML (`problem-html.ts`, strict policy, no script), so the `--vscode-*` colours apply.
 - `INTENTGRAPH_WEB_DIR` points the extension at another page folder. The check uses it for the missing page case.
+
+## Orchestrator's check
+
+Written on 2026-11-28.
+
+- Built at `88396a9`. An independent verifier ran 17 held-back checks on the machine's own VS Code: 16 pass. The owner's own VS Code folders were the same before and after, a bystander window survived, and no process was left behind. The fail: with no built page the panel showed a faint "not found" and nothing about what to run.
+- Fixed by a second agent at `5d7f4d7`: plain messages for a missing page, a missing `node` and a server that will not start.
+- Gate on `5d7f4d7`, each with exit 0: `PASS all (57.9s) - 4 steps, 571 tests`, `PASS e2e-extension (20.8s)`, and PASS for `e2e-glance`, `e2e-agents`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks` and `e2e-wires`. `day-2` had not moved, so this is the tree that was merged. `e2e-extension` also passes in the main checkout after the merge.
+- Frames with a verdict each: `docs/05 - Log/Frames/2026-11-28/README.md`.
+- Left open: on the [[Board]] under Known.
