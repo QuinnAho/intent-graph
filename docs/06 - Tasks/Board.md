@@ -26,7 +26,7 @@ Done and on `main`: lane 11 (merge `c5cbcc6`), the first half of lane 14 (merge 
 Next, in order:
 
 1. Lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor` in `packages/webview/src/transport/shell-bridge.ts`). It needs a lane note and held-back checks first. Every page lane gets narrow-width checks at 900 and 480 px and is tried inside the editor panel.
-2. A walk through the editor panel as a first-time user on this repo, by a fresh agent: every confusing moment, ranked, with frames. The owner picks what to fix from that list. Offered to the owner, not yet answered.
+2. Done on 2026-11-28: a walk through the page and the editor panel as a first-time user, 18 ranked moments with frames, in [[2026-11-28 First Use Walk]]. The owner asked for polish and UX passes that night, so the fixes that change no direction go into a polish lane after lane 13. The ones that change how the tool is used are calls 10 and 11 below.
 3. For the extension: the line above a bound function (needs call 3), one status bar item, the editor's theme passed into the page, a stable address per workspace so the page remembers what was closed.
 
 Open for the owner: calls 3, 4, 8 and 9 below, and whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, `editor-panel`, `fold`).
@@ -54,6 +54,9 @@ Lane 9 (the inference script, `node tools/infer.mjs`) and lane 10 (the proposals
 7. **Public repo hygiene.** One small call, written up in the owner's private notes.
 8. **Install the extension in the owner's editor?** It works in a separate window today (`open-in-vscode.cmd`). Installing it means packaging a `.vsix` first, which needs the server bundled (ADR 0032). Recommended: use the separate window for a few days, then decide.
 9. **One "needs attention" number in the bar?** The verifier of lane 11 missed a single total. Recommended: yes, at the left of the bar, counting failing, drift, unclear, stale and problems, and a click walks through them. Open: whether what a model inferred counts too. On this repo that is 66 and would drown the rest.
+
+10. **Does a click on a node only select it?** From the walk: with editing on, one click opens the form with Save and Cancel, and a first-time user expected a click to select and nothing more. Blueprint shows editable details on select, which is what the page does now. Recommended: keep it, and make the form look like details, not like an edit in progress.
+11. **Delete in the right-click menu?** The walk missed it. A delete removes a spec file, so it waits for a yes. Recommended: yes, with undo, and only with editing on.
 
 ## Next, not started (each needs a go)
 
