@@ -430,15 +430,10 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
     () => plan.wires.map((w) => ({ ...w, zIndex: WIRE_TUNING.zWire, selected: w.id === selectedWire })),
     [plan, selectedWire],
   );
-  // the drawn size of each node, handed back the way react flow's applyNodeChanges would, so the minimap can draw it (lane 17)
-  const measuredRef = useRef(new Map<string, { width: number; height: number }>());
-  const [measuredSeq, setMeasuredSeq] = useState(0);
   const stacked = useMemo(() => {
     const boxes = new Set(nodes.map((n) => n.parentId).filter((p): p is string => p !== undefined));
     return shownNodes.map((n) => {
       const out: Node = { ...n, zIndex: boxes.has(n.id) ? WIRE_TUNING.zBox : WIRE_TUNING.zNode };
-      const size = measuredRef.current.get(n.id);
-      if (size) out.measured = size;
       // a proposal is not a file yet, so it cannot be dragged into another concept
       const movable = n.type !== undefined && MOVABLE_KINDS.has(n.type) && inferredOf(n) === null;
       out.draggable = movable;
@@ -454,21 +449,14 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       else if (connectFrom === n.id) out.className = 'ig-drop-from';
       return out;
     });
-    // measuredSeq is read so a new size draws again
-  }, [nodes, shownNodes, dragAt, connectFrom, dropBox, ends, measuredSeq]);
+  }, [nodes, shownNodes, dragAt, connectFrom, dropBox, ends]);
 
   // only position changes of the held node are kept here, the rest go to the store as before
   const handleNodesChange = useCallback<OnNodesChange>(
     (changes: NodeChange[]) => {
-      let sized = false;
       for (const c of changes) {
         if (c.type === 'position' && c.position && c.dragging) setDragAt({ id: c.id, position: c.position });
-        if (c.type === 'dimensions' && c.dimensions) {
-          measuredRef.current.set(c.id, c.dimensions);
-          sized = true;
-        }
       }
-      if (sized) setMeasuredSeq((n) => n + 1);
       const rest = changes.filter((c) => c.type !== 'position');
       if (rest.length > 0) onNodesChange?.(rest);
     },

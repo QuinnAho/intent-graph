@@ -111,7 +111,7 @@ function ReadOnly(props: { compact: boolean }): JSX.Element | null {
     );
   }
   return (
-    <span data-bar-read-only="" title={reason} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: '88px', flex: '0 1 auto', overflow: 'hidden', color: MUTED, marginLeft: '6px' }}>
+    <span data-bar-read-only="" title={reason} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: '88px', flex: '1 1 0', overflow: 'hidden', color: MUTED, marginLeft: '6px' }}>
       <Lock size={13} aria-hidden style={{ flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{reason}</span>
     </span>
@@ -124,7 +124,7 @@ function Place(props: { compact: boolean }): JSX.Element | null {
   const live = useUiStore((s) => s.live);
   if (!folder && !live) return null;
   return (
-    <span data-bar-place="" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0, maxWidth: props.compact ? `${GLANCE_TUNING.compactFolderPx}px` : '220px', marginRight: '4px', fontWeight: 600 }}>
+    <span data-bar-place="" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flex: '1 1 0', minWidth: '48px', maxWidth: props.compact ? `${GLANCE_TUNING.compactFolderPx}px` : '220px', marginRight: '4px', fontWeight: 600 }}>
       {folder ? (
         <span data-bar-folder={folder} title={`The folder this graph is read from: ${folder}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
           <Folder size={14} aria-hidden style={{ flexShrink: 0 }} />

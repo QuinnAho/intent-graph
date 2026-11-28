@@ -560,6 +560,39 @@ try {
     console.log(`ok no checks (${secs()}s) - with no verified_by the Checks group reads "${words.text}", its title says how to link one`);
   }
 
+  // --timings: accept five proposals on a write copy of this repo and print click to drawn, for the lane note. not a gate.
+  if (args.includes('--timings')) {
+    const twork = mkdtempSync(join(tmpdir(), 'ig-readable-timing-'));
+    works.push(twork);
+    cpSync(root, twork, { recursive: true, filter: (src) => !skip.has(basename(src)) });
+    mkdirSync(join(twork, '.runs', 'infer', 'run-real'), { recursive: true });
+    cpSync(reportPath, join(twork, '.runs', 'infer', 'run-real', 'report.json'));
+    writeFileSync(join(twork, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'copied', report: '.runs/infer/run-real/report.json' }));
+    const tsrv = await startServer('server-timing', twork, true);
+    const tg = await (await fetch(new URL('graph.json', tsrv.url))).json();
+    const titles = new Map(tg.nodes.filter((n) => n.inferred).map((n) => [n.id, n.title]));
+    const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    watch(p, 'timing');
+    await p.goto(tsrv.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await p.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 60000 });
+    await p.waitForTimeout(800);
+    if (await p.locator('[data-legend]').count()) { await p.locator('[data-legend-button]').click(); await p.waitForTimeout(400); }
+    const runs = [];
+    for (let i = 0; i < ACCEPT_RUNS; i++) {
+      await p.keyboard.press('Escape');
+      await p.locator('[data-inferred-count] button').click();
+      await p.locator('[data-inferred-panel]').waitFor({ timeout: SHOW_LIMIT_MS });
+      await p.waitForTimeout(800);
+      const pid = await p.evaluate(() => document.querySelector('[data-inferred-panel]')?.getAttribute('data-inferred-panel'));
+      const title = titles.get(`inferred:${pid}`);
+      const a = await acceptTimed(p, twork, pid, title);
+      runs.push(a.ms);
+    }
+    await p.close();
+    if (!(await stopServer(tsrv))) await fail('timing server did not stop');
+    console.log(`ok timings (${secs()}s) - accept on a copy of this repo, click to drawn: ${runs.join(', ')} ms`);
+  }
+
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
   await finish(true, `floor, start corner, F twice, line, minimap, legend on this repo and the example, frames in ${relative(root, runDir).split('\\').join('/')}${wantFrames ? ' and .runs/frames-lane17' : ''}`);
 } catch (e) {
