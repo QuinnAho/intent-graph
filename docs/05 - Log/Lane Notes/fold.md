@@ -103,7 +103,10 @@ Stop and report after 90 minutes, or if the gate cannot be made green in two tri
 - Proposals with no concept fold into one node, `inferred-fold:root`, with no pins. It is left out when a live update is compared, so it never forces a layout.
 - Unfolded proposals are a second band laid out below the declared children. After a fold the view moves by the concept's change of place, so its header stays put (0 px in the script).
 - Fit again: any pan, zoom or wheel by the person stops it, F starts it again. The smallest zoom is now 0.05, the old default of 0.5 could not fit this repo at 480 px.
-- The first-visit legend changes the canvas size when it closes, which now fits again. That is the rule of step 12. The scripts close the legend before they measure.
+- The legend is a layer at the right under the bar, so it never changes the canvas size. Only its X, Esc and the "?" close it. Under 700 px it does not open by itself, and from "?" it takes the full width with the words under each label.
+- `?focus=<id>` also selects the node, once, in `App.tsx` after the first layout. A second select in the same effect looped on a re-render.
+- At 480 px the first fit shows the declared nodes, code files may lie outside, so the repo step holds only the declared nodes to the window.
+- Unfold of the biggest concept (16 proposals), click to open: 1.0 to 1.8 s. About 0.5 s is layout, mostly the unchanged code group, about 1 s is render. A cache of the code layout cut layout to 0.1 s but total time did not move, so it was reverted.
 - The problems list sits in its own row under the bar, not over the canvas, so it covers no title (the `e2e-edit` check stays). A row selects its node when the message names an id or the file is `<kind>s/<stem>.md` for a node `<kind>-<stem>`.
 - Problem hints (step 16), in `W/store/problems.ts`, for the owner to reword:
   - no YAML frontmatter: "Start the file with a --- block holding id, title, parent, confidence."
