@@ -61,6 +61,7 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 5. **A real gap found by the drift check.** `intent-concurrent-agents-stay-consistent` promises a version on every node and edge, and the `edge` table has none (commit `b38e2cd`, still true). Park the intent with the rest of the May plan, or keep it as a debt?
 6. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
 7. **Public repo hygiene.** One small call, written up in the owner's private notes.
+8. **The interface: a VS Code extension?** The owner now leans to one as the main interface, with the three layers linked and one memory. Options and the recommendation: [[2026-11-27 Interface - Approaches]]. Recommended: a thin extension around the page we have, as its own lane after a research pass, and calls 3 and 4 first because they make the links. Needs a new ADR, since ADR 0029 parked the extension host.
 
 ## Next, not started (each needs a go)
 
