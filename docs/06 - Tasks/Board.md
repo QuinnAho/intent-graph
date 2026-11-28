@@ -20,6 +20,20 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 | 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
 
+### Handoff (2026-11-28, about 1:20 AM)
+
+Done and on `main` at `a7e554f`: lane 11 (merge `c5cbcc6`), the first half of lane 14 (merge `cc08318`), lane 16 (merge `5e8a320`) with [[0032-a-thin-vs-code-extension-around-the-page]].
+
+In flight: **lane 12** on `fold`, worktree `.wt/fold`. Built at `8dd962f`, gated green by the orchestrator, and checked by a verifier: 20 of 24 held-back checks pass (evidence in the local run folder, `.runs/night-1/verifier/fold.md`). A fix agent is finishing the fix round: the legend lies over the canvas and stays out of a narrow window, `?focus` selects the node, and an unfold no longer makes the view jump. It was told to commit and push before anything else. `fold` is not merged.
+
+Next, in order:
+
+1. When `fold` holds the fix commit: in `.wt/fold`, `git checkout --detach day-2` and `git merge --no-ff fold`, then the full gate on that combined tree (`verify all`, `e2e-fold`, `e2e-wires`, `e2e-glance`, `e2e-extension`, `e2e-agents`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks`). Green: fast-forward `day-2` and `main` to it.
+2. Lane 12's frames with a verdict each into `docs/05 - Log/Frames/2026-11-28/README.md` (the builder's are in `.wt/fold/.runs/frames-lane12/`), a Devlog entry, the lane note's results, the start note's status table.
+3. Lane 13 (open an intent, and a click on code opens the file through `openInEditor`). It needs a lane note and held-back checks with narrow widths first.
+
+Open for the owner: calls 3, 4, 8 and 9 below, and whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, about 0.8 GB together, and `editor-panel`).
+
 Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
 Lane 16 (the graph in a panel of VS Code, a launcher, nothing installed) is on `main` since 2026-11-28. See the [[Devlog]]. Frames: `docs/05 - Log/Frames/2026-11-28/README.md`. Lane 12 is in its fix round after the verifier. After it, one page lane at a time: lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor`), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). For the extension, next: the line above a bound function (needs call 3), then one status bar item, then passing the editor's theme into the page.
