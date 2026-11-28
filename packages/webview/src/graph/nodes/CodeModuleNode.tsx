@@ -11,7 +11,8 @@ import { registerLayoutSizer } from '../layout/sizing.js';
 import { NodeChrome, type NodeChromeData } from './shared/nodeChrome.js';
 
 export interface CodeModuleNodeData extends Omit<NodeChromeData, 'kind' | 'body'> {
-  uri?: string;
+  /** the file as a path from the root (lane 13), the live server no longer sends an absolute uri */
+  path?: string;
   language?: string;
   childCount?: number;
 }
@@ -21,12 +22,12 @@ export function CodeModuleNode(props: NodeProps): JSX.Element {
   const chromeData: NodeChromeData = {
     kind: 'code_module',
     label: data.label,
-    ...(data.isSelected && (data.uri || data.language)
+    ...(data.isSelected && (data.path || data.language)
       ? {
           body: (
             <span>
               {data.language ? `${data.language} · ` : ''}
-              {data.uri ?? ''}
+              {data.path ?? ''}
             </span>
           ),
         }

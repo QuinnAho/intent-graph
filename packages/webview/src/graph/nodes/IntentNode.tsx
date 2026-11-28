@@ -6,6 +6,8 @@ import type { NodeProps } from '@xyflow/react';
 
 import { registerLayoutSizer } from '../layout/sizing.js';
 import type { InferredInfo } from '../../app/inferred-model.js';
+import { codeOf, nestOf } from '../nest-model.js';
+import { CodeRows } from './CodeRows.js';
 import { NodeChrome, type NodeChromeData } from './shared/nodeChrome.js';
 
 export interface IntentNodeData extends Omit<NodeChromeData, 'kind' | 'body'> {
@@ -30,7 +32,10 @@ export function IntentNode(props: NodeProps): JSX.Element {
     ...(data.drift !== undefined ? { drift: data.drift } : {}),
     ...(data.inferred !== undefined ? { inferred: data.inferred } : {}),
   };
-  return <NodeChrome data={chromeData} />;
+  const nest = nestOf(props);
+  // one count per node: the "2 code" line below owns it, the pin chip leaves the code out
+  if (nest) chromeData.ownsCodeCount = true;
+  return <NodeChrome data={chromeData} under={nest ? <CodeRows id={props.id} nest={nest} code={codeOf(props)} /> : undefined} />;
 }
 
 registerLayoutSizer('intent', () => ({ width: 240, height: 76 }));

@@ -25,3 +25,7 @@
 @media (max-width: 1360px) { .ig-group-label { display: none; } }
 .ig-fold-row:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: 2px; }
 .ig-fold-row:hover { background: rgba(167, 139, 250, 0.16) !important; }
+/* lane 13: an intent's code count and its rows. a row is a line of the node, not a box of its own */
+.ig-nest-toggle:hover { background: rgba(120, 169, 255, 0.14) !important; }
+.ig-code-row:hover:not([aria-disabled="true"]) { background: rgba(120, 169, 255, 0.1) !important; }
+.ig-nest-toggle:focus-visible, .ig-code-row:focus-visible { outline: 2px solid rgba(120, 169, 255, 0.95); outline-offset: -2px; }

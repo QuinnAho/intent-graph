@@ -19,6 +19,7 @@ import { PinContext } from '../../edges/wire-context.js';
 import { pinLabel, type PinSide } from '../../edges/wire-plan.js';
 import { wireStyle } from '../../edges/WireEdge.js';
 import { HEADER_COLORS, WIRE_TUNING } from '../../view-tuning.js';
+import { chipHidden } from '../../nest-model.js';
 
 export type NodeHealth = 'green' | 'yellow' | 'red';
 export type NodeHighlight = 'none' | 'subtle' | 'lead';
@@ -63,6 +64,8 @@ export interface NodeChromeData {
   warnings?: ReadonlyArray<string>;
   /** A proposal a model inferred from the code, not yet accepted. Drawn dashed, with its words. */
   inferred?: InferredInfo;
+  /** An intent with code: its own count says how much code, so the pin chip leaves the code out (lane 13). */
+  ownsCodeCount?: boolean;
   /** Render the in and out pins. Default true. */
   handlesHidden?: boolean;
 }
@@ -329,12 +332,12 @@ export function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Elem
 
 // one input pin west, one output pin east. on a spec node a wire starts at the output pin and ends
 // at an input pin, and only when the canvas takes connections (writes on). code pins never connect.
-function Pins(props: { spec: boolean }): JSX.Element {
+function Pins(props: { spec: boolean; ownsCode: boolean }): JSX.Element {
   const id = useNodeId();
   const info = useContext(PinContext).get(id ?? '');
   const inSide = info?.in ?? EMPTY_SIDE;
   const outSide = info?.out ?? EMPTY_SIDE;
-  const inLabel = pinLabel(inSide.hidden);
+  const inLabel = pinLabel(chipHidden(inSide.hidden, props.ownsCode));
   const outLabel = pinLabel(outSide.hidden);
   return (
     <>
@@ -358,7 +361,7 @@ function Pins(props: { spec: boolean }): JSX.Element {
 // a title just saved from the canvas stays on screen until the live update brings it
 const PENDING_TITLE_MS = 5000;
 
-export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNode }): JSX.Element {
+export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNode; under?: ReactNode }): JSX.Element {
   const { data } = props;
   const nodeId = useNodeId();
   const renaming = useUiStore((s) => nodeId !== null && s.renameId === nodeId);
@@ -394,7 +397,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
       }}
     >
       {/* a proposal is not a file yet, so its pins take no wire */}
-      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind) && !inferred} /> : null}
+      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind) && !inferred} ownsCode={data.ownsCodeCount === true} /> : null}
       <div
         className="ig-node-body"
         {...(inferred ? { 'data-inferred': inferred.proposal_id, 'data-inferred-planned': inferred.planned ? 'true' : 'false' } : {})}
@@ -463,6 +466,8 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
           ) : null}
         </div>
         {inferred ? <InferredRow info={inferred} /> : null}
+        {/* lane 13: the code count and rows of an intent, part of this node */}
+        {props.under}
         {data.body !== undefined ? (
           <div style={{ padding: '10px 14px', fontSize: '12px', lineHeight: 1.4, flex: 1 }}>
             {data.body}

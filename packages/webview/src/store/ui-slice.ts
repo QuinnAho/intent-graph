@@ -54,6 +54,10 @@ interface UiState {
   readonly unfolded: ReadonlySet<string>;
   /** a move of the view the canvas makes once, so a concept stays put on screen when it folds. seq bumps each time. */
   readonly viewShift: { readonly dx: number; readonly dy: number; readonly seq: number } | null;
+  /** intents opened in place to list their code (lane 13). survives live updates, a reload starts with none. */
+  readonly nested: ReadonlySet<string>;
+  /** a node the canvas brings into view once, seq bumps each time */
+  readonly viewFocus: { readonly id: string; readonly seq: number } | null;
   setEditConfig(config: EditConfig): void;
   openCreate(parent: string): void;
   closeCreate(): void;
@@ -72,6 +76,9 @@ interface UiState {
   openFold(key: string): void;
   closeFold(key: string): void;
   shiftView(dx: number, dy: number): void;
+  openNest(id: string): void;
+  closeNest(id: string): void;
+  focusView(id: string): void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -113,4 +120,9 @@ export const useUiStore = create<UiState>((set) => ({
   closeFold: (key) => set((s) => (s.unfolded.has(key) ? { unfolded: new Set([...s.unfolded].filter((k) => k !== key)) } : s)),
   viewShift: null,
   shiftView: (dx, dy) => set((s) => ({ viewShift: { dx, dy, seq: (s.viewShift?.seq ?? 0) + 1 } })),
+  nested: new Set<string>(),
+  openNest: (id) => set((s) => (s.nested.has(id) ? s : { nested: new Set([...s.nested, id]) })),
+  closeNest: (id) => set((s) => (s.nested.has(id) ? { nested: new Set([...s.nested].filter((k) => k !== id)) } : s)),
+  viewFocus: null,
+  focusView: (id) => set((s) => ({ viewFocus: { id, seq: (s.viewFocus?.seq ?? 0) + 1 } })),
 }));

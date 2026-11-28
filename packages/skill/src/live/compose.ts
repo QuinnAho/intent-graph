@@ -1,11 +1,12 @@
 // the live graph: the static export from build-graph plus realized_by edges,
 // a check status on spec nodes, and anchor warnings on the node they belong to.
 
-import type { InferProposalRow, LiveActivity, LiveDrift, LiveInferred, NodeActivity } from '@intentgraph/shared/schemas';
+import type { InferProposalRow, LiveActivity, LiveCodeRef, LiveDrift, LiveInferred, NodeActivity } from '@intentgraph/shared/schemas';
 
 import { toGraphJson, type BuildGraphResult } from '../build-graph.js';
 import { parseAnchor, type NodeAnchors } from '../parser/spec-md/anchors.js';
 import { activityMarks, type LaneFiles } from './activity-marks.js';
+import { codePlace, codeRefs, findTarget } from './code-refs.js';
 import { mapCheckStatus, toRelative, type CheckStatus, type TestReport } from './check-status.js';
 import { inferredNodeId, liveInferred } from './infer-marks.js';
 import { findParentLoops } from './parent-rules.js';
@@ -24,7 +25,7 @@ export interface LiveGraphNode {
   readonly id: string;
   readonly kind: string;
   readonly title: string;
-  readonly body: unknown;
+  body: unknown;
   readonly confidence: string;
   readonly parent_id: string | null;
   status?: CheckStatus;
@@ -35,6 +36,12 @@ export interface LiveGraphNode {
   inferred?: LiveInferred;
   /** the lanes at work on this node, set only when one is */
   activity?: NodeActivity[];
+  /** a declared spec node with realized_by: one entry per anchor, in the file's order (lane 13) */
+  code?: LiveCodeRef[];
+  /** a code node: its file as a path from the root */
+  path?: string;
+  /** a code symbol: its first line, counted from 1 */
+  line?: number;
 }
 
 export interface LiveGraphEdge {
@@ -102,6 +109,22 @@ export function composeLiveGraph(
   }
   const ids = new Set(graph.nodes.map((x) => x.id));
   const symbolIds = graph.nodes.filter((x) => x.kind === 'code_symbol').map((x) => x.id);
+  // code nodes carry a path from the root, the absolute file uri never leaves the server
+  const lines = new Map<string, number>();
+  for (const node of graph.nodes) {
+    const place = codePlace(node.id, node.body);
+    if (!place) continue;
+    node.path = place.path;
+    if (place.line !== undefined) {
+      node.line = place.line;
+      lines.set(node.id, place.line);
+    }
+    if (node.body !== null && typeof node.body === 'object' && 'uri' in node.body) {
+      const rest = { ...(node.body as Record<string, unknown>) };
+      delete rest['uri'];
+      node.body = rest;
+    }
+  }
 
   for (const node of graph.nodes) {
     if (!SPEC_KINDS.has(node.kind)) continue;
@@ -123,6 +146,7 @@ export function composeLiveGraph(
       graph.edges.push({ id: `anchor:${target}->${node.id}`, src: target, dst: node.id, kind: 'realizes', weight: 1 });
     }
     if (warnings.length > 0) node.warnings = warnings;
+    if (a && a.realizedBy.length > 0) node.code = codeRefs(a.realizedBy, ids, symbolIds, lines);
   }
   if (infer) addInferred(graph, infer.proposals, ids, symbolIds);
   if (activity) addActivity(graph, anchors, root, activity);
@@ -185,16 +209,6 @@ export function missingAnchors(anchors: ReadonlyArray<string>, nodes: ReadonlyAr
     const a = parseAnchor(raw);
     return !a.ok || findTarget(a.anchor.path, a.anchor.name, ids, symbolIds) === null;
   });
-}
-
-function findTarget(path: string, name: string | undefined, ids: ReadonlySet<string>, symbolIds: ReadonlyArray<string>): string | null {
-  if (name !== undefined) {
-    const prefix = `code_symbol:${path}#${name}#`;
-    const hit = symbolIds.find((id) => id.startsWith(prefix));
-    if (hit) return hit;
-  }
-  const mod = `code_module:${path}`;
-  return ids.has(mod) ? mod : null;
 }
 
 /** what changed between two problem lists, so the log names each problem once */

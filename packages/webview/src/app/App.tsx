@@ -26,6 +26,8 @@ import { useSettledId } from './use-settled-id.js';
 import { pickEditNode, selectOnly } from './edit-model.js';
 import { ProblemsPanel } from './ProblemsPanel.js';
 import { isFoldBox } from '../graph/fold-model.js';
+import { nestKey, nestOf } from '../graph/nest-model.js';
+import { openCodeNode, toggleNest } from './nest-actions.js';
 import {
   useGraphEdges,
   useGraphError,
@@ -135,7 +137,28 @@ function useDirectEditKeys(): void {
       const target = e.target instanceof Element ? e.target : null;
       const typing = target?.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"]') != null;
       const ui = useUiStore.getState();
-      const picked = pickEditNode(useGraphStore.getState().nodes);
+      const nodes = useGraphStore.getState().nodes;
+      const picked = pickEditNode(nodes);
+      // lane 13: O opens or closes the intent that has the focus, else the selected one
+      const focusedId = target?.closest('.react-flow__node')?.getAttribute('data-id') ?? null;
+      const focused = focusedId !== null ? nodes.find((n) => n.id === focusedId) : undefined;
+      const nestTarget = focused?.type === 'intent' ? focused : picked?.type === 'intent' ? picked : null;
+      if (nestKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, count: nestTarget ? nestOf(nestTarget)?.count ?? 0 : null }, e) === 'toggle' && nestTarget) {
+        e.preventDefault();
+        e.stopPropagation();
+        void toggleNest(nestTarget.id);
+        return;
+      }
+      // Enter on a selected code node opens it in the editor, in a browser tab nothing changes
+      if (!typing && ui.menu === null && e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const chosen = nodes.filter((n) => n.selected === true);
+        const only = chosen.length === 1 ? chosen[0]! : null;
+        if (only && (only.type === 'code_module' || only.type === 'code_symbol')) {
+          e.preventDefault();
+          openCodeNode(only.id);
+          return;
+        }
+      }
       // an inferred node: Enter accepts, Delete dismisses, F2 opens the title first
       const inferred = inferredKey({ typing, menuOpen: ui.menu !== null, renameOpen: ui.renameId !== null, inferredSelected: inferredOf(picked) !== null }, e);
       if (inferred && picked) {

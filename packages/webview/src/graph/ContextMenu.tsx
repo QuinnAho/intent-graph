@@ -4,6 +4,7 @@
 
 import { useReactFlow, type FitViewOptions } from '@xyflow/react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 import { addIntentTo, focusNode, openDetails, renameNode } from '../app/direct-edit-actions.js';
 import { currentEnds, deleteWire } from '../app/wire-edit-actions.js';
@@ -14,6 +15,8 @@ import { acceptProposal, dismissProposal } from '../app/inferred-actions.js';
 import { INFERRED_MENU_KIND, inferredMenuItems } from '../app/inferred-model.js';
 import { MENU_TUNING } from '../app/direct-edit-tuning.js';
 import { useUiStore } from '../store/ui-slice.js';
+import { toggleNest } from '../app/nest-actions.js';
+import { nestMenuItem, nestOf } from './nest-model.js';
 
 const BOX: CSSProperties = {
   position: 'fixed',
@@ -58,7 +61,9 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
   const wire = useGraphStore((s) => (menu?.wireId ? s.edges.find((e) => e.id === menu.wireId) : undefined));
   const wireRefusal = menu?.kind === 'wire' && (!wire || !deletableWire(wire, currentEnds())) ? NOT_A_PARENT_WIRE : null;
   const can = { write: config.write, reason: config.readOnlyReason };
-  const items: MenuItem[] = !menu ? [] : menu.kind === INFERRED_MENU_KIND ? inferredMenuItems(can) : menuItems(menu.kind, can, wireRefusal);
+  // lane 13: an intent's menu shows or hides its code
+  const nest = useGraphStore((s) => (menu?.kind === 'intent' && menu.nodeId ? nestOf(s.nodes.find((n) => n.id === menu.nodeId)) : null));
+  const items: MenuItem[] = !menu ? [] : menu.kind === INFERRED_MENU_KIND ? inferredMenuItems(can) : menuItems(menu.kind, can, wireRefusal, menu.kind === 'intent' ? nestMenuItem(nest) : null);
   const nodeId = menu?.nodeId ?? null;
 
   // measure, then place inside the window before the first paint
@@ -104,6 +109,9 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
     else if (item.id === 'dismiss') void dismissProposal(nodeId);
     else if (item.id === 'rename') renameNode(nodeId);
     else if (item.id === 'edit-details') openDetails(nodeId);
+    else if (item.id === 'toggle-code') {
+      void toggleNest(nodeId).then(() => focusNode(nodeId));
+    }
     else addIntentTo(nodeId);
   };
 
@@ -132,7 +140,8 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
 
   const disabledReason = items.find((i) => i.disabled)?.reason ?? null;
 
-  return (
+  // on the page body, not inside the canvas, so the menu is never drawn under the side panel
+  return createPortal(
     <div
       ref={box}
       role="menu"
@@ -173,6 +182,7 @@ export function ContextMenu(props: { fitViewOptions: FitViewOptions }): JSX.Elem
           {disabledReason}
         </div>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }

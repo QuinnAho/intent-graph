@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 
 import { openNodeMenu, openPaneMenu, openWireMenu, renameNode } from '../app/direct-edit-actions.js';
 import { INFERRED_MENU_KIND, inferredOf } from '../app/inferred-model.js';
+import { openCodeNode } from '../app/nest-actions.js';
 import { changeParent, refuseEdit } from '../app/wire-edit-actions.js';
 import { boxUnder, dropOutcome, endsOf, lightedBox, whyNotParent, type Box } from './wire-edit-model.js';
 import { useUiStore } from '../store/ui-slice.js';
@@ -38,7 +39,7 @@ import { WireEdge } from './edges/WireEdge.js';
 import { viewToClearPanel } from './keep-in-view.js';
 import { dragHold } from './drag-hold.js';
 import { calmHoverUntilMove } from './drop-calm.js';
-import { EDIT_TIMING, FIT_TUNING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
+import { EDIT_TIMING, FIT_TUNING, NEST_TUNING, PANEL_TUNING, WIRE_EDIT_TUNING, WIRE_TUNING } from './view-tuning.js';
 import { FOLD_BOX_KIND } from './fold-model.js';
 import { isFitKey, shouldRefit, type Size } from './fit-model.js';
 import { InferredFoldNode } from './nodes/FoldRow.js';
@@ -196,6 +197,24 @@ function ApplyViewShift(): null {
     const v = rf.getViewport();
     void rf.setViewport({ x: v.x - shift.dx * v.zoom, y: v.y - shift.dy * v.zoom, zoom: v.zoom });
   }, [shift, rf]);
+  return null;
+}
+
+// brings a node into view once, for a click on a code row in a browser tab (lane 13)
+function ApplyViewFocus(): null {
+  const rf = useReactFlow();
+  const focus = useUiStore((s) => s.viewFocus);
+  const seen = useRef(focus?.seq ?? 0);
+  useEffect(() => {
+    if (!focus || focus.seq === seen.current) return;
+    seen.current = focus.seq;
+    const inner = rf.getInternalNode(focus.id);
+    if (!inner) return;
+    const width = inner.measured.width ?? inner.width ?? 0;
+    const height = inner.measured.height ?? inner.height ?? 0;
+    const zoom = Math.max(rf.getViewport().zoom, NEST_TUNING.revealZoom);
+    void rf.setCenter(inner.internals.positionAbsolute.x + width / 2, inner.internals.positionAbsolute.y + height / 2, { zoom, duration: NEST_TUNING.revealMs });
+  }, [focus, rf]);
   return null;
 }
 
@@ -444,6 +463,13 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
       e.stopPropagation();
       let id: string | null | undefined;
       if (target.closest('textarea, input, button')) return;
+      // lane 13: a double-click on a code node opens it in the editor, in a browser tab nothing changes
+      const codeId = nodeEl.getAttribute('data-id');
+      const codeType = codeId ? nodesRef.current.find((n) => n.id === codeId)?.type : undefined;
+      if (codeId && (codeType === 'code_module' || codeType === 'code_symbol')) {
+        openCodeNode(codeId);
+        return;
+      }
       if (target.closest('[data-node-title]')) id = nodeEl.getAttribute('data-id');
       else if (lastTitle && e.timeStamp - lastTitle.at <= EDIT_TIMING.doubleClickMs && Math.hypot(e.clientX - lastTitle.x, e.clientY - lastTitle.y) <= EDIT_TIMING.samePointPx) id = lastTitle.id;
       if (!id) return;
@@ -563,6 +589,7 @@ export function GraphCanvas(props: GraphCanvasProps): JSX.Element {
         <ContextMenu fitViewOptions={FIT_VIEW_OPTIONS} />
         <FitOnResize options={fitViewOptions} moved={movedRef} />
         <ApplyViewShift />
+        <ApplyViewFocus />
       </ReactFlow>
       {isGraphTransitioning ? <div style={TRANSITIONING_MESSAGE_STYLE}>Loading…</div> : null}
     </div>

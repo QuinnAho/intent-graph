@@ -4,7 +4,7 @@
 // by itself on the first visit in a wide window. only its X, Esc and the "?" close it, and focus
 // goes back to the "?" in the bar.
 
-import { X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 import type { Node } from '@xyflow/react';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
@@ -36,6 +36,7 @@ const KEYS: ReadonlyArray<{ keys: string; what: string }> = [
   { keys: 'Drag from a pin', what: 'Drag from the right pin onto another node to hang this one under it.' },
   { keys: 'Esc', what: 'Close the menu, the panel or this legend.' },
   { keys: 'F', what: 'Fit the graph to the window. A resize fits again until you pan or zoom.' },
+  { keys: 'O', what: 'Show or hide the code of the selected intent.' },
 ];
 
 const sample = (verdict: DriftInfo['verdict'], over: Partial<DriftInfo> = {}): DriftInfo => ({
@@ -179,6 +180,7 @@ export function Legend(): JSX.Element | null {
       <Row mark={<span style={{ ...BOX, border: '1.5px dashed rgba(167, 139, 250, 0.8)' }}><InferredPill /></span>}>Dashed with the robot: a model read it from the code, no person confirmed it yet.</Row>
       <Row mark={<RobotIcon size={15} />}>{ROBOT_TITLE}.</Row>
       <Row mark={<span data-legend-fold='' style={{ ...BOX, border: '1px dashed rgba(167, 139, 250, 0.85)' }}><RobotIcon size={13} />9 inferred</span>}>Folded proposals at the foot of a concept. Click, Enter or Space shows them.</Row>
+      <Row mark={<span data-legend-code='' style={{ ...BOX, padding: '2px 8px 2px 4px', borderRadius: '999px', border: '1px solid var(--ig-edge)' }}><ChevronRight size={13} aria-hidden />2 code</span>}>The code an intent is bound to. Click it or press O to list it, click "hide" or press O to close it, click a row to go to the code.</Row>
 
       <h3 style={H3}>Checks</h3>
       <Row mark={<StatusMark status="verified" />}>The tests in verified_by pass.</Row>

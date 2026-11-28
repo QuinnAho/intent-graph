@@ -213,6 +213,30 @@ try {
   if (!(await activeTab())?.startsWith('math.ts')) await fail(`the active editor moved to ${await activeTab()}`);
   console.log(`ok refuse (${secs()}s) - ${rec2.refused.map((r) => r.reason).join(', ')}`);
 
+  // 6b lane 13: in the panel, open an intent and click its code row. the file becomes the active editor at the line.
+  await send({ type: 'intentgraph.open', path: 'src/greet.ts' });
+  await until('greet.ts active again', OPEN_LIMIT_MS, async () => (await activeTab())?.startsWith('greet.ts'));
+  const nested = 'intent-adds-numbers';
+  const toggle = page.locator(`.react-flow__node[data-id="${nested}"] [data-nest-toggle]`);
+  await toggle.waitFor({ timeout: READY_LIMIT_MS });
+  // the legend opens on a first visit and lies over the canvas, close it first
+  if (await page.locator('[data-legend]').count()) {
+    await page.locator('[data-legend-button]').click();
+    await page.locator('[data-legend]').waitFor({ state: 'detached', timeout: OPEN_LIMIT_MS }).catch(() => {});
+  }
+  await toggle.click();
+  const row = page.locator(`.react-flow__node[data-id="${nested}"] [data-code-row="0"]`);
+  await row.waitFor({ timeout: OPEN_LIMIT_MS });
+  const rowTitle = (await row.getAttribute('title')) ?? '';
+  if (!/open it in the editor at line 1/.test(rowTitle)) await fail(`in the panel the row's title says "${rowTitle}"`);
+  const openedBeforeRow = readRecord().opened.length;
+  await row.click();
+  await until('math.ts active at line 1 from the row', OPEN_LIMIT_MS, async () => (await activeTab())?.startsWith('math.ts') && /^Ln 1, Col 1/.test((await cursor()) ?? ''));
+  const posted = readRecord().opened.slice(openedBeforeRow);
+  if (!posted.some((o) => JSON.stringify(o).includes('src/math.ts'))) await fail(`the row posted ${JSON.stringify(posted)}`);
+  await win.screenshot({ path: join(runDir, '02b-row-open-file.png') });
+  console.log(`ok code row (${secs()}s) - a click on "${rowTitle.split('. ')[0]}" made "${await activeTab()}" active at "${await cursor()}", posted ${JSON.stringify(posted[posted.length - 1])}`);
+
   // 7 a narrow window
   const t7 = Date.now();
   const size = await resize(NARROW_PX, WINDOW.height);

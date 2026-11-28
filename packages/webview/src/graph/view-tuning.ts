@@ -24,6 +24,21 @@ export const FOLD_TUNING = {
   anchorPx: 40,
 } as const;
 
+// an intent opened in place to list its code (lane 13)
+export const NEST_TUNING = {
+  // height of one code row, and the room kept under the last row, px. an open node is as tall as its content,
+  // so this room is the same on every node. the layout also reserves padPx per node, as spare room.
+  rowPx: 26,
+  padPx: 8,
+  // height of the "2 code" line under the header, it fits the room a closed node already has
+  togglePx: 24,
+  // the title of a node that opens or closes stays this close to where it was on screen, px
+  anchorPx: 40,
+  // a click on a row in a browser tab brings the code node into view at this zoom at least
+  revealZoom: 0.6,
+  revealMs: 200,
+} as const;
+
 // fitting the graph to the canvas, the first time, on F and when the canvas changes size
 export const FIT_TUNING = {
   padding: 0.2,
