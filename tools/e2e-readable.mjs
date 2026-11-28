@@ -436,6 +436,9 @@ try {
     }
     const clipTop = Math.max(0, plan.top - 30);
     await frame(p, 'planned-proposal-close', { clip: { x: Math.max(0, plan.left - 20), y: clipTop, width: Math.min(plan.width + 40, 1440), height: Math.min(Math.max(plan.height + 60, 180), 900 - clipTop) } });
+    // the pan for the frame moved the view, F brings the example back whole
+    await p.keyboard.press('f');
+    await p.waitForTimeout(500);
     // pins: drawn 10 px at zoom 1, grabbed 6 px out from the centre each way, a title on each
     const pins = await p.evaluate(() => {
       const zoom = new DOMMatrix(getComputedStyle(document.querySelector('.react-flow__viewport')).transform).a;
