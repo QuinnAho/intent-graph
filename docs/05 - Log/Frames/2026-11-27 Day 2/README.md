@@ -50,3 +50,25 @@ Frames 10a to 10f were taken by the lane's end-to-end script on committed code, 
 - **10h, this repo after one click on the count.** Works, with small text: the proposal is selected and in view, and its panel names the declared intent it restates.
 
 Not yet for lane 10: frame 10g. A node shows no key hint until it is selected. Nobody has tried it with a real mouse in a real browser window.
+
+## Lane 11: read the graph at a glance
+
+Taken by `node tools/e2e-glance.mjs --lane-frames <dir> --repo-from <dir>` on the committed lane head `1a1a223`. Frames 11a to 11f are the small calculator example. 11g and 11h are this repo with its real inference report and a canned drift report on three real intents.
+
+| | |
+|---|---|
+| ![11a](11a-first-visit.jpg) | ![11b](11b-daily-view.jpg) |
+| ![11c](11c-count-click.jpg) | ![11f](11f-read-only.jpg) |
+| ![11d](11d-900-wide.jpg) | ![11e](11e-480-wide.jpg) |
+| ![11g](11g-real-repo.jpg) | ![11h](11h-real-repo-480.jpg) |
+
+- **11a, a first visit.** Works: the legend opens by itself and says what each node kind, a dashed outline, the robot and each mark mean, drawn with the real pieces. It lists only kinds this graph holds. In a window 800 px tall the last drift row, the pins and the keys are below the fold, and the legend scrolls inside itself.
+- **11b, the daily view.** Works: one bar across the top with a word beside every number. The spec, the checks, the drift verdicts, what a model inferred and the problems. A count of zero is dim. The robot sits on the two drift marks a model decided and on both inferred intents.
+- **11c, a click on "1 drift".** Works: the count lights up, the node with that drift is selected and in view, and the panel says who decided it.
+- **11f, read only.** Works: the bar says so and why, on a line of its own, and the plus in the concept header is gone.
+- **11d, a window 900 px wide.** Works: the bar wraps onto two lines and nothing is cut off. This is the fault the verifier found, fixed by a second agent. An end-to-end case now checks 900, 700 and 480 px.
+- **11e, a window 480 px wide.** The bar works: four lines, one group a line. Not yet: the graph is not fitted again after the window narrows, so it is cut off on the right. Not tried: a first load at this width.
+- **11g, this repo.** The bar works: 6 concepts, 12 intents, 22 pending, the three drift verdicts and "66 inferred" at one look. The graph under it is not right yet, and that is lane 12: 66 proposals crowd the view and a wire runs through boxes.
+- **11h, this repo at 480 px.** The bar works. The graph does not fit, as in 11e and 11g.
+
+Not yet for lane 11: the problem count shows twice when there is a problem, in the bar and in the chip under the canvas. The chip stays because three end-to-end scripts use it. There is no single "needs attention" total. Group names ("Spec", "Checks", "Drift") show only in a wide window. Nobody has tried it with a real mouse in a real browser window.

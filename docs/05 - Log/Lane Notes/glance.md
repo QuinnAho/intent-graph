@@ -79,3 +79,13 @@ Fix pass after the verifier's four faults:
 - New frames mode: `--lane-frames <dir> [--repo-from <dir>]`.
 
 ## Results
+
+Written by the orchestrator on 2026-11-27. The first builder left this section and the reuse record empty.
+
+- Built at `73aa83f`. An independent verifier ran 16 held-back checks: 15 pass. The fail: in a window 900 px wide the bar was cut off with no way to reach four items.
+- Fixed by a second agent at `1a1a223` (see the builder notes above).
+- Gate on `1a1a223`, each with exit 0: `PASS all (51.5s) - 4 steps, 513 tests`, and PASS for `e2e-glance`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks` and `e2e-wires`.
+- Gate on the merge with lane 14, `c5cbcc6`: `PASS all (65.3s) - 4 steps, 535 tests`, and PASS for the same six scripts and `e2e-agents`.
+- Reuse: no new dependency. The icons come from `lucide-react`, which the page already had.
+- Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, `11a` to `11h`.
+- Left open: on the [[Board]] under Known and in call 9.

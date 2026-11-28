@@ -249,3 +249,26 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **Also.** The owner now leans to a VS Code extension as the main interface. Options and a recommendation are in [[2026-11-27 Interface - Approaches]], waiting for a pick. The owner also gave a standing OK to merge green and verified lanes into `main`.
 
 **Cost.** Lane 14 verifier: sonnet at medium, 96k tokens, 8 minutes. Lane 11 verifier: sonnet at medium, 153k tokens, 16 minutes.
+
+### 2026-11-27, 10:41 PM  Lane 11 verified, fixed and on main
+
+**What happened.** The graph now reads at a glance. A bar across the top counts the spec, the checks, the drift verdicts, what a model inferred and the problems, and every count is a button that goes to the next node in that state. A legend opens on a first visit. The robot sits on everything a model said.
+
+- A fresh verifier ran 16 held-back checks against the running page. 15 pass. The fail: in a window 900 px wide the bar was 1116 px wide and hid four items from the mouse.
+- A second agent fixed it. The bar wraps (two lines at 900 px, four at 480) and stays one 36 px line at 1280. The legend lists only node kinds the graph holds. New end-to-end cases check 900, 700 and 480 px wide and a window 600 px tall.
+- The orchestrator looked at all eight frames. Verdicts are in `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, `11a` to `11h`.
+
+**Why it matters.** The owner said it was hard to tell at first sight what is what, and wants the page in an editor panel, which is narrow. The verifier's one fail was exactly the narrow case.
+
+**Evidence.** The orchestrator's gates, each step with exit 0. Lane head `1a1a223`: `PASS all (51.5s) - 4 steps, 513 tests` and six end-to-end scripts PASS. The merge with lane 14, `c5cbcc6`, in a checkout with no local report: `PASS all (65.3s) - 4 steps, 535 tests`, `PASS e2e-glance (34s)`, `PASS e2e-agents (26.3s)`, `PASS e2e-edit (70.6s)`, `PASS e2e-inferred (37s)`, `PASS e2e-live (35.5s)`, `PASS e2e-drift-marks (22.2s)`, `PASS e2e-wires (40.1s)`.
+
+**Not verified.** The fix had no second verifier: its proof is the new end-to-end cases and the frames. A first load in a narrow window. A real mouse in a real browser window. Key hints on hover were seen in frames only.
+
+**Not yet.** The problem count shows twice when there is a problem. No single "needs attention" total (call 9 on the [[Board]]). The graph is not fitted again when the window narrows. On this repo the graph under the bar is still crowded, which is lane 12.
+
+**Lessons.**
+
+- A held-back check at a narrow width found what the builder, the gate and the orchestrator's look at the frames all missed. Every page lane gets one from now on, at 900 and 480 px.
+- The first builder left its sections of the lane note empty. The orchestrator fills Results from its own gate, so the note is whole either way.
+
+**Cost.** Fix agent: sonnet at medium, 127k tokens, 10 minutes.

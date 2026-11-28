@@ -5,7 +5,7 @@ updated: 2026-11-27
 
 Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules: [[How We Work]].
 
-`main` holds everything through lane 10 and the first half of lane 14. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
+`main` holds everything through lane 11 and the first half of lane 14. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
 
 ## Lanes with a go
 
@@ -15,24 +15,14 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 
 | Lane | What | Status |
 |---|---|---|
-| 11 at a glance | The robot icon on everything a model said, a project state bar that is always there, a legend, key hints. No new data. Lane note: [[glance]] | built at `73aa83f`, worktree `.wt/glance`. Verified: 15 of 16 held-back checks pass. One fault is being fixed on the lane. **Not merged.** See below |
 | 12 fold the proposals | One dashed chip per concept such as "9 inferred" that opens on a click, so many proposals stop crowding a real graph. Fixes the fault below. Call 1, the recommended way unless the owner picks the other | next |
 | 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
-| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, waits for lane 11 to merge. The data holds the time of a lane's newest change only, so "since when" needs one more field |
+| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
 
-### Where lane 11 stands (2026-11-27, about 10:30 PM)
+Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
-`glance` at `73aa83f` was gated by the orchestrator and then checked by an independent verifier: 15 of its 16 held-back checks pass. The full evidence is in the local run folder (`.runs/night-1/verifier/glance.md`, not in git).
-
-- **The one fail.** In a window 900 px wide the bar is 1116 px wide and hides what does not fit. "stale", "inferred", "problems" and "?" cannot be reached by mouse. This matters more since the owner wants the page in an editor panel, which is narrow.
-- **Smaller findings.** The legend is long, so in a window 800 px tall the drift rows, pins and keys are below the fold. It lists three kinds no graph here holds. The problem count shows twice, in the bar and under the canvas. There is no single "needs attention" total.
-- **In work.** A fresh fix agent on the lane: the bar wraps at 900, 700 and 480 px, the legend scrolls inside itself and lists only kinds in the graph, one problem count, and eight frames for the owner.
-
-Next, in order:
-
-1. Gate the fix on its committed head, look at the frames at 900 and 480 px, merge to `day-2` and `main`, and give the owner the frames with a verdict each.
-2. Then lane 12 (fold the proposals), lane 13 (open an intent), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). One page lane at a time: they all touch the same page files.
+Next, in order: lane 12 (fold the proposals), lane 13 (open an intent), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). One page lane at a time: they all touch the same page files. Lane 12 needs a lane note and held-back checks first.
 
 Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
@@ -62,6 +52,7 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 6. **Three spec files still name Codex as a client** (`spec/intents/one-skill-three-clients.md` and two concepts). A spec changes only with a human yes.
 7. **Public repo hygiene.** One small call, written up in the owner's private notes.
 8. **The interface: a VS Code extension?** The owner now leans to one as the main interface, with the three layers linked and one memory. Options and the recommendation: [[2026-11-27 Interface - Approaches]]. Recommended: a thin extension around the page we have, as its own lane after a research pass, and calls 3 and 4 first because they make the links. Needs a new ADR, since ADR 0029 parked the extension host.
+9. **One "needs attention" number in the bar?** The verifier of lane 11 missed a single total. Recommended: yes, at the left of the bar, counting failing, drift, unclear, stale and problems, and a click walks through them. Open: whether what a model inferred counts too. On this repo that is 66 and would drown the rest.
 
 ## Next, not started (each needs a go)
 
@@ -94,4 +85,7 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - Code nodes in `/graph.json` carry an absolute `file://` path in `body.uri`, every module and symbol. Confirmed by the lane 14 verifier on 2026-11-27, and it is the same on `main` before that lane. The data is served on the dev machine only and is not in git, but a paste of it would show a local path. An "open in editor" link needs a path, so settle this in the lane that adds one: a path from the root, and the server knows the root.
 - The run log reader takes the last 1 MB of a log. One line longer than that makes a lane's role, model, effort and task fall back to none, and the branch name is shown.
 - What a real git leaves behind when it is killed at the 3 second limit in the middle of a write is not tested. With a slow fake git: no process and no lock file left.
-- In the legend of lane 11 three node kinds are listed that the page never draws: rationale, counterexample and task.
+- The problem count shows twice when there is a problem: in the bar and in the chip under the canvas. The chip stays because `e2e-edit`, `e2e-live` and `e2e-drift-marks` use it and its list.
+- The graph is not fitted again when the window narrows, so at 480 px it is cut off on the right. A first load at that width was not tried.
+- The group names in the bar ("Spec", "Checks", "Drift") show only in a wide window.
+- 6 of 16 pin handles have no title, on code file and inferred nodes. Seen by the lane 11 verifier, not checked on the commit before that lane.
