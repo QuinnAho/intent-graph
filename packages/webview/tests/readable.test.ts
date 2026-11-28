@@ -97,3 +97,46 @@ describe('nextFitKind', () => {
     expect(nextFitKind('all', true)).toBe('all');
   });
 });
+
+// part b: say what the state means
+import type { Node } from '@xyflow/react';
+import { NO_CHECKS_WORDS, glanceCounts, hasLinkedCheck, pendingTitle } from '../src/app/glance-model.js';
+import { readFolder } from '../src/transport/graph-json-loader.js';
+
+const spec = (id: string, data: Record<string, unknown>): Node => ({ id, type: 'intent', position: { x: 0, y: 0 }, data: { label: id, ...data } });
+
+describe('checks linked', () => {
+  it('a node with nothing in verified_by has no linked check, the bar says so', () => {
+    const nodes = [spec('a', { checkStatus: 'pending', statusReasons: ['no verified_by'] }), spec('b', { checkStatus: 'pending', statusReasons: ['no verified_by'] })];
+    expect(hasLinkedCheck(nodes[0]!)).toBe(false);
+    expect(glanceCounts(nodes).checksLinked).toBe(false);
+    expect(NO_CHECKS_WORDS).toBe('no checks linked yet');
+  });
+  it('one linked test, run or not, shows the counts', () => {
+    expect(glanceCounts([spec('a', { checkStatus: 'pending', statusReasons: ['tests not run yet'] })]).checksLinked).toBe(true);
+    expect(glanceCounts([spec('a', { checkStatus: 'verified' })]).checksLinked).toBe(true);
+    expect(glanceCounts([spec('a', { checkStatus: 'failed', statusReasons: ['t.test.ts: failed'] })]).checksLinked).toBe(true);
+  });
+  it('a proposal never counts as linked', () => {
+    expect(hasLinkedCheck(spec('inferred:x', { checkStatus: 'verified', inferred: { id: 'x', confidence: 'inferred' } }))).toBe(false);
+  });
+});
+
+describe('pendingTitle', () => {
+  it('says what pending means and what would change it', () => {
+    expect(pendingTitle(['no verified_by'])).toMatch(/no test is linked.*verified_by/);
+    expect(pendingTitle(['tests not run yet'])).toMatch(/not run yet/);
+    expect(pendingTitle(['t.test.ts: skipped'])).toMatch(/t\.test\.ts: skipped/);
+    expect(pendingTitle(undefined)).toMatch(/^Pending: /);
+  });
+});
+
+describe('readFolder', () => {
+  it('takes a last segment, never a path', () => {
+    expect(readFolder({ folder: 'intent-graph' })).toBe('intent-graph');
+    expect(readFolder({ folder: 'a/b' })).toBeNull();
+    expect(readFolder({ folder: `a${String.fromCharCode(92)}b` })).toBeNull();
+    expect(readFolder({})).toBeNull();
+    expect(readFolder(null)).toBeNull();
+  });
+});

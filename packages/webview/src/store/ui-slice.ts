@@ -63,6 +63,11 @@ interface UiState {
   /** the legend was opened once in this browser, so the "?" no longer needs its words */
   readonly legendOpenedOnce: boolean;
   setPartialHint(on: boolean): void;
+  /** lane 17: the last segment of the folder the server reads, from graph.json, and whether the page follows it live */
+  readonly folder: string | null;
+  readonly live: boolean;
+  setFolder(folder: string | null): void;
+  setLive(live: boolean): void;
   setEditConfig(config: EditConfig): void;
   openCreate(parent: string): void;
   closeCreate(): void;
@@ -143,6 +148,10 @@ export const useUiStore = create<UiState>((set) => ({
       return { legendOpen, legendOpenedOnce: s.legendOpenedOnce || legendOpen };
     }),
   partialHint: false,
+  folder: null,
+  live: false,
+  setFolder: (folder) => set((s) => (s.folder === folder ? s : { folder })),
+  setLive: (live) => set((s) => (s.live === live ? s : { live })),
   setPartialHint: (partialHint) => set((s) => (s.partialHint === partialHint ? s : { partialHint })),
   legendOpenedOnce: legendOpenedBefore(),
   unfolded: new Set<string>(),

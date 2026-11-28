@@ -33,6 +33,12 @@ import { mergeGraphUpdate } from './graph-merge.js';
 import { SPEC_KINDS } from './live-source.js';
 import { readProblems, useProblemsStore } from '../store/problems.js';
 
+// lane 17: the folder's name the server adds to graph.json, a last segment only
+export function readFolder(envelope: unknown): string | null {
+  const f = (envelope as { folder?: unknown } | null)?.folder;
+  return typeof f === 'string' && f.length > 0 && !/[\\/]/.test(f) ? f : null;
+}
+
 // The build-graph export envelope. Mirrors `toGraphJson()` in
 // packages/skill/src/build-graph.ts. Kept as an inline type rather than a
 // shared schema because the L0 export is a one-way artifact (CLAUDE.md
@@ -138,6 +144,7 @@ export async function loadGraphFromJson(opts: LoadGraphOptions = {}): Promise<vo
   const raw = envelopeToReactFlow(envelope);
   const edges = raw.edges;
   useProblemsStore.getState().setProblems(readProblems(envelope));
+  useUiStore.getState().setFolder(readFolder(envelope));
   if (opts.reveal) {
     const hit = raw.nodes.find((n) => n.id === opts.reveal);
     const key = hit ? foldKeyOf(hit, new Set(raw.nodes.map((n) => n.id))) : null;
@@ -168,6 +175,7 @@ export async function applyGraphUpdate(envelope: GraphJsonEnvelope): Promise<boo
   if (envelope._format !== EXPECTED_FORMAT || envelope._version !== EXPECTED_VERSION) return false;
   const { nodes, edges } = envelopeToReactFlow(envelope);
   useProblemsStore.getState().setProblems(readProblems(envelope));
+  useUiStore.getState().setFolder(readFolder(envelope));
   const prev = useGraphStore.getState();
   // the merge compares what the server sent, so the root fold box is left out on both sides
   const merged = mergeGraphUpdate(withoutFoldBox(prev.nodes), prev.edges, nodes, edges);

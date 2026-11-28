@@ -10,7 +10,7 @@
 // --frames writes the lane frames to .runs/frames-lane17. no model call: every report is canned or copied.
 // prints one line per step, then PASS|FAIL e2e-readable (time) - note. exit 0 only on pass.
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createConnection, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -316,7 +316,50 @@ try {
     await p.close();
     console.log(`ok "?" words (${secs()}s) - at 480 the "?" says "${words}" until the legend was opened once`);
   }
+  // part b: the bar names the folder and says it is live, the Checks counts, the pending mark's title
+  {
+    const p = await ex(1440, 900);
+    const place = await p.evaluate(() => {
+      const f = document.querySelector('[data-bar-folder]');
+      const live = document.querySelector('[data-bar-live]');
+      const pend = document.querySelector('.react-flow__node[data-id="intent-has-no-checks"] [data-check-status="pending"]');
+      return { folder: f?.getAttribute('data-bar-folder') ?? null, folderText: f?.textContent ?? '', live: live?.getAttribute('title') ?? null, noChecks: document.querySelector('[data-bar-no-checks]') !== null, verified: document.querySelector('[data-bar-count="verified"]') !== null, pending: pend?.getAttribute('title') ?? null };
+    });
+    if (place.folder !== basename(work) || /[\\/]/.test(place.folderText)) await fail(`the bar names the folder ${JSON.stringify(place)}, want ${basename(work)}`);
+    if (!place.live || place.live.length < 10) await fail('no live mark with a title in the bar');
+    if (place.noChecks || !place.verified) await fail('the example has linked checks but the bar does not count them');
+    if (!place.pending || !/verified_by/.test(place.pending)) await fail(`the pending mark's title says ${JSON.stringify(place.pending)}`);
+    await p.close();
+    console.log(`ok bar words (${secs()}s) - folder "${place.folder}", live mark, counts with linked checks, pending says "${place.pending}"`);
+  }
   if (!(await stopServer(srv))) await fail('example server did not stop');
+  {
+    // a copy with no verified_by anywhere: the Checks group says so in words
+    const bare = mkdtempSync(join(tmpdir(), 'ig-readable-bare-'));
+    works.push(bare);
+    cpSync(fixture, bare, { recursive: true });
+    for (const kind of ['intents', 'constraints', 'concepts']) {
+      const dir = join(bare, 'spec', kind);
+      if (!existsSync(dir)) continue;
+      for (const f of readdirSync(dir)) {
+        const file = join(dir, f);
+        writeFileSync(file, readFileSync(file, 'utf8').replace(/verified_by:\r?\n(?:\s+- .*\r?\n)*/g, ''));
+      }
+    }
+    const bsrv = await startServer('server-bare', bare, false);
+    const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    watch(p, 'bare');
+    await p.goto(bsrv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await p.locator('.react-flow__node').first().waitFor({ timeout: 30000 });
+    await p.waitForTimeout(600);
+    const words = await p.evaluate(() => ({ text: document.querySelector('[data-bar-no-checks]')?.textContent ?? null, title: document.querySelector('[data-bar-group="checks"]')?.getAttribute('title') ?? '', counts: document.querySelectorAll('[data-bar-group="checks"] [data-bar-count]').length }));
+    if (words.text !== 'no checks linked yet' || words.counts !== 0) await fail(`with no verified_by the Checks group shows ${JSON.stringify(words)}`);
+    if (!/verified_by/.test(words.title)) await fail(`the Checks group's title does not say how to link one: ${words.title}`);
+    await frame(p, 'bar-no-checks');
+    await p.close();
+    if (!(await stopServer(bsrv))) await fail('bare server did not stop');
+    console.log(`ok no checks (${secs()}s) - with no verified_by the Checks group reads "${words.text}", its title says how to link one`);
+  }
 
   if (errors.length) await fail(`${errors.length} console error(s): ${errors[0].slice(0, 160)}`);
   await finish(true, `floor, start corner, F twice, line, minimap, legend on this repo and the example, frames in ${relative(root, runDir).split('\\').join('/')}${wantFrames ? ' and .runs/frames-lane17' : ''}`);

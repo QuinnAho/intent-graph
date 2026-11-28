@@ -273,7 +273,8 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     useUiStore.getState().setEditConfig(readEditConfig(window.__INTENTGRAPH_LIVE__));
-  }, []);
+    useUiStore.getState().setLive(live !== null);
+  }, [live]);
 
   // a node the page just created is selected once a live update brings it, so its panel opens
   useEffect(() => {

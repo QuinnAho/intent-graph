@@ -551,6 +551,9 @@ try {
     await rp.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 60000 });
     await rp.waitForFunction(() => document.querySelector('[data-drift]'), null, { timeout: 15000 }).catch(() => {});
     await rp.waitForTimeout(800);
+    // lane 17: the first view starts readable and may hold part of the graph, F shows all of it
+    await rp.keyboard.press('f');
+    await rp.waitForTimeout(500);
     const rf = await rp.evaluate(readFold);
     const rfit = await rp.evaluate(readFit);
     const drawn = await rp.evaluate(() => [...document.querySelectorAll('.react-flow__node')].map((e) => e.getAttribute('data-id')));
@@ -600,6 +603,9 @@ try {
     await r480.goto(rsrv.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await r480.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 60000 });
     await r480.waitForTimeout(800);
+    // lane 17: F shows all of the graph, as the first view did before
+    await r480.keyboard.press('f');
+    await r480.waitForTimeout(500);
     const fit480r = await r480.evaluate(readFit);
     if (wantFrames) await r480.screenshot({ path: join(framesDir, 'repo-480.jpg'), type: 'jpeg', quality: 85 });
     // new in lane 12 and only held before because the legend shrank the canvas: the first fit shows the declared nodes, code files may lie outside at 480

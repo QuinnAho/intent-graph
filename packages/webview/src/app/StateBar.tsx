@@ -4,7 +4,7 @@
 // so the bar does not jump. it reads the live graph from the store, so it follows every update.
 
 import type { Node } from '@xyflow/react';
-import { CircleHelp, Clock, Lock, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { CircleHelp, Clock, Folder, Lock, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { Children, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon } from '../graph/nodes/nodeIcons.js';
@@ -14,7 +14,7 @@ import { problemsLabel, useProblemsStore } from '../store/problems.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { BAR, COUNT_BUTTON, GROUP, GROUP_HEAD, GROUP_LABEL } from './bar-styles.js';
 import { selectNextIn } from './glance-actions.js';
-import { CHECK_STATES, DRIFT_STATES, GROUP_TITLES, SPEC_STATES, countLabel, countTitle, glanceCounts, type GlanceState } from './glance-model.js';
+import { CHECK_STATES, DRIFT_STATES, GROUP_TITLES, NO_CHECKS_WORDS, SPEC_STATES, countLabel, countTitle, glanceCounts, type GlanceState } from './glance-model.js';
 import { GLANCE_TUNING } from './glance-tuning.js';
 import { InferredCount } from './InferredCount.js';
 
@@ -109,6 +109,26 @@ function ReadOnly(): JSX.Element | null {
   );
 }
 
+// lane 17: the folder the page shows, its last segment only, and a dot while the page is live
+function Place(): JSX.Element | null {
+  const folder = useUiStore((s) => s.folder);
+  const live = useUiStore((s) => s.live);
+  if (!folder && !live) return null;
+  return (
+    <span data-bar-place="" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0, maxWidth: '220px', marginRight: '4px', fontWeight: 600 }}>
+      {folder ? (
+        <span data-bar-folder={folder} title={`The folder this graph is read from: ${folder}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+          <Folder size={14} aria-hidden style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder}</span>
+        </span>
+      ) : null}
+      {live ? <span data-bar-live="" role="img" aria-label="live" title={GROUP_TITLES.live} style={LIVE_DOT} /> : null}
+    </span>
+  );
+}
+
+const LIVE_DOT: CSSProperties = { width: '8px', height: '8px', borderRadius: '50%', background: '#3fb950', boxShadow: '0 0 0 3px rgba(63, 185, 80, 0.2)', flexShrink: 0 };
+
 export const LEGEND_BUTTON_WORDS = 'what the marks mean';
 
 export function LegendButton(): JSX.Element {
@@ -137,15 +157,22 @@ export function LegendButton(): JSX.Element {
 
 export function StateBar(): JSX.Element {
   const nodes = useGraphStore((s) => s.nodes);
-  const { counts, driftReport } = useMemo(() => glanceCounts(nodes as Node[]), [nodes]);
+  const { counts, driftReport, checksLinked } = useMemo(() => glanceCounts(nodes as Node[]), [nodes]);
   return (
     <header style={BAR} data-state-bar="" aria-label="Project state">
+      <Place />
       <Group label="Spec" title={GROUP_TITLES.spec} name="spec">
         {SPEC_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
       </Group>
-      <Group label="Checks" title={GROUP_TITLES.checks} name="checks">
-        {CHECK_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
-      </Group>
+      {checksLinked ? (
+        <Group label="Checks" title={GROUP_TITLES.checks} name="checks">
+          {CHECK_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
+        </Group>
+      ) : (
+        <Group label="Checks" title={GROUP_TITLES.noChecks} name="checks">
+          <span data-bar-no-checks="" style={{ color: MUTED, padding: '0 6px' }}>{NO_CHECKS_WORDS}</span>
+        </Group>
+      )}
       {driftReport ? (
         <Group label="Drift" title={GROUP_TITLES.drift} name="drift">
           {DRIFT_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}

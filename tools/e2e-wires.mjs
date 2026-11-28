@@ -208,6 +208,8 @@ async function measurePage(browser, url, name, errors) {
   for (let i = 0; i < (name === 'repo' ? LOAD_RUNS : 1); i++) loads.push(await loadGraph(page, url));
   loads.sort((a, b) => a - b);
   const loadMs = loads[Math.floor(loads.length / 2)];
+  // lane 17: the first view starts readable and may hold part of the graph, F shows all of it
+  await page.keyboard.press('f');
   await page.waitForTimeout(600);
   const m = await page.evaluate(measureInPage, { parents, ends, samples: SAMPLES, loosePx: LOOSE_PX, inView: false });
   m.loadMs = loadMs;
@@ -276,6 +278,8 @@ try {
 
   // back at the first view: hovering, then selecting, the source of a drawn wire lights its wires and no other
   await loadGraph(rp.page, url);
+  // lane 17: F shows all of the graph, as the first view did before
+  await rp.page.keyboard.press('f');
   await rp.page.waitForTimeout(400);
   const lit = () => rp.page.evaluate(() => [...document.querySelectorAll('.react-flow__edge')].map((g) => `${g.getAttribute('data-id')}=${g.querySelector('[data-wire-lit]')?.getAttribute('data-wire-lit')}`));
   const firstWire = await rp.page.evaluate(() => document.querySelector('.react-flow__edge')?.getAttribute('data-id') ?? null);

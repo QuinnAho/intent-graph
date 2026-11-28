@@ -53,3 +53,19 @@ describe('composeLiveGraph', () => {
     expect(g._version).toBe(1);
   });
 });
+
+// lane 17: the bar names the folder, its last segment only
+describe('folderName', () => {
+  it('is the last segment of the root, never the path', async () => {
+    const { folderName } = await import('../src/live/compose.js');
+    expect(folderName('/ws/projects/intent-graph')).toBe('intent-graph');
+    expect(folderName(String.raw`C:\work\my app\ `.trim())).toBe('my app');
+    expect(folderName(String.raw`C:\ `.trim())).toBe('');
+    expect(folderName('/')).toBe('');
+  });
+  it('rides on the live graph', () => {
+    const g = composeLiveGraph(result, anchors, report, '/ws/demo');
+    expect(g.folder).toBe('demo');
+    expect(JSON.stringify(g)).not.toContain('/ws/demo');
+  });
+});

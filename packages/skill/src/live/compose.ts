@@ -58,6 +58,8 @@ export interface LiveGraph {
   readonly nodes: LiveGraphNode[];
   readonly edges: LiveGraphEdge[];
   readonly problems: LiveProblem[];
+  /** the last segment of the root folder, for the bar (lane 17). never a full path. */
+  readonly folder?: string;
   /** the lanes at work, set when the server reads activity */
   agents?: LiveActivity[];
   [key: string]: unknown;
@@ -82,6 +84,14 @@ export interface LiveActivityInput {
   readonly caseless: boolean;
 }
 
+/** lane 17: the last segment of the root, so the page can name the folder. never the full path. */
+export function folderName(root: string): string {
+  const parts = root.replace(/\\/g, '/').split('/').filter((p) => p.length > 0 && p !== '.');
+  const last = parts[parts.length - 1] ?? '';
+  // a drive root like "C:" names no folder
+  return /^[A-Za-z]:$/.test(last) ? '' : last;
+}
+
 export function composeLiveGraph(
   result: BuildGraphResult,
   anchors: ReadonlyMap<string, NodeAnchors>,
@@ -100,6 +110,7 @@ export function composeLiveGraph(
   });
   const graph: LiveGraph = {
     ...parsed,
+    folder: folderName(root),
     problems: [...result.summary.errors.map(toProblem('error')), ...result.summary.warnings.map(toProblem('warning')), ...(drift?.problem ? [drift.problem] : []), ...(infer?.problem ? [infer.problem] : [])],
   };
   // a loop made by hand has no top to draw from, so say it once and name its files

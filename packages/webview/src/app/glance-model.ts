@@ -19,7 +19,32 @@ export interface GlanceCounts {
   readonly counts: Readonly<Record<GlanceState, number>>;
   /** at least one node carries a drift verdict */
   readonly driftReport: boolean;
+  /** lane 17: at least one declared node has a test in verified_by */
+  readonly checksLinked: boolean;
 }
+
+// the server's reason for a node with nothing in verified_by (check-status.ts)
+const NO_VERIFIED_BY = 'no verified_by';
+
+/** a declared node with a check status whose reason is not "no verified_by" has a linked check */
+export function hasLinkedCheck(node: Pick<Node, 'type' | 'data'>): boolean {
+  if (inferredOf(node) !== null) return false;
+  const d = (node.data ?? {}) as GlanceData & { statusReasons?: unknown };
+  if (typeof d.checkStatus !== 'string' || !CHECK_SET.has(d.checkStatus)) return false;
+  const reasons: unknown[] = Array.isArray(d.statusReasons) ? d.statusReasons : [];
+  return !reasons.includes(NO_VERIFIED_BY);
+}
+
+/** lane 17: the title of a node's pending mark, what pending means and what would change it */
+export function pendingTitle(reasons: ReadonlyArray<string> | undefined): string {
+  const r = reasons ?? [];
+  if (r.length === 0 || r.includes(NO_VERIFIED_BY)) return 'Pending: no test is linked to this node. Add a test to verified_by in its file to get verified or failing.';
+  if (r.includes('tests not run yet')) return 'Pending: the linked tests have not run yet. They run when the page starts or a linked file changes.';
+  return `Pending: a linked test gave no result (${r.join(', ')}). Fix or unskip it to get verified or failing.`;
+}
+
+/** the words in the Checks group when no node has a linked check */
+export const NO_CHECKS_WORDS = 'no checks linked yet';
 
 const SPEC_SET: ReadonlySet<string> = new Set(SPEC_STATES);
 const CHECK_SET: ReadonlySet<string> = new Set(CHECK_STATES);
@@ -48,11 +73,13 @@ export function statesOf(node: Pick<Node, 'type' | 'data'>): GlanceState[] {
 export function glanceCounts(nodes: ReadonlyArray<Node>): GlanceCounts {
   const counts = Object.fromEntries(GLANCE_STATES.map((s) => [s, 0])) as Record<GlanceState, number>;
   let driftReport = false;
+  let checksLinked = false;
   for (const n of nodes) {
     for (const s of statesOf(n)) counts[s] += 1;
     if ((n.data as GlanceData | undefined)?.drift) driftReport = true;
+    if (!checksLinked && hasLinkedCheck(n)) checksLinked = true;
   }
-  return { counts, driftReport };
+  return { counts, driftReport, checksLinked };
 }
 
 /** the node kinds the legend lists: the ones the bar counts, and any other kind the graph holds a node of */
@@ -112,6 +139,8 @@ export const GROUP_TITLES = {
   checks: 'Check status from the tests in verified_by',
   drift: 'Drift: does the code still do what the spec says',
   noDrift: 'No drift report. Run the drift check to see whether the code still matches the spec.',
+  noChecks: "No node has a test linked yet. Add a test file to verified_by in an intent's file and its result shows here.",
+  live: 'Live: the page follows the spec files and redraws when one changes.',
 } as const;
 
 /** the robot's words, on everything a model said and no person confirmed */

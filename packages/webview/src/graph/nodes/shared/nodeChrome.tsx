@@ -4,12 +4,12 @@
 // plus their per-kind body. This is the "chrome, health backgrounds, dim/ghost/
 // highlight states, hidden handles" surface called out in the lift plan.
 
-import { Handle, Position, useNodeId } from '@xyflow/react';
+import { Handle, Position, useNodeId, useNodesData } from '@xyflow/react';
 import { CircleCheck, CircleDashed, CircleHelp, CircleX, Equal, OctagonAlert, ShieldCheck, TriangleAlert, Bot } from 'lucide-react';
 import { useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 
 import { GLANCE_TUNING } from '../../../app/glance-tuning.js';
-import { inferredKeyHint, modelDecided, ROBOT_DRIFT_TITLE, ROBOT_TITLE } from '../../../app/glance-model.js';
+import { inferredKeyHint, modelDecided, pendingTitle, ROBOT_DRIFT_TITLE, ROBOT_TITLE } from '../../../app/glance-model.js';
 import { inferredWords, sameAsLabel, type InferredInfo } from '../../../app/inferred-model.js';
 import { useUiStore } from '../../../store/ui-slice.js';
 import { SPEC_KINDS } from '../../../transport/live-source.js';
@@ -105,13 +105,13 @@ const CHECK_MEANING: Record<CheckStatus, string> = {
   pending: 'no test result yet',
 };
 
-export function StatusMark(props: { status: CheckStatus }): JSX.Element {
+export function StatusMark(props: { status: CheckStatus; reasons?: ReadonlyArray<string> }): JSX.Element {
   const { Icon, color, border } = CHECK_MARK[props.status];
   return (
     <span
       data-check-status={props.status}
       aria-label={`checks ${props.status}`}
-      title={`checks ${props.status}: ${CHECK_MEANING[props.status]}`}
+      title={props.status === 'pending' ? pendingTitle(props.reasons) : `checks ${props.status}: ${CHECK_MEANING[props.status]}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -364,6 +364,9 @@ const PENDING_TITLE_MS = 5000;
 export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNode; under?: ReactNode }): JSX.Element {
   const { data } = props;
   const nodeId = useNodeId();
+  // lane 17: the pending mark says why, from the server's reasons on the node
+  const ownData = useNodesData(nodeId ?? '')?.data as { statusReasons?: ReadonlyArray<string> } | undefined;
+  const reasons = ownData?.statusReasons;
   const renaming = useUiStore((s) => nodeId !== null && s.renameId === nodeId);
   // a title can be renamed in place only on a spec node and only when the server takes writes
   const renamable = useUiStore((s) => s.editConfig.write) && SPEC_KINDS.has(data.kind);
@@ -450,7 +453,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
             {renaming && nodeId ? <RenameField id={nodeId} label={data.label} /> : null}
           </span>
           {data.warnings && data.warnings.length > 0 ? <WarningMark warnings={data.warnings} /> : null}
-          {data.checkStatus ? <StatusMark status={data.checkStatus} /> : null}
+          {data.checkStatus ? <StatusMark status={data.checkStatus} {...(reasons ? { reasons } : {})} /> : null}
           {data.drift ? <DriftMark drift={data.drift} /> : null}
           {props.headerAction}
           {showPip && data.health ? (
