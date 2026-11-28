@@ -456,6 +456,9 @@ try {
 
   // open survives a rename in place, a move into another concept, its undo and a live update
   const twoFile = join(work, 'spec', 'intents', 'adds-numbers.md');
+  // the row click centred the code node, the intent may be outside the view and not drawn
+  await page.keyboard.press('f');
+  await settled(page);
   let v = await graphVersion(page);
   await page.locator(`${node(TWO)} [data-node-title]`).click();
   await page.keyboard.press('F2');
@@ -629,12 +632,13 @@ try {
     await rpage.goto(rsrv.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await rpage.waitForFunction(() => document.querySelectorAll('[data-nest-toggle]').length > 0 || document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 60000 });
     await closeLegend(rpage);
-    const rv = await graphVersion(rpage);
     const tok = await rpage.evaluate(() => window.__INTENTGRAPH_LIVE__.token);
     const acc = await rpage.evaluate(async ([id, t]) => { const r = await fetch(`/api/inferred/accept?id=${encodeURIComponent(id)}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-intentgraph-token': t }, body: '{}' }); return { status: r.status, body: await r.json() }; }, [pid, tok]);
     if (acc.status !== 201) await fail(`accept answered ${acc.status}: ${JSON.stringify(acc.body)}`);
     const iid = acc.body.id;
-    await waitVersion(rpage, rv);
+    // the repo's rebuild can take a while, wait for the server to hold the new intent with its code
+    const until = Date.now() + 60000;
+    while (Date.now() < until && !(await graphShape(rsrv.url)).graph.nodes.some((n) => n.id === iid && n.code)) await new Promise((r) => setTimeout(r, 250));
     await rpage.goto(`${rsrv.url}?focus=${encodeURIComponent(iid)}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await rpage.locator(`${node(iid)} [data-nest-toggle]`).waitFor({ timeout: 60000 });
     await closeLegend(rpage);

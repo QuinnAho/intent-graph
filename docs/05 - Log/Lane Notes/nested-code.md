@@ -100,8 +100,22 @@ Looked at before the start, the builder adds what it finds:
 - React Flow sub-flows: already used for concepts. Borrow nothing new.
 - React Flow's expand and collapse example: a paid example. Skip the code, the idea is the same as the fold.
 - The fold of lane 12: borrow the state, the model, the layout call and the row.
+- Builder: borrowed `refold()`, `footOf`, `absolutePosition` and the view shift from the fold as they were. `findTarget` moved from `compose.ts` to `S/code-refs.ts` so the server list and the edges use one rule.
+- Builder: React Flow's own `setCenter` brings a code node into view, `createPortal` from react-dom puts the menu on the page body. Nothing new installed.
 
 ## Builder notes
+
+- Server: each declared spec node with `realized_by` gets `code`, one entry per anchor in the file's order: `raw`, `path`, `name` when it names a symbol, `target` (the code node id or null), `line` from 1 when it resolved to a symbol, `symbol_missing`. Schema `LiveCodeRefSchema` in `packages/shared/src/schemas/code-ref.ts`. Code nodes get `path` (read from the id) and symbols `line`, and `body.uri` is dropped. Nothing outside the page read `body.uri`. Edges and warnings are unchanged.
+- State: the open intents are `useUiStore.nested`, a set of ids. `applyNest()` in `W/graph/nest-model.ts` puts `data.nest = { count, open }` on every declared intent with code, on load, live update and toggle, next to `applyFold()`. Proposals never open in this lane.
+- One count per node (the orchestrator's call on step 4): the old "N code" pin chip goes away on an intent with code, and the new count is the one control. The chip's wire meaning moved into the count's title ("1 wire from the code block is not drawn."). The chip stays on every other node and for "spec" wires. Rule: `chipHidden()` in `nest-model.ts`.
+- Sizes (`NEST_TUNING` in `W/graph/view-tuning.ts`): the count line is 24 px and fits the room a closed node already has, so a closed node does not grow. Open adds 26 px per row plus 8 px. The node stays 420 px wide, the spec width the layout already gives every spec node, so it never needed the note's 300 px.
+- Closed nodes take their own height again: `applyLayout` drops a height left by an earlier open. Closing everything puts every node back within 0 px in the script.
+- Speed: opening one intent in this repo's copy took about 1.5 s, mostly layout. The layout of each block is now cached by a key of its nodes, sizes and wire ends (`W/graph/layout/layout-cache.ts`), so the code block is not laid out again on a toggle. Median now about 0.8 s. The fold of lane 12 gets the same cache.
+- Clicks: a row in the editor panel calls `openInEditor(path, line)`. In a browser tab it selects the code node and `ApplyViewFocus` in `GraphCanvas.tsx` centres it. A double-click or Enter on a selected code node opens the editor, in a tab nothing happens. A row whose code is not found is `aria-disabled` and does nothing.
+- Keys: O works on the focused intent, else the selected one. It is read in the same capture handler as F2 and Enter, so any field, button or open menu keeps the letter. After a toggle the focus is put back on the node after two frames, a layout can drop it.
+- Menu: drawn through a portal on the page body, so the side panel can no longer cover it. Intent menus get "Show code" or "Hide code" last, so the keyboard order of Rename and Edit details did not move. It works on a read-only page.
+- Words on screen the owner may want to reword: "2 code" (the count), "Show code" and "Hide code" (menu), "No code bound to it" (disabled reason), "code not found" and "symbol not found, file linked" (row notes), the count's title "Show the 2 pieces of code this intent is bound to. O opens it.", a row's title "add in src/math.ts. Click to open it in the editor at line 1." or "... Click to select it in the graph.", the legend row "The code an intent is bound to. Click it or press O to list it, click a row to go to the code." and the key row "Show or hide the code of the selected intent."
+- `e2e-nested.mjs` makes its own example in the temp copy: two anchors with one a bare path, an intent whose code is not there, and a second concept to move into.
 
 ## Results
 
