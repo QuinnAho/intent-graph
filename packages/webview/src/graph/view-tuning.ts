@@ -26,7 +26,8 @@ export const FOLD_TUNING = {
 
 // an intent opened in place to list its code (lane 13)
 export const NEST_TUNING = {
-  // height of one code row, and the room left under the last row to the node's border, px
+  // height of one code row, and the room kept under the last row, px. an open node is as tall as its content,
+  // so this room is the same on every node. the layout also reserves padPx per node, as spare room.
   rowPx: 26,
   padPx: 8,
   // height of the "2 code" line under the header, it fits the room a closed node already has

@@ -69,8 +69,9 @@ export function nestFootPx(n: Node): number {
   return nest.count * NEST_TUNING.rowPx + NEST_TUNING.padPx;
 }
 
-export function nestCountLabel(count: number): string {
-  return `${count} code`;
+/** "2 code" closed, "hide 2 code" open, so the open count reads as the way to close (as the fold row does) */
+export function nestCountLabel(count: number, open = false): string {
+  return open ? `hide ${count} code` : `${count} code`;
 }
 
 /** the count's title. wires is how many realizes wires from the code block are not drawn, the meaning the old pin chip had. */

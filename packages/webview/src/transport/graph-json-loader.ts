@@ -27,7 +27,7 @@ import { LayoutCache, layoutKey } from '../graph/layout/layout-cache.js';
 import { FOLD_TUNING, VIEW_TUNING } from '../graph/view-tuning.js';
 import { FOLD_BOX_KIND, applyFold, foldKeyOf, foldOf, withoutFoldBox } from '../graph/fold-model.js';
 import { inferredOf } from '../app/inferred-model.js';
-import { applyNest, nestFootPx, nestShape } from '../graph/nest-model.js';
+import { applyNest, nestFootPx, nestOf, nestShape } from '../graph/nest-model.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { mergeGraphUpdate } from './graph-merge.js';
 import { SPEC_KINDS } from './live-source.js';
@@ -357,6 +357,12 @@ async function applyLayout(nodes: ReadonlyArray<Node>, edges: ReadonlyArray<Edge
     nodes.map((n) => {
       const p = placed.get(n.id);
       if (!p) return n;
+      // an open intent is as tall as its rows, the layout only reserves room for it, so no spare room shows at its foot
+      if (p.size && nestOf(n)?.open) {
+        const open: Node = { ...n, position: p.position, width: p.size.width };
+        delete open.height;
+        return open;
+      }
       if (p.size) return { ...n, position: p.position, width: p.size.width, height: p.size.height };
       if (!isSpec(n)) return { ...n, position: p.position };
       // a node that was open had its height from the layout, closed it takes its own height again
