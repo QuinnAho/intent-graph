@@ -16,6 +16,20 @@ export const LIVE_TUNING = {
   driftPollMs: 400,
   // how often the server looks for a new inference report or settled list. it only stats and reads files.
   inferPollMs: 400,
+  // how often the server asks git which worktrees are at work. only read commands, a tick is skipped while one runs.
+  activityPollMs: 5000,
+  // a lane whose newest change is younger than this is active, older is idle
+  activeWindowMs: 10 * 60 * 1000,
+  // each git call is killed after this and counts as no activity
+  gitTimeoutMs: 3000,
+  // the most worktrees the graph lists
+  maxWorktrees: 20,
+  // the most files listed for one lane, past this the entry says it was cut
+  maxLaneFiles: 2000,
+  // only the tail of a run log this big is read
+  runLogMaxBytes: 1024 * 1024,
+  // longest role, model, effort or task text taken from the run log
+  runLogTextMax: 200,
   // largest json body a save or create may send
   maxRequestBytes: 256 * 1024,
   // writes (save, create, parent) the server remembers so undo can take them back

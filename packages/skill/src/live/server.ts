@@ -25,6 +25,7 @@ import { INFERRED_PREFIX, addAccepted, openProposals, settledText } from './infe
 import { inferSignature, readInferSnapshot, settledPath, type InferSnapshot } from './infer-reader.js';
 import { composeLiveGraph, diffProblems, type LiveGraph, type LiveProblem } from './compose.js';
 import { runLinkedTests, type TestRunHandle } from './test-runner.js';
+import { NO_ACTIVITY, activityKey, createActivityReader, type ActivitySnapshot } from './activity-reader.js';
 import { LIVE_TUNING, type LiveTuning } from './tuning.js';
 
 export interface LiveServerOptions {
@@ -126,6 +127,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
   let report: TestReport | null = null;
   let drift: DriftSnapshot = NO_DRIFT;
   let infer: InferSnapshot = { proposals: null, settled: { dismissed: [], accepted: [] }, problem: null };
+  let activity: ActivitySnapshot = NO_ACTIVITY;
   let graph: LiveGraph | null = null;
   let graphText = '';
   let problems: LiveProblem[] = [];
@@ -153,7 +155,7 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       }
     };
     const marks = drift.pairs ? buildDriftMarks(drift.pairs, drift.writtenAtMs, realized, mtimeOf) : new Map();
-    graph = composeLiveGraph(result, anchors, report, root, { marks, problem: drift.problem }, { proposals: openNow(), problem: infer.problem });
+    graph = composeLiveGraph(result, anchors, report, root, { marks, problem: drift.problem }, { proposals: openNow(), problem: infer.problem }, { agents: activity.agents, lanes: activity.lanes, caseless: process.platform === 'win32' });
     // one log line per new problem and per fixed file, not one per rebuild
     const changes = diffProblems(problems, graph.problems);
     for (const p of changes.added) log(`spec ${p.severity}: ${p.file}: ${p.message}`);
@@ -443,6 +445,32 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
     log(`inference report v${version}: ${infer.proposals ? `${openNow().length} open of ${infer.proposals.length}` : infer.problem ? 'unusable' : 'none'}`);
   }, tuning.inferPollMs);
 
+  // which worktrees are at work: git read commands off the event loop, never two ticks at once,
+  // and a new graph only when the answer changed. a failure is one log line and no agents.
+  const activityReader = createActivityReader(root, tuning);
+  let activityRun: Promise<void> | null = null;
+  let activitySeen = activityKey(NO_ACTIVITY);
+  let activityReason: string | null = null;
+  const activityTick = (): void => {
+    if (closed || activityRun) return;
+    activityRun = activityReader.read(Date.now()).then((snap) => {
+      activityRun = null;
+      if (closed) return;
+      if (snap.reason !== activityReason) {
+        activityReason = snap.reason;
+        if (snap.reason) log(`activity: ${snap.reason}`);
+      }
+      const key = activityKey(snap);
+      if (key === activitySeen) return;
+      activitySeen = key;
+      activity = snap;
+      publish();
+      log(`activity v${version}: ${snap.agents.length} lanes, ${snap.agents.filter((a) => a.state === 'active').length} active`);
+    });
+  };
+  activityTick();
+  const activityPoll = setInterval(activityTick, tuning.activityPollMs);
+
   const keepAlive = setInterval(() => {
     for (const c of clients) c.write(': ping\n\n');
   }, tuning.keepAliveMs);
@@ -464,7 +492,10 @@ export async function startLiveServer(opts: LiveServerOptions): Promise<LiveServ
       clearInterval(keepAlive);
       clearInterval(driftPoll);
       clearInterval(inferPoll);
+      clearInterval(activityPoll);
       testRun?.cancel();
+      // a git read in flight ends within its time limit, wait so nothing runs after close
+      await activityRun;
       await watcher.close();
       for (const c of clients) c.end();
       clients.clear();

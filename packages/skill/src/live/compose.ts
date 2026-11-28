@@ -1,10 +1,11 @@
 // the live graph: the static export from build-graph plus realized_by edges,
 // a check status on spec nodes, and anchor warnings on the node they belong to.
 
-import type { InferProposalRow, LiveDrift, LiveInferred } from '@intentgraph/shared/schemas';
+import type { InferProposalRow, LiveActivity, LiveDrift, LiveInferred, NodeActivity } from '@intentgraph/shared/schemas';
 
 import { toGraphJson, type BuildGraphResult } from '../build-graph.js';
 import { parseAnchor, type NodeAnchors } from '../parser/spec-md/anchors.js';
+import { activityMarks, type LaneFiles } from './activity-marks.js';
 import { mapCheckStatus, toRelative, type CheckStatus, type TestReport } from './check-status.js';
 import { inferredNodeId, liveInferred } from './infer-marks.js';
 import { findParentLoops } from './parent-rules.js';
@@ -32,6 +33,8 @@ export interface LiveGraphNode {
   drift?: LiveDrift;
   /** set only on a proposal a model inferred from the code, not yet accepted */
   inferred?: LiveInferred;
+  /** the lanes at work on this node, set only when one is */
+  activity?: NodeActivity[];
 }
 
 export interface LiveGraphEdge {
@@ -48,6 +51,8 @@ export interface LiveGraph {
   readonly nodes: LiveGraphNode[];
   readonly edges: LiveGraphEdge[];
   readonly problems: LiveProblem[];
+  /** the lanes at work, set when the server reads activity */
+  agents?: LiveActivity[];
   [key: string]: unknown;
 }
 
@@ -63,6 +68,13 @@ export interface LiveInferInput {
   readonly problem: LiveProblem | null;
 }
 
+/** the work in progress: one entry per lane, the paths each changed, and whether paths compare without case */
+export interface LiveActivityInput {
+  readonly agents: ReadonlyArray<LiveActivity>;
+  readonly lanes: ReadonlyArray<LaneFiles>;
+  readonly caseless: boolean;
+}
+
 export function composeLiveGraph(
   result: BuildGraphResult,
   anchors: ReadonlyMap<string, NodeAnchors>,
@@ -70,6 +82,7 @@ export function composeLiveGraph(
   root: string,
   drift: LiveDriftInput | null = null,
   infer: LiveInferInput | null = null,
+  activity: LiveActivityInput | null = null,
 ): LiveGraph {
   const parsed = JSON.parse(toGraphJson(result)) as LiveGraph;
   const toProblem = (severity: LiveProblem['severity']) => (p: { readonly file: string; readonly message: string }): LiveProblem => ({
@@ -112,7 +125,26 @@ export function composeLiveGraph(
     if (warnings.length > 0) node.warnings = warnings;
   }
   if (infer) addInferred(graph, infer.proposals, ids, symbolIds);
+  if (activity) addActivity(graph, anchors, root, activity);
   return graph;
+}
+
+/** the agents list at the top, and on each node the lanes that touch it */
+function addActivity(graph: LiveGraph, anchors: ReadonlyMap<string, NodeAnchors>, root: string, activity: LiveActivityInput): void {
+  graph.agents = activity.agents.map((a) => ({ ...a }));
+  if (activity.lanes.every((l) => l.paths.length === 0)) return;
+  const specFiles = new Map<string, string>();
+  const testFiles = new Map<string, string[]>();
+  for (const [id, a] of anchors) {
+    const file = (a as { file?: unknown }).file;
+    if (typeof file === 'string') specFiles.set(id, toRelative(file, root));
+    if (a.verifiedBy.length > 0) testFiles.set(id, a.verifiedBy.map((v) => v.path));
+  }
+  const marks = activityMarks({ nodes: graph.nodes, edges: graph.edges, specFiles, testFiles }, activity.lanes, activity.caseless);
+  for (const node of graph.nodes) {
+    const m = marks.get(node.id);
+    if (m) node.activity = m;
+  }
 }
 
 /** each open proposal as an intent node marked inferred, under its concept, with realizes edges from the code it cites */
