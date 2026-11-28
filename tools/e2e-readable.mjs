@@ -187,6 +187,17 @@ async function acceptTimed(p, work, proposalId, title) {
   const file = join(work, 'spec', 'intents', `${slug(title)}.md`);
   return { ms, id, file, written: existsSync(file), ...after };
 }
+// runs in the page: how many lines the bar's items take, by their tops
+function barRows() {
+  const bar = document.querySelector('[data-state-bar]');
+  const tops = new Set();
+  for (const el of bar.querySelectorAll('button, [data-bar-no-checks], [data-bar-no-drift], [data-bar-folder], [data-bar-read-only]')) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0) tops.add(Math.round(r.top + r.height / 2));
+  }
+  const merged = [...tops].sort((a, b) => a - b).filter((t, i, a) => i === 0 || t - a[i - 1] > 8);
+  return { rows: merged.length, height: bar.getBoundingClientRect().height, sideways: bar.scrollWidth > bar.clientWidth, text: bar.textContent.slice(0, 160) };
+}
 const overlap = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 const rectOf = (p, sel) => p.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } : null; }, sel);
 
@@ -231,7 +242,7 @@ try {
     return p;
   };
 
-  const sizes = [[1440, 900], [700, 800], [480, 800]];
+  const sizes = [[1440, 900], [900, 800], [700, 800], [480, 800]];
   const seen = [];
   for (const [w, h] of sizes) {
     const p = await open(w, h);
@@ -270,6 +281,26 @@ try {
     await p.close();
   }
   console.log(`ok floor (${secs()}s) - ${seen.join(' | ')}`);
+
+  // part d on this repo: the bar takes two lines at most at 480, and Tab reaches the line at the foot
+  {
+    const p = await open(480, 800);
+    const rows = await p.evaluate(barRows);
+    if (rows.rows > 2) await fail(`at 480 the bar takes ${rows.rows} lines: ${rows.text}`);
+    if (rows.sideways) await fail('at 480 the bar scrolls sideways');
+    await frame(p, 'bar-480-repo', { clip: { x: 0, y: 0, width: 480, height: 140 } });
+    await p.locator('[data-state-bar]').click({ position: { x: 2, y: 2 } });
+    let reached = false;
+    for (let i = 0; i < 60 && !reached; i++) {
+      await p.keyboard.press('Tab');
+      reached = await p.evaluate(() => document.activeElement?.hasAttribute('data-partial-hint') === true);
+    }
+    if (!reached) await fail('Tab never reaches the line at the foot');
+    const title = await p.locator('[data-partial-hint]').getAttribute('title');
+    if (!title) await fail('the line at the foot has no title');
+    await p.close();
+    console.log(`ok narrow repo (${secs()}s) - at 480 the bar takes ${rows.rows} lines, Tab reaches the line at the foot`);
+  }
 
   // the line goes when the person moves the view, the minimap moves the view
   {
@@ -393,7 +424,16 @@ try {
     if (ratio < 4.5 || wordRatio < 4.5) await fail(`a planned proposal's text is ${ratio.toFixed(2)} to 1, its words ${wordRatio.toFixed(2)} to 1, want 4.5 or more`);
     if (!(look.opacity < 1)) await fail('a planned proposal is no fainter than the rest');
     if (look.words.some((w) => w.title.length < 20)) await fail(`a proposal tag has no plain title: ${JSON.stringify(look.words)}`);
-    const plan = await rectOf(p, '.react-flow__node[data-id="inferred:inf-plan"]');
+    let plan = await rectOf(p, '.react-flow__node[data-id="inferred:inf-plan"]');
+    // pan it up from the window's foot for the frame, a drag on empty canvas left of the concept
+    if (plan.bottom > 700) {
+      await p.mouse.move(60, 820);
+      await p.mouse.down();
+      await p.mouse.move(60, 820 - (plan.top - 300), { steps: 8 });
+      await p.mouse.up();
+      await p.waitForTimeout(400);
+      plan = await rectOf(p, '.react-flow__node[data-id="inferred:inf-plan"]');
+    }
     const clipTop = Math.max(0, plan.top - 30);
     await frame(p, 'planned-proposal-close', { clip: { x: Math.max(0, plan.left - 20), y: clipTop, width: Math.min(plan.width + 40, 1440), height: Math.min(Math.max(plan.height + 60, 180), 900 - clipTop) } });
     // pins: drawn 10 px at zoom 1, grabbed 6 px out from the centre each way, a title on each
@@ -464,6 +504,32 @@ try {
     if (Math.max(...times) >= ACCEPT_LIMIT_MS) await fail(`accept to drawn took ${times.join(', ')} ms on the example, want under ${ACCEPT_LIMIT_MS}`);
     await p.close();
     console.log(`ok accept (${secs()}s) - toast names the file with Undo, the new intent is selected, click to drawn ${times.join(', ')} ms`);
+  }
+
+  // part d on the example: under 600 px the panel is a sheet at the foot, the selected node above it, the bar two lines
+  {
+    const p = await ex(480, 800);
+    const rows = await p.evaluate(barRows);
+    if (rows.rows > 2) await fail(`at 480 the example's bar takes ${rows.rows} lines`);
+    await frame(p, 'bar-480-example', { clip: { x: 0, y: 0, width: 480, height: 140 } });
+    const target = '.react-flow__node[data-id="intent-has-no-checks"]';
+    await p.locator(target).click({ position: { x: 30, y: 20 } });
+    await p.locator('[data-edit-panel]').waitFor({ timeout: SHOW_LIMIT_MS });
+    await p.waitForTimeout(900);
+    const sheet = await p.evaluate((sel) => {
+      const panel = document.querySelector('[data-edit-panel]');
+      const pr = panel.getBoundingClientRect();
+      const c = document.querySelector('.react-flow').getBoundingClientRect();
+      const n = document.querySelector(sel)?.getBoundingClientRect();
+      return { sheet: panel.getAttribute('data-sheet'), top: pr.top, bottom: pr.bottom, left: pr.left, right: pr.right, height: pr.height, cTop: c.top, cBottom: c.bottom, cHeight: c.height, node: n ? { top: n.top, bottom: n.bottom, left: n.left, right: n.right } : null, win: innerWidth };
+    }, target);
+    if (sheet.sheet !== 'true') await fail('at 480 the panel is not a sheet');
+    if (sheet.height > sheet.cHeight / 2 + 1) await fail(`the sheet is ${Math.round(sheet.height)} px of a ${Math.round(sheet.cHeight)} px canvas, more than half`);
+    if (sheet.bottom > sheet.cBottom + 1 || sheet.left < 0 || sheet.right > sheet.win) await fail(`the sheet is not at the foot: ${JSON.stringify(sheet)}`);
+    if (!sheet.node || sheet.node.bottom > sheet.top || sheet.node.top < sheet.cTop) await fail(`the selected node is not above the sheet: ${JSON.stringify(sheet)}`);
+    await frame(p, 'sheet-480');
+    await p.close();
+    console.log(`ok sheet (${secs()}s) - at 480 the panel is a sheet of ${Math.round(sheet.height)} px under a ${Math.round(sheet.cHeight)} px canvas, the selected node sits above it, the bar takes ${rows.rows} lines`);
   }
   if (!(await stopServer(srv))) await fail('example server did not stop');
   {

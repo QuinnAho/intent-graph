@@ -122,7 +122,7 @@ function KeepInView(props: { nodeId: string | null; nodes: ReadonlyArray<Node> }
         if (!inner || !width || !height) return;
         box = { x: inner.internals.positionAbsolute.x, y: inner.internals.positionAbsolute.y, width, height };
       }
-      const next = viewToClearPanel(box, view, { width: canvasWidth, height: canvasHeight });
+      const next = viewToClearPanel(box, view, { width: canvasWidth, height: canvasHeight }, window.innerWidth < PANEL_TUNING.sheetBelowPx);
       if (next) void rf.setViewport(next, { duration: 200 });
     }, PANEL_TUNING.settleMs);
     return () => window.clearTimeout(frame);

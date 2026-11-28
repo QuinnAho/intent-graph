@@ -15,16 +15,20 @@ export interface View {
   readonly zoom: number;
 }
 
-/** free space left of the panel, in screen pixels */
-export function freeArea(canvas: { width: number; height: number }, panelOpen: boolean): Box {
+/** free space left of the panel, or above it when the panel is a sheet at the foot (lane 17), in screen pixels */
+export function freeArea(canvas: { width: number; height: number }, panelOpen: boolean, sheet = false): Box {
+  if (panelOpen && sheet) {
+    const above = canvas.height * (1 - PANEL_TUNING.sheetShare) - PANEL_TUNING.margin - PANEL_TUNING.gap;
+    return { x: PANEL_TUNING.pad, y: PANEL_TUNING.pad, width: Math.max(1, canvas.width - 2 * PANEL_TUNING.pad), height: Math.max(1, above - PANEL_TUNING.pad) };
+  }
   const right = panelOpen ? PANEL_TUNING.width + PANEL_TUNING.margin + PANEL_TUNING.gap : PANEL_TUNING.pad;
   const width = Math.max(1, canvas.width - PANEL_TUNING.pad - right);
   return { x: PANEL_TUNING.pad, y: PANEL_TUNING.pad, width, height: Math.max(1, canvas.height - 2 * PANEL_TUNING.pad) };
 }
 
 /** null when the node already sits inside the free area, else the view that centres it there */
-export function viewToClearPanel(node: Box, view: View, canvas: { width: number; height: number }): View | null {
-  const free = freeArea(canvas, true);
+export function viewToClearPanel(node: Box, view: View, canvas: { width: number; height: number }, sheet = false): View | null {
+  const free = freeArea(canvas, true, sheet);
   const left = node.x * view.zoom + view.x;
   const top = node.y * view.zoom + view.y;
   const inside =

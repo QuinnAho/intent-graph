@@ -6,6 +6,10 @@ export const GLANCE_TUNING = {
   legendWidth: 340,
   /** under this window width the legend does not open by itself, and opens full width */
   narrowPx: 700,
+  /** lane 17: under this width the bar folds zero counts and group labels away, so it takes two lines at most */
+  compactBarPx: 600,
+  /** the folder name is cut to this width in a compact bar, the full name is in its title */
+  compactFolderPx: 110,
   /** set once the legend has opened by itself, so it stays closed on later visits */
   legendSeenKey: 'intentgraph.legend.seen',
   /** a zero count is drawn this faint, never hidden */

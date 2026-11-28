@@ -42,6 +42,25 @@ const PANEL: CSSProperties = {
   fontSize: '13px',
 };
 
+// lane 17: under 600 px the panel is a sheet at the foot, half the canvas at most, the graph stays visible above
+const SHEET: CSSProperties = {
+  ...PANEL,
+  top: 'auto',
+  left: `${PANEL_TUNING.margin}px`,
+  width: 'auto',
+  maxHeight: `calc(${PANEL_TUNING.sheetShare * 100}% - ${PANEL_TUNING.margin}px)`,
+};
+const isSheet = (): boolean => window.innerWidth < PANEL_TUNING.sheetBelowPx;
+function usePanelStyle(): CSSProperties {
+  const [sheet, setSheet] = useState(isSheet);
+  useEffect(() => {
+    const on = (): void => setSheet(isSheet());
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return sheet ? SHEET : PANEL;
+}
+
 const HEADER: CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', minHeight: '24px' };
 const LABEL: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.75 };
 const FIELD: CSSProperties = {
@@ -155,6 +174,7 @@ function KindHeader(props: { kind: string; file?: string; unsaved?: boolean; onC
 }
 
 function NodeEditor(props: { node: Node }): JSX.Element {
+  const panelStyle = usePanelStyle();
   const { node } = props;
   const data = node.data as { kind?: string; checkStatus?: CheckStatus; statusReasons?: ReadonlyArray<string>; drift?: DriftInfo; warnings?: ReadonlyArray<string> };
   const config = useUiStore((s) => s.editConfig);
@@ -259,7 +279,7 @@ function NodeEditor(props: { node: Node }): JSX.Element {
   };
 
   return (
-    <aside style={PANEL} data-edit-panel={node.id} aria-label={`edit ${node.id}`} className="nowheel">
+    <aside style={panelStyle} data-sheet={panelStyle === SHEET ? 'true' : 'false'} data-edit-panel={node.id} aria-label={`edit ${node.id}`} className="nowheel">
       <KindHeader kind={data.kind ?? node.type ?? 'node'} {...(loaded ? { file: loaded.file } : {})} unsaved={dirty} onClose={clearSelection} />
       {config.readOnlyReason ? (
         <div style={NOTE_STYLE.info} data-read-only="">
@@ -380,6 +400,7 @@ function AnchorList(props: { name: string; items: ReadonlyArray<string> }): JSX.
 }
 
 function CreateForm(props: { parent: string }): JSX.Element {
+  const panelStyle = usePanelStyle();
   const config = useUiStore((s) => s.editConfig);
   const close = useUiStore((s) => s.closeCreate);
   const setPendingSelect = useUiStore((s) => s.setPendingSelect);
@@ -430,7 +451,7 @@ function CreateForm(props: { parent: string }): JSX.Element {
   };
 
   return (
-    <aside style={PANEL} data-create-form={props.parent} aria-label="new intent" className="nowheel">
+    <aside style={panelStyle} data-sheet={panelStyle === SHEET ? 'true' : 'false'} data-create-form={props.parent} aria-label="new intent" className="nowheel">
       <KindHeader kind="intent" onClose={close} />
       <div style={MUTED}>
         New intent inside <strong>{parentTitle}</strong>. It is saved as a draft under spec/intents/.
@@ -477,6 +498,7 @@ const OFF: CSSProperties = { opacity: 0.45, cursor: 'not-allowed' };
 
 // the panel of a proposal: what the model read, from where, and the three ways to settle it
 function InferredPanel(props: { node: Node; info: InferredInfo }): JSX.Element {
+  const panelStyle = usePanelStyle();
   const { node, info } = props;
   const config = useUiStore((s) => s.editConfig);
   const data = node.data as { label?: unknown; body?: unknown };
@@ -489,7 +511,7 @@ function InferredPanel(props: { node: Node; info: InferredInfo }): JSX.Element {
     if (escapeLayer({ menuOpen, renameOpen, createOpen: false, panelOpen: true, panelDirty: false }) === 'panel-close') clearSelection();
   });
   return (
-    <aside style={PANEL} data-edit-panel={node.id} data-inferred-panel={info.proposal_id} aria-label="Inferred intent">
+    <aside style={panelStyle} data-sheet={panelStyle === SHEET ? 'true' : 'false'} data-edit-panel={node.id} data-inferred-panel={info.proposal_id} aria-label="Inferred intent">
       <div style={HEADER}>
         <RobotIcon size={18} />
         <span style={{ fontWeight: 600 }}>Inferred intent</span>

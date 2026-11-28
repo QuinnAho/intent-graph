@@ -165,3 +165,36 @@ describe('planned proposal contrast', () => {
     expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 5);
   });
 });
+
+// part d: narrow
+import { freeArea, viewToClearPanel } from '../src/graph/keep-in-view.js';
+import { CHECK_STATES, GLANCE_STATES, shownStates } from '../src/app/glance-model.js';
+import { PANEL_TUNING } from '../src/graph/view-tuning.js';
+
+describe('the sheet at the foot', () => {
+  const canvas = { width: 480, height: 700 };
+  it('leaves the top half free, above the sheet', () => {
+    const free = freeArea(canvas, true, true);
+    expect(free.y + free.height).toBeLessThanOrEqual(canvas.height * (1 - PANEL_TUNING.sheetShare));
+    expect(free.width).toBe(480 - 2 * PANEL_TUNING.pad);
+  });
+  it('brings a node under the sheet up into the free part', () => {
+    const node = { x: 0, y: 600, width: 300, height: 80 };
+    const v = viewToClearPanel(node, { x: 0, y: 0, zoom: 1 }, canvas, true);
+    expect(v).not.toBeNull();
+    const top = node.y * v!.zoom + v!.y;
+    expect(top + node.height * v!.zoom).toBeLessThanOrEqual(canvas.height * (1 - PANEL_TUNING.sheetShare));
+  });
+  it('the side panel is unchanged', () => {
+    expect(freeArea(canvas, true)).toEqual(freeArea(canvas, true, false));
+  });
+});
+
+describe('shownStates', () => {
+  const counts = Object.fromEntries(GLANCE_STATES.map((s) => [s, 0])) as Record<(typeof GLANCE_STATES)[number], number>;
+  counts.pending = 3;
+  it('a compact bar folds zero counts away, a wide one keeps them', () => {
+    expect(shownStates(CHECK_STATES, counts, true)).toEqual(['pending']);
+    expect(shownStates(CHECK_STATES, counts, false)).toEqual(['verified', 'failed', 'pending']);
+  });
+});

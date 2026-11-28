@@ -43,8 +43,15 @@ export function pendingTitle(reasons: ReadonlyArray<string> | undefined): string
   return `Pending: a linked test gave no result (${r.join(', ')}). Fix or unskip it to get verified or failing.`;
 }
 
+/** lane 17: the counts a group shows. a compact bar folds zero counts away, the title of the group still names them */
+export function shownStates<S extends GlanceState>(states: ReadonlyArray<S>, counts: Readonly<Record<GlanceState, number>>, compact: boolean): S[] {
+  return compact ? states.filter((s) => counts[s] > 0) : [...states];
+}
+
 /** the words in the Checks group when no node has a linked check */
 export const NO_CHECKS_WORDS = 'no checks linked yet';
+/** the same in a compact bar, the group's title says the rest */
+export const NO_CHECKS_SHORT = 'no checks yet';
 
 const SPEC_SET: ReadonlySet<string> = new Set(SPEC_STATES);
 const CHECK_SET: ReadonlySet<string> = new Set(CHECK_STATES);

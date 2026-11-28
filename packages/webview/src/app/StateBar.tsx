@@ -14,7 +14,7 @@ import { problemsLabel, useProblemsStore } from '../store/problems.js';
 import { useUiStore } from '../store/ui-slice.js';
 import { BAR, COUNT_BUTTON, GROUP, GROUP_HEAD, GROUP_LABEL } from './bar-styles.js';
 import { selectNextIn } from './glance-actions.js';
-import { CHECK_STATES, DRIFT_STATES, GROUP_TITLES, NO_CHECKS_WORDS, SPEC_STATES, countLabel, countTitle, glanceCounts, type GlanceState } from './glance-model.js';
+import { CHECK_STATES, DRIFT_STATES, GROUP_TITLES, NO_CHECKS_SHORT, NO_CHECKS_WORDS, SPEC_STATES, countLabel, countTitle, glanceCounts, shownStates, type GlanceState } from './glance-model.js';
 import { GLANCE_TUNING } from './glance-tuning.js';
 import { InferredCount } from './InferredCount.js';
 
@@ -31,13 +31,13 @@ function markOf(state: GlanceState): { Icon: LucideIcon; color: string } {
   return { Icon: getNodeIcon(state === 'inferred' ? 'intent' : state), color: 'currentColor' };
 }
 
-function useNarrowWindow(): boolean {
-  const [narrow, setNarrow] = useState(() => window.innerWidth < GLANCE_TUNING.narrowPx);
+function useNarrowWindow(px: number = GLANCE_TUNING.narrowPx): boolean {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < px);
   useEffect(() => {
-    const on = (): void => setNarrow(window.innerWidth < GLANCE_TUNING.narrowPx);
+    const on = (): void => setNarrow(window.innerWidth < px);
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
-  }, []);
+  }, [px]);
   return narrow;
 }
 
@@ -63,12 +63,13 @@ function Count(props: { state: GlanceState; n: number }): JSX.Element {
   );
 }
 
-function Group(props: { label: string; title: string; name: string; children: ReactNode }): JSX.Element {
+function Group(props: { label: string; title: string; name: string; compact?: boolean; children: ReactNode }): JSX.Element | null {
   const items = Children.toArray(props.children);
+  if (items.length === 0) return null;
   return (
     <div role="group" aria-label={props.title} title={props.title} data-bar-group={props.name} style={GROUP}>
       <span style={GROUP_HEAD}>
-        <span className="ig-group-label" style={GROUP_LABEL}>{props.label}</span>
+        {props.compact ? null : <span className="ig-group-label" style={GROUP_LABEL}>{props.label}</span>}
         {items[0]}
       </span>
       {items.slice(1)}
@@ -76,10 +77,11 @@ function Group(props: { label: string; title: string; name: string; children: Re
   );
 }
 
-function ProblemsCount(): JSX.Element {
+function ProblemsCount(props: { compact: boolean }): JSX.Element | null {
   const problems = useProblemsStore((s) => s.problems);
   const open = useProblemsStore((s) => s.open);
   const n = problems.length;
+  if (props.compact && n === 0) return null;
   return (
     <button
       type="button"
@@ -98,9 +100,16 @@ function ProblemsCount(): JSX.Element {
   );
 }
 
-function ReadOnly(): JSX.Element | null {
+function ReadOnly(props: { compact: boolean }): JSX.Element | null {
   const reason = useUiStore((s) => s.editConfig.readOnlyReason);
   if (!reason) return null;
+  if (props.compact) {
+    return (
+      <span data-bar-read-only="" title={reason} role="img" aria-label={reason} style={{ display: 'inline-flex', alignItems: 'center', color: MUTED, margin: '0 4px' }}>
+        <Lock size={13} aria-hidden />
+      </span>
+    );
+  }
   return (
     <span data-bar-read-only="" title={reason} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: '88px', flex: '0 1 auto', overflow: 'hidden', color: MUTED, marginLeft: '6px' }}>
       <Lock size={13} aria-hidden style={{ flexShrink: 0 }} />
@@ -110,12 +119,12 @@ function ReadOnly(): JSX.Element | null {
 }
 
 // lane 17: the folder the page shows, its last segment only, and a dot while the page is live
-function Place(): JSX.Element | null {
+function Place(props: { compact: boolean }): JSX.Element | null {
   const folder = useUiStore((s) => s.folder);
   const live = useUiStore((s) => s.live);
   if (!folder && !live) return null;
   return (
-    <span data-bar-place="" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0, maxWidth: '220px', marginRight: '4px', fontWeight: 600 }}>
+    <span data-bar-place="" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0, maxWidth: props.compact ? `${GLANCE_TUNING.compactFolderPx}px` : '220px', marginRight: '4px', fontWeight: 600 }}>
       {folder ? (
         <span data-bar-folder={folder} title={`The folder this graph is read from: ${folder}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
           <Folder size={14} aria-hidden style={{ flexShrink: 0 }} />
@@ -158,33 +167,34 @@ export function LegendButton(): JSX.Element {
 export function StateBar(): JSX.Element {
   const nodes = useGraphStore((s) => s.nodes);
   const { counts, driftReport, checksLinked } = useMemo(() => glanceCounts(nodes as Node[]), [nodes]);
+  const compact = useNarrowWindow(GLANCE_TUNING.compactBarPx);
   return (
     <header style={BAR} data-state-bar="" aria-label="Project state">
-      <Place />
-      <Group label="Spec" title={GROUP_TITLES.spec} name="spec">
-        {SPEC_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
+      <Place compact={compact} />
+      <Group label="Spec" title={GROUP_TITLES.spec} name="spec" compact={compact}>
+        {shownStates(SPEC_STATES, counts, compact).map((s) => <Count key={s} state={s} n={counts[s]} />)}
       </Group>
       {checksLinked ? (
-        <Group label="Checks" title={GROUP_TITLES.checks} name="checks">
-          {CHECK_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
+        <Group label="Checks" title={GROUP_TITLES.checks} name="checks" compact={compact}>
+          {shownStates(CHECK_STATES, counts, compact).map((s) => <Count key={s} state={s} n={counts[s]} />)}
         </Group>
       ) : (
-        <Group label="Checks" title={GROUP_TITLES.noChecks} name="checks">
-          <span data-bar-no-checks="" style={{ color: MUTED, padding: '0 6px' }}>{NO_CHECKS_WORDS}</span>
+        <Group label="Checks" title={GROUP_TITLES.noChecks} name="checks" compact={compact}>
+          <span data-bar-no-checks="" style={{ color: MUTED, padding: compact ? '0 3px' : '0 6px' }}>{compact ? NO_CHECKS_SHORT : NO_CHECKS_WORDS}</span>
         </Group>
       )}
       {driftReport ? (
-        <Group label="Drift" title={GROUP_TITLES.drift} name="drift">
-          {DRIFT_STATES.map((s) => <Count key={s} state={s} n={counts[s]} />)}
+        <Group label="Drift" title={GROUP_TITLES.drift} name="drift" compact={compact}>
+          {shownStates(DRIFT_STATES, counts, compact).map((s) => <Count key={s} state={s} n={counts[s]} />)}
         </Group>
       ) : (
-        <Group label="Drift" title={GROUP_TITLES.noDrift} name="drift">
-          <span data-bar-no-drift="" style={{ color: MUTED, padding: '0 6px' }}>no drift report</span>
+        <Group label="Drift" title={GROUP_TITLES.noDrift} name="drift" compact={compact}>
+          <span data-bar-no-drift="" style={{ color: MUTED, padding: compact ? '0 3px' : '0 6px' }}>{compact ? 'no drift' : 'no drift report'}</span>
         </Group>
       )}
       <InferredCount />
-      <ProblemsCount />
-      <ReadOnly />
+      <ProblemsCount compact={compact} />
+      <ReadOnly compact={compact} />
       <LegendButton />
     </header>
   );

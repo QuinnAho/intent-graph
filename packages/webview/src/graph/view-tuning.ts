@@ -179,6 +179,9 @@ export const PANEL_TUNING = {
   settleMs: 250,
   // a new selection waits this long before the panel opens, so a double-click lands on the node twice, ms
   doubleClickMs: 250,
+  // lane 17: under this window width the panel is a sheet at the foot, at most this share of the canvas height
+  sheetBelowPx: 600,
+  sheetShare: 0.5,
 } as const;
 
 // matching the second click of a double-click to the title the first one hit
