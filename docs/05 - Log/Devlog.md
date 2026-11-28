@@ -177,3 +177,15 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 **What the verifier caught.** Ten of twelve checks passed: the cache, the cap, the isolated model call with its arguments quoted, a byte-identical `spec/` folder, and a file comment that told the model to say something else and was ignored. Fixed afterwards by a second agent: planned code that read as built, a prompt 16 characters over its cap, 30 anchors that named a file where a symbol was meant, a restated intent that was not named, and a cache key that did not cover the prompt.
 
 **Not yet.** The model now names a restated intent 14 times, and some are a stretch. A person has to settle those, which is what the next lane is for. Nothing shows on the graph yet.
+
+### 2026-11-27, 6:35 PM  Handoff: lane 10 built, not merged
+
+**What happened.** Lane 10 puts the inferred proposals on the graph: dashed, with the word "inferred" and a confidence word, "planned" where the code is a placeholder, a panel, and a count in the strip. Enter accepts and writes an intent file with `realized_by`, a double-click edits the title first, Delete dismisses, undo takes any of it back. The settled list lives in `.runs/infer/settled.json`. The session ended here on the owner's ask, before the lane was verified.
+
+**Evidence so far.** On `inferred-graph` at `13c4655`, the orchestrator's own run: `PASS all (99.7s) - 4 steps, 491 tests` and `PASS e2e-inferred (49.7s) - accept, edit first, dismiss and undo by keys and clicks, read only sends nothing`. Scope is clean.
+
+**Not done, and why it is not merged.** `tools/e2e-edit.mjs` failed once with a 30 second click timeout, and `tools/e2e-wires.mjs` fails its layout-time check on the lane and on `day-2` (3.2 to 3.7 s, limit 2.86 s). The dev PC was at 93% CPU from another program during those runs and the gate took twice its usual time, so load is the likely cause. It has not been re-run on a quiet machine, so a regression is not ruled out. No independent verifier has checked the lane.
+
+**A lesson for the scripts.** The wires script compares the layout time with a number measured on the first night. A fixed number from another day fails when the machine is busy or the repo grows. It should be a generous cap or a ratio measured in the same run.
+
+**Next.** The three steps are on the [[Board]].

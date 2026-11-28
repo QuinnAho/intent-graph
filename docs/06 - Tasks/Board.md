@@ -19,9 +19,21 @@ Declared and inferred intent: the owner said go on 2026-11-27. Options and the r
 
 | Lane | What | Branch | Status |
 |---|---|---|---|
-| 10 inferred on the graph | The proposals drawn dashed, with the word "inferred". Enter accepts and writes a spec file tied to that code, a double-click edits first, Delete dismisses, undo takes any of it back. Lane note: [[inferred-graph]] | `inferred-graph` | building |
+| 10 inferred on the graph | The proposals drawn dashed, with the word "inferred". Enter accepts and writes a spec file tied to that code, a double-click edits first, Delete dismisses, undo takes any of it back. Lane note: [[inferred-graph]] | `inferred-graph` at `13c4655`, worktree `.wt/inferred-graph` | built, pushed, **not merged**. See below |
 
 Lane 9 (the inference script, `node tools/infer.mjs`) is merged into `day-2`. See the [[Devlog]].
+
+### Where lane 10 stands (handoff of 2026-11-27, 6:35 PM)
+
+- The builder reports all eleven scope steps done.
+- The orchestrator's own gate on `13c4655`: `PASS all - 4 steps, 491 tests` and `PASS e2e-inferred`. Scope is clean: no file outside the list, no test removed.
+- Two reds, not yet told apart from machine load. `tools/e2e-edit.mjs` timed out on a click (30 s). `tools/e2e-wires.mjs` fails its layout-time check, on `day-2` too: 3.2 to 3.7 s against a fixed limit of 2.86 s that was measured on the first night. Both were measured while the dev PC ran at 93% CPU from another program, and the whole gate took twice as long as usual.
+- No independent verifier has seen lane 10 yet. Its held-back checks are written, in the local run folder (`.runs/night-1/held-out/inferred-graph.md`, not in git).
+
+Next, in order:
+1. On a quiet machine, run `node tools/e2e-wires.mjs` and `node tools/e2e-edit.mjs` three times each on `day-2`, then on the lane. If they pass, the reds were load. Either way the wires script's time check should stop comparing with a number from another day: make it a generous cap, or a ratio measured in the same run.
+2. Send a fresh verifier with the held-back checks. Fix what it finds with a fresh small agent.
+3. Merge into `day-2`, gate there, take frames for the owner. Then the lane after it: open an intent and see its code nested inside.
 
 ## Waiting on the owner
 
