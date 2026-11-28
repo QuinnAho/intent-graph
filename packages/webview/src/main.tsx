@@ -14,3 +14,4 @@ createRoot(rootElement).render(
     <App />
   </StrictMode>,
 );
+void import('./transport/shell-bridge.js').then((bridge) => bridge.startShellBridge());
