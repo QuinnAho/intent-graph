@@ -11,7 +11,17 @@ Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules:
 
 The owner on 2026-11-27, paraphrased: editing on the graph has to be easy and intuitive, and every lane ends with polish.
 
-None is building. Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
+The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for every day. It should show the state of the project at all times, the high-level implementation behind each intent, the status of the spec, and more of what the AI is thinking. What a model inferred carries a robot icon, and the graph shows which agent is working on what. Today it is hard to tell at first sight what is what.
+
+| Lane | What | Status |
+|---|---|---|
+| 11 at a glance | The robot icon on everything a model said, a project state bar that is always there, a legend, key hints. No new data. Lane note: [[glance]] | building, branch `glance`, worktree `.wt/glance` |
+| 12 fold the proposals | One dashed chip per concept such as "9 inferred" that opens on a click, so many proposals stop crowding a real graph. Fixes the fault below. Call 1, the recommended way unless the owner picks the other | next |
+| 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
+| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | after 11, the server half can run beside it |
+| 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
+
+Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
 ## An experiment, kept or dropped after a look
 
@@ -27,12 +37,7 @@ On this repo with its real report (66 proposals beside 12 declared intents), fra
 - The wire from one constraint runs through two proposal boxes. ADR 0031 says no wire through a box.
 - `node tools/e2e-wires.mjs` fails in a checkout that holds a real report under `.runs/infer`: 1 of 3 wires crosses a box, one wire ends off screen, and the hover check times out. In a checkout with no report it passes. The script has no case with many proposals, so nothing in git catches this yet.
 
-It waits for the owner's pick, call 1 below.
-
-### Next, in order
-
-1. The owner's pick on how many proposals sit on a real graph (call 1). Then a small lane for it, with a case in the wires script that has many proposals in a concept with a wire coming in.
-2. The lane after it: open an intent and see its code nested inside. The owner said go on 2026-11-27. The variant is call 2. Its held-back checks are written, in the local run folder (`.runs/night-1/held-out/nested-code.md`, not in git).
+Lane 12 above is the fix. It adds a case to the wires script with many proposals in a concept that has a wire coming in.
 
 ## Waiting on the owner
 
