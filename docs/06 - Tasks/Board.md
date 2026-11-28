@@ -15,11 +15,24 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 
 | Lane | What | Status |
 |---|---|---|
-| 11 at a glance | The robot icon on everything a model said, a project state bar that is always there, a legend, key hints. No new data. Lane note: [[glance]] | building, branch `glance`, worktree `.wt/glance` |
+| 11 at a glance | The robot icon on everything a model said, a project state bar that is always there, a legend, key hints. No new data. Lane note: [[glance]] | built, gated and pushed at `73aa83f`, worktree `.wt/glance`. **Not verified, not merged.** See below |
 | 12 fold the proposals | One dashed chip per concept such as "9 inferred" that opens on a click, so many proposals stop crowding a real graph. Fixes the fault below. Call 1, the recommended way unless the owner picks the other | next |
 | 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
-| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | after 11, the server half can run beside it |
+| 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | first half (the data) built, gated and pushed at `a45172b`, worktree `.wt/agents`. **Not verified, not merged.** The second half, drawing it, waits for lane 11 to merge |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
+
+### Where lanes 11 and 14 stand (handoff of 2026-11-27, 9:30 PM)
+
+Both are built, pushed and gated by the orchestrator on the committed head. No independent verifier has seen either one, and nothing is merged.
+
+- **Lane 11, at a glance, `glance` at `73aa83f`.** `PASS all (53.9s) - 4 steps, 510 tests`, and PASS for `e2e-glance`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks` and `e2e-wires`. All nine scope steps are reported done. Scope: the page, the new `tools/e2e-glance.mjs`, and two lines of `tools/e2e-edit.mjs` (a right-click point moved below the new bar, and one wheel step now zooms in, because with the bar the canvas is shorter and the fit already sits at the smallest zoom). The orchestrator looked at the frames: the bar, the legend and the robot read well. Frames are in the worktree under `.runs/e2e-glance/` and `.runs/e2e-glance-frames/`. Not done: the builder did not fill its sections of the lane note, and its frames of this repo had no drift report.
+- **Lane 14, first half, `agents` at `a45172b`.** `PASS all (115.1s) - 4 steps, 516 tests`, and PASS for `e2e-agents`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks` and `e2e-wires`. Scope is clean: ten files, nothing under the page, no dependency. Git is called with fixed arguments, no shell, a time limit and no optional locks. Not verified: what a git call that runs out of time leaves behind on Windows.
+
+Next, in order:
+
+1. A fresh verifier (sonnet, medium) for each lane, with the held-back checks in the local run folder (`.runs/night-1/held-out/glance.md` and `agents.md`, not in git). Fix what they find with a fresh small agent, not the builder.
+2. Lane 11 is visual: frames with a verdict each go to the owner before it merges. Lane 14's first half has nothing to look at and merges to `day-2` once verified. Merge lane 11 first, then lane 14. They share no file.
+3. Then lane 12 (fold the proposals), lane 13 (open an intent), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). One page lane at a time: they all touch the same page files.
 
 Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
@@ -77,3 +90,5 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - The settled list under `.runs/infer` keeps its "accepted" entries after an undo. Harmless: an accepted proposal is hidden only while its intent file exists.
 - An inferred node shows no key hint until it is selected.
 - A run that dies with "out of memory" or "no space left on device" is the dev machine, not the code. Both happened on the evening of 2026-11-27 while other programs were open.
+- Code nodes in `/graph.json` carry an absolute `file://` path in their body. The data is served on the dev machine only and is not in git, but a paste of it would show a local path. Reported by the lane 14 builder, not checked.
+- In the legend of lane 11 three node kinds are listed that the page never draws: rationale, counterexample and task.

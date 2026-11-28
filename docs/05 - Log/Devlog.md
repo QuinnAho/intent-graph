@@ -216,3 +216,18 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Twice a run died with "out of memory" and once with "no space left on device" while other programs were open. That is the machine. The run is repeated, the code is not changed.
 
 **Cost.** Verifier: sonnet at medium, 138k tokens, 11 minutes. Fix agent: sonnet at medium, 140k tokens, 23 minutes. Harness agent: sonnet at medium, 100k tokens, 43 minutes in two parts.
+
+### 2026-11-27, 9:30 PM  Handoff: toward an everyday tool, two lanes built
+
+**What happened.** The owner asked for a tool to use every day: the state of the project and the status of the spec visible at all times, the high-level implementation behind an intent, more of what the AI is thinking, a robot icon on what a model inferred, and a sign of which agent is working on what. That became lanes 11 to 15 on the [[Board]]. Two were built side by side, because they share no file.
+
+- Lane 11, at a glance: a state bar across the top that counts the spec, the checks, the drift verdicts, the open proposals and the problems, where every count is a button that goes to the next node in that state. A legend that opens on the first visit. The robot on everything a model said. Key hints on a proposal before it is selected.
+- Lane 14, first half: the live server reads the git worktrees of the repo and the run log, and `/graph.json` now says which lane changed which files and which intents those files belong to. Nothing is installed and nothing is written.
+
+**Evidence.** The orchestrator's own runs on the committed heads. `glance` at `73aa83f`: `PASS all (53.9s) - 4 steps, 510 tests` and six end-to-end scripts PASS. `agents` at `a45172b`: `PASS all (115.1s) - 4 steps, 516 tests` and six end-to-end scripts PASS.
+
+**Not done.** No independent verifier has seen either lane, and nothing is merged. The owner has not seen the frames of lane 11.
+
+**Earlier the same evening.** Builds died with "no space left on device" although the data drive showed free space. The drive promised more space than the disk under it has. The owner freed space, and `main` at `2331256` then got the pass line it was missing: `PASS all (47.9s) - 4 steps, 494 tests`.
+
+**Cost.** Lane 11 builder: opus at high, 211k tokens, 30 minutes. Lane 14 builder: opus at high, 177k tokens, 23 minutes.
