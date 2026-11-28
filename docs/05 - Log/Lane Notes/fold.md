@@ -122,3 +122,14 @@ Stop and report after 90 minutes, or if the gate cannot be made green in two tri
   - inference report unusable: "Run node tools/infer.mjs again for a fresh report."
 
 ## Results
+
+## Orchestrator's check
+
+Written on 2026-11-28.
+
+- Built at `8dd962f`. An independent verifier ran 24 held-back checks: 20 pass. Two fails were real: with the legend of a first visit open, an unfold made the view jump 191 px, and unfolding the largest concept took about 2 s on a busy machine. Two were checks that asked for more than this note: `?focus` selecting the node, and at most 3 fits in a storm of resizes where the note allows one per 150 ms.
+- Fixed by a second agent at `bf104a8`: the legend lies over the canvas and never changes its size, a narrow window starts without it, `?focus` selects. The fix agent stopped instead of loosening a check, and the orchestrator decided: at 480 px the first view must hold the declared nodes, and code files may lie outside.
+- Gate on the merge with `day-2`, `da33e2b`, in this lane's checkout, each with exit 0: `PASS all (69.8s) - 4 steps, 592 tests`, `PASS e2e-fold (78.9s)`, `PASS e2e-wires (51.5s)`, and PASS for `e2e-glance`, `e2e-extension`, `e2e-agents`, `e2e-edit`, `e2e-inferred`, `e2e-live` and `e2e-drift-marks`.
+- `e2e-wires` now also passes in the main checkout, which holds a real inference report. That was the fault on the Board since lane 10.
+- Frames with a verdict each: `docs/05 - Log/Frames/2026-11-28/README.md`, `12a` to `12e`.
+- Left open: on the [[Board]] under Known.

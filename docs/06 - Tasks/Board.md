@@ -5,7 +5,7 @@ updated: 2026-11-27
 
 Open work only. A finished lane moves to the [[Devlog]] in the same turn. Rules: [[How We Work]].
 
-`main` holds everything through lane 11, the first half of lane 14 and lane 16. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
+`main` holds everything through lane 12, the first half of lane 14 and lane 16. New lanes branch from `day-2`. Green and verified lanes merge into `day-2` and then into `main`: the owner gave a standing OK for that late on 2026-11-27. Frames of anything visual still go to the owner, in the same report.
 
 ## Lanes with a go
 
@@ -15,28 +15,25 @@ The owner on 2026-11-27, in the evening, paraphrased: this should be a tool for 
 
 | Lane | What | Status |
 |---|---|---|
-| 12 a first view that fits | Fold the proposals: one dashed row per concept such as "9 inferred" that opens on a click. Fit again when the window changes size. One place for problems, each saying what to do next. The three faults the owner named after lane 11. Lane note: [[fold]] | in work on `fold`, worktree `.wt/fold` |
 | 13 open an intent | Its code nested inside, in place. Call 2, the recommended way unless the owner picks the other. Held-back checks are written (`.runs/night-1/held-out/nested-code.md`, not in git) | after 12 |
 | 14 agents on the graph | Which lane or agent is changing which code, and which intents that touches. First read from git worktrees and the run log, with no install. Live detail from editor hooks later, and a hook needs the owner's yes | the first half (the data) is on `main`, see the [[Devlog]]. The second half, drawing it, comes after lane 13. The data holds the time of a lane's newest change only, so "since when" needs one more field |
 | 15 what the AI is thinking | For a proposal: what the model was shown and why it said so. For drift: the judge's reasons. For an agent at work: its task | after 14 |
 
-### Handoff (2026-11-28, about 1:20 AM)
+### Handoff (2026-11-28, 1:30 AM)
 
-Done and on `main` at `a7e554f`: lane 11 (merge `c5cbcc6`), the first half of lane 14 (merge `cc08318`), lane 16 (merge `5e8a320`) with [[0032-a-thin-vs-code-extension-around-the-page]].
-
-In flight: **lane 12** on `fold`, worktree `.wt/fold`. Built at `8dd962f`, gated green by the orchestrator, and checked by a verifier: 20 of 24 held-back checks pass (evidence in the local run folder, `.runs/night-1/verifier/fold.md`). A fix agent is finishing the fix round: the legend lies over the canvas and stays out of a narrow window, `?focus` selects the node, and an unfold no longer makes the view jump. It was told to commit and push before anything else. `fold` is not merged.
+Done and on `main`: lane 11 (merge `c5cbcc6`), the first half of lane 14 (merge `cc08318`), lane 16 (merge `5e8a320`) with [[0032-a-thin-vs-code-extension-around-the-page]], and lane 12 (merge `da33e2b`). Nothing is in flight. No agent is running.
 
 Next, in order:
 
-1. When `fold` holds the fix commit: in `.wt/fold`, `git checkout --detach day-2` and `git merge --no-ff fold`, then the full gate on that combined tree (`verify all`, `e2e-fold`, `e2e-wires`, `e2e-glance`, `e2e-extension`, `e2e-agents`, `e2e-edit`, `e2e-inferred`, `e2e-live`, `e2e-drift-marks`). Green: fast-forward `day-2` and `main` to it.
-2. Lane 12's frames with a verdict each into `docs/05 - Log/Frames/2026-11-28/README.md` (the builder's are in `.wt/fold/.runs/frames-lane12/`), a Devlog entry, the lane note's results, the start note's status table.
-3. Lane 13 (open an intent, and a click on code opens the file through `openInEditor`). It needs a lane note and held-back checks with narrow widths first.
+1. Lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor` in `packages/webview/src/transport/shell-bridge.ts`). It needs a lane note and held-back checks first. Every page lane gets narrow-width checks at 900 and 480 px and is tried inside the editor panel.
+2. A walk through the editor panel as a first-time user on this repo, by a fresh agent: every confusing moment, ranked, with frames. The owner picks what to fix from that list. Offered to the owner, not yet answered.
+3. For the extension: the line above a bound function (needs call 3), one status bar item, the editor's theme passed into the page, a stable address per workspace so the page remembers what was closed.
 
-Open for the owner: calls 3, 4, 8 and 9 below, and whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, about 0.8 GB together, and `editor-panel`).
+Open for the owner: calls 3, 4, 8 and 9 below, and whether to prune the merged worktrees (`agents`, `glance`, `e2e-flake`, `inferred-graph`, `editor-panel`, `fold`).
 
 Lane 11 (at a glance: the state bar, the legend, the robot, key hints) is on `main` since late 2026-11-27. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `11a` to `11h`. What it left open is under Known and in call 9.
 
-Lane 16 (the graph in a panel of VS Code, a launcher, nothing installed) is on `main` since 2026-11-28. See the [[Devlog]]. Frames: `docs/05 - Log/Frames/2026-11-28/README.md`. Lane 12 is in its fix round after the verifier. After it, one page lane at a time: lane 13 (open an intent, and a click on code opens the file in the editor through `openInEditor`), the second half of lane 14 (draw who is on what), lane 15 (what the AI is thinking). For the extension, next: the line above a bound function (needs call 3), then one status bar item, then passing the editor's theme into the page.
+Lane 16 (the graph in a panel of VS Code, a launcher, nothing installed) and lane 12 (the proposals fold, the graph fits again on a change of size, problems have one place) are on `main` since 2026-11-28. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-28/README.md`.
 
 Lane 7 (direct editing: rename in place, a right-click menu, a plus in the concept header) and lane 8 (editing by wire: connect, disconnect, move, undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`.
 
@@ -46,19 +43,9 @@ Declared and inferred intent: the owner said go on 2026-11-27. Options and the r
 
 Lane 9 (the inference script, `node tools/infer.mjs`) and lane 10 (the proposals on the graph, with accept, edit first, dismiss and undo) are on `main`. See the [[Devlog]]. Frames with a verdict each: `docs/05 - Log/Frames/2026-11-27 Day 2/README.md`, frames `10a` to `10h`.
 
-### Not right yet: many proposals on a real graph
-
-On this repo with its real report (66 proposals beside 12 declared intents), frame `10g`:
-
-- The first view no longer fits the graph. The zoom stops at 0.5 and part of the graph is off screen.
-- The wire from one constraint runs through two proposal boxes. ADR 0031 says no wire through a box.
-- `node tools/e2e-wires.mjs` fails in a checkout that holds a real report under `.runs/infer`: 1 of 3 wires crosses a box, one wire ends off screen, and the hover check times out. In a checkout with no report it passes. The script has no case with many proposals, so nothing in git catches this yet.
-
-Lane 12 above is the fix. It adds a case to the wires script with many proposals in a concept that has a wire coming in.
-
 ## Waiting on the owner
 
-1. **Many proposals on a real graph.** Recommended: fold them. Each concept shows one dashed chip such as "9 inferred", and a click on it or on the strip count opens them. The declared graph stays as it was until a person asks. The other way: keep all of them drawn and change the layout so no wire crosses a box.
+1. Settled by lane 12: the proposals fold into one row per concept.
 2. **How an intent opens.** Recommended: in place. The node grows into a box that holds its code, the way a concept holds intents. The other way: step inside on a double-click, with a way back.
 3. **ADR 0030, the anchor format.** Accept it? Until then anchors live only on fixtures, so every node of this repo shows pending, no wire runs from a spec node to code, and nesting has nothing real to show.
 4. **Which words are target kinds?** `spec/intents/README.md` and all 12 intents of this repo use `module` and `api`. The code schema (`packages/shared/src/schemas/node.ts:31`) only knows node kinds such as `code_module`, and the new-intent form offers those nine. Recommended: the README's words.
@@ -99,8 +86,6 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - Code nodes in `/graph.json` carry an absolute `file://` path in `body.uri`, every module and symbol. Confirmed by the lane 14 verifier on 2026-11-27, and it is the same on `main` before that lane. The data is served on the dev machine only and is not in git, but a paste of it would show a local path. An "open in editor" link needs a path, so settle this in the lane that adds one: a path from the root, and the server knows the root.
 - The run log reader takes the last 1 MB of a log. One line longer than that makes a lane's role, model, effort and task fall back to none, and the branch name is shown.
 - What a real git leaves behind when it is killed at the 3 second limit in the middle of a write is not tested. With a slow fake git: no process and no lock file left.
-- The problem count shows twice when there is a problem: in the bar and in the chip under the canvas. The chip stays because `e2e-edit`, `e2e-live` and `e2e-drift-marks` use it and its list.
-- The graph is not fitted again when the window narrows, so at 480 px it is cut off on the right. A first load at that width was not tried.
 - The group names in the bar ("Spec", "Checks", "Drift") show only in a wide window.
 - 6 of 16 pin handles have no title, on code file and inferred nodes. Seen by the lane 11 verifier, not checked on the commit before that lane.
 
@@ -109,3 +94,8 @@ Lane 12 above is the fix. It adds a case to the wires script with many proposals
 - Nothing on the page names the open folder or says that it is live.
 - The live server picks a new port each run, and the page remembers "legend closed" per address. So the legend very likely opens again on every start. Reasoned, not yet seen by running it twice. A stable address per workspace would fix it.
 - The panel's messages for a missing `node` and for a server that exits early are proven by unit tests only. The missing page case is proven end to end.
+- Unfolding one concept lays out the whole graph again, so the other concepts move and part of the graph leaves the view. The unfolded concept's header stays put. F fits again.
+- Unfolding the largest concept of this repo (16 proposals) takes 1.0 to 1.2 s: about 0.5 s of layout, the rest is drawing. A layout cache was tried and did not help.
+- At 480 px wide this repo's graph fits but its text is too small to read, and the code files lie outside the first view. A narrow panel needs levels of detail (ADR 0031, step 7) or a layout that stacks.
+- On a first visit in a wide window the legend lies over the right edge of the graph until it is closed.
+- The third block of `e2e-wires` (40 proposals in one concept) has no wire coming into that concept, so its "0 crossings" proves little. The repo block with the real report is the real proof.

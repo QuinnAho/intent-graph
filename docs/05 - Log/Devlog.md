@@ -297,3 +297,28 @@ A few lines per milestone: what happened, why it matters, the evidence. Newest a
 - Two held-back checks for lane 12 asked for more than its lane note did. A held-back check may be stricter than the note only on purpose, and then it is information, not a fail.
 
 **Cost.** Research: sonnet at medium, 94k tokens, 4 minutes. Code facts for lane 12: sonnet at medium, 65k tokens, 1 minute. Lane 16 builder: opus at high, 161k tokens, 23 minutes. Lane 16 verifier: sonnet at medium, 159k tokens, 16 minutes. Lane 16 fix: sonnet at medium, 76k tokens, 8 minutes. Lane 12 builder: opus at high, 270k tokens, 26 minutes. Lane 12 verifier: sonnet at medium, 180k tokens, 26 minutes.
+
+### 2026-11-28, 1:30 AM  Lane 12: a first view that fits, on main
+
+**What happened.** The owner named three faults after lane 11 and asked that each be solved the way a person would expect. Lane 12 took all three.
+
+- The proposals fold. Each concept shows one dashed row such as "16 inferred" and a click opens them in place. On this repo the 66 proposals no longer crowd the view: the whole declared graph is in the first view and no wire runs through a box.
+- The graph fits again when the window or the panel changes size, until the person moves the view. The key F fits.
+- Problems have one place: the count in the bar opens a list under the bar, and each row says the file, what is wrong and what to do next.
+- After the verifier: the legend lies over the canvas instead of squeezing it, and a narrow window starts without it. `?focus` now selects the node, which the editor's "reveal in graph" needs.
+
+**Why it matters.** The page now lives in a narrow editor panel. A first view that cannot be read there makes the tool useless for every day.
+
+**Evidence.** A verifier ran 24 held-back checks: 20 pass, and a second agent fixed the two real faults. The orchestrator's gate on the merged tree `da33e2b`, each with exit 0: `PASS all (69.8s) - 4 steps, 592 tests`, `PASS e2e-fold (78.9s)`, `PASS e2e-wires (51.5s)`, and seven other end-to-end scripts PASS, the extension check among them. `e2e-wires` also passes in the main checkout, which holds the real report: the fault open since lane 10 is closed.
+
+**Not verified.** The fix round had no second verifier: its proof is the new end-to-end cases and the orchestrator's look at five frames. Nobody has used the fold inside the editor panel by hand.
+
+**Not yet.** Unfolding one concept lays out the whole graph again and the rest moves. An unfold takes about a second. At 480 px the text is too small to read.
+
+**Lessons.**
+
+- A fix agent stopped and asked instead of loosening a check that had only passed for the wrong reason. The answer was a decision in one message, and it finished in five minutes. A stop clause that names "no assertion loosened" is worth its line.
+- A verifier's cleanup deleted temp files matching a short prefix, and some may have been another verifier's. Each agent names its temp folder after its lane and deletes only that.
+- Two lanes side by side worked because their files were split before the start: the page lane was told which two page files belong to the extension lane, and the other way round.
+
+**Cost.** Lane 12 fix: sonnet at medium, 132k tokens in two parts, 23 minutes. The other agents of the night are in the entry before this one.
