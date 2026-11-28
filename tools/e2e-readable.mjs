@@ -153,6 +153,40 @@ function readView(specIds) {
     winWidth: innerWidth,
   };
 }
+// a canned proposal row, every field InferProposalRowSchema asks for (as e2e-fold)
+const row = (id, title, over = {}) => ({
+  id, folder: 'src', title, body: `${title}. Read from the code in src.`, anchors: ['src/math.ts'], belongs_under: 'concept-calculator', restates: null, confidence: 'inferred', planned: false, code_hash: `hash-${id}`, ...over,
+});
+function writeInfer(work, proposals) {
+  const dir = join(work, '.runs', 'infer', 'run-1');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'report.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: { incomplete: false, stopped: null, proposals } }));
+  writeFileSync(join(work, '.runs', 'infer', 'latest.json'), JSON.stringify({ result: 'PASS', seconds: 0, note: 'canned', report: '.runs/infer/run-1/report.json' }));
+}
+const slug = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const ACCEPT_RUNS = 5;
+// wcag contrast in node, from the colours the page computed
+const rgbOf = (s) => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+const lum = (c) => { const l = c.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+const mix = (a, b, t) => a.map((v, i) => t * v + (1 - t) * b[i]);
+const contrast = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+
+// accepts a proposal by its row on the canvas and times click to drawn as declared. returns ms, the toast and whether the new one is selected
+async function acceptTimed(p, work, proposalId, title) {
+  const sel = `.react-flow__node[data-id="inferred:${proposalId}"]`;
+  await p.locator(sel).waitFor({ timeout: SHOW_LIMIT_MS });
+  await p.locator(sel).click({ position: { x: 30, y: 30 } });
+  await p.waitForTimeout(400);
+  const t = Date.now();
+  await p.keyboard.press('Enter');
+  const id = `intent-${slug(title)}`;
+  await p.waitForFunction((nid) => { const el = document.querySelector(`.react-flow__node[data-id="${nid}"]`); return el && !el.querySelector('[data-inferred]'); }, id, { timeout: 30000 });
+  const ms = Date.now() - t;
+  await p.waitForTimeout(400);
+  const after = await p.evaluate((nid) => ({ toast: document.querySelector('[data-notice]')?.textContent ?? '', undo: document.querySelector('[data-notice-undo]') !== null, selected: document.querySelector(`.react-flow__node[data-id="${nid}"]`)?.classList.contains('selected') === true }), id);
+  const file = join(work, 'spec', 'intents', `${slug(title)}.md`);
+  return { ms, id, file, written: existsSync(file), ...after };
+}
 const overlap = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 const rectOf = (p, sel) => p.evaluate((s) => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } : null; }, sel);
 
@@ -281,6 +315,11 @@ try {
   const work = mkdtempSync(join(tmpdir(), 'ig-readable-example-'));
   works.push(work);
   cpSync(fixture, work, { recursive: true });
+  // a canned report: proposals to accept in the concept, and a planned one with no concept
+  writeInfer(work, [
+    ...Array.from({ length: ACCEPT_RUNS }, (_, i) => row(`inf-a${i}`, `Readable proposal ${i + 1} for the calculator`)),
+    row('inf-plan', 'Keeps a helper for later', { planned: true, belongs_under: null, confidence: 'semantic' }),
+  ]);
   const srv = await startServer('server-example', work, true);
   const ex = async (w, h) => {
     const p = await browser.newPage({ viewport: { width: w, height: h } });
@@ -331,6 +370,100 @@ try {
     if (!place.pending || !/verified_by/.test(place.pending)) await fail(`the pending mark's title says ${JSON.stringify(place.pending)}`);
     await p.close();
     console.log(`ok bar words (${secs()}s) - folder "${place.folder}", live mark, counts with linked checks, pending says "${place.pending}"`);
+  }
+
+  // part c: a planned proposal reads 4.5 to 1, every pin is grabbed in 12 px and has a title, the plus says intent,
+  // a right-click ends a rename, a title is no field on hover, accept shows a toast and selects the new intent
+  {
+    const p = await ex(1440, 900);
+    if (await p.locator('[data-legend]').count()) { await p.locator('[data-legend-button]').click(); await p.waitForTimeout(400); }
+    await p.locator('[data-fold-row="inferred-fold:root"]').click();
+    await p.locator('.react-flow__node[data-id="inferred:inf-plan"]').waitFor({ timeout: SHOW_LIMIT_MS });
+    await p.waitForTimeout(500);
+    const look = await p.evaluate(() => {
+      const el = document.querySelector('.react-flow__node[data-id="inferred:inf-plan"]');
+      const body = el.querySelector('[data-inferred]');
+      const title = el.querySelector('[data-node-title]');
+      const words = [...el.querySelectorAll('[data-inferred-word]')].map((w) => ({ text: w.textContent.trim(), title: w.getAttribute('title') ?? '', opacity: Number(getComputedStyle(w).opacity) }));
+      return { opacity: Number(getComputedStyle(body).opacity), color: getComputedStyle(title).color, box: getComputedStyle(body).backgroundColor, canvas: getComputedStyle(document.querySelector('.react-flow')).backgroundColor, words };
+    });
+    const canvas = rgbOf(look.canvas);
+    const ratio = contrast(mix(rgbOf(look.color), canvas, look.opacity), mix(rgbOf(look.box), canvas, look.opacity));
+    const wordRatio = Math.min(...look.words.map((w) => contrast(mix(rgbOf(look.color), canvas, look.opacity * w.opacity), mix(rgbOf(look.box), canvas, look.opacity * w.opacity))));
+    if (ratio < 4.5 || wordRatio < 4.5) await fail(`a planned proposal's text is ${ratio.toFixed(2)} to 1, its words ${wordRatio.toFixed(2)} to 1, want 4.5 or more`);
+    if (!(look.opacity < 1)) await fail('a planned proposal is no fainter than the rest');
+    if (look.words.some((w) => w.title.length < 20)) await fail(`a proposal tag has no plain title: ${JSON.stringify(look.words)}`);
+    const plan = await rectOf(p, '.react-flow__node[data-id="inferred:inf-plan"]');
+    const clipTop = Math.max(0, plan.top - 30);
+    await frame(p, 'planned-proposal-close', { clip: { x: Math.max(0, plan.left - 20), y: clipTop, width: Math.min(plan.width + 40, 1440), height: Math.min(Math.max(plan.height + 60, 180), 900 - clipTop) } });
+    // pins: drawn 10 px at zoom 1, grabbed 6 px out from the centre each way, a title on each
+    const pins = await p.evaluate(() => {
+      const zoom = new DOMMatrix(getComputedStyle(document.querySelector('.react-flow__viewport')).transform).a;
+      const out = { zoom, count: 0, untitled: [], small: [], drawn: [] };
+      for (const h of document.querySelectorAll('.react-flow__handle')) {
+        const r = h.getBoundingClientRect();
+        if (r.right < 0 || r.left > innerWidth || r.top < 40 || r.bottom > innerHeight) continue;
+        out.count += 1;
+        const id = `${h.closest('.react-flow__node')?.getAttribute('data-id')}:${h.getAttribute('data-handleid')}`;
+        if (!h.getAttribute('title')) out.untitled.push(id);
+        out.drawn.push(Math.round((r.width / zoom) * 10) / 10);
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        for (const [dx, dy] of [[6, 0], [-6, 0], [0, 6], [0, -6]]) {
+          const hit = document.elementFromPoint(cx + dx, cy + dy)?.closest('.react-flow__handle');
+          if (hit !== h) { out.small.push(id); break; }
+        }
+      }
+      return out;
+    });
+    if (pins.count === 0) await fail('no pin in view to measure');
+    if (pins.untitled.length) await fail(`${pins.untitled.length} pins have no title: ${pins.untitled.slice(0, 3).join(', ')}`);
+    if (pins.small.length) await fail(`${pins.small.length} pins are not grabbed 6 px from their centre: ${pins.small.slice(0, 3).join(', ')}`);
+    if (pins.drawn.some((d) => Math.abs(d - 10) > 0.5)) await fail(`pins are drawn ${[...new Set(pins.drawn)].join(', ')} px, want 10`);
+    // the plus says intent on hover, the concept's menu has Add intent
+    const concept = '.react-flow__node[data-id="concept-calculator"]';
+    await p.mouse.move(5, 300);
+    const wordHidden = await p.evaluate((s) => getComputedStyle(document.querySelector(`${s} [data-add-word]`)).display, concept);
+    await p.locator(`${concept} [data-node-title]`).hover();
+    await p.waitForTimeout(200);
+    const wordShown = await p.evaluate((s) => { const w = document.querySelector(`${s} [data-add-word]`); return getComputedStyle(w).display !== 'none' ? w.textContent : null; }, concept);
+    if (wordHidden !== 'none' || wordShown !== 'intent') await fail(`the plus word is ${wordHidden} off hover and ${wordShown} on hover`);
+    const titleBg = await p.evaluate((s) => getComputedStyle(document.querySelector(`${s} [data-node-title]`)).backgroundColor, concept);
+    if (!/rgba\(0, 0, 0, 0\)|transparent/.test(titleBg)) await fail(`a hovered title looks like a field: ${titleBg}`);
+    await p.locator(`${concept} [data-node-title]`).click({ button: 'right' });
+    await p.locator('[data-context-menu]').waitFor({ timeout: 3000 });
+    const items = await p.locator('[data-context-menu] [role="menuitem"]').allTextContents();
+    if (!items.some((t) => /Add intent/.test(t))) await fail(`a concept's menu has ${items.join(', ')}`);
+    await p.keyboard.press('Escape');
+    // a right-click while a title is a field ends the field
+    const intent = '.react-flow__node[data-id="intent-adds-numbers"]';
+    await p.locator(`${intent} [data-node-title]`).dblclick();
+    await p.locator(`${intent} textarea`).waitFor({ timeout: 3000 });
+    await p.locator(intent).click({ button: 'right', position: { x: 30, y: 60 } });
+    await p.locator('[data-context-menu]').waitFor({ timeout: 3000 });
+    if (await p.locator('.react-flow__node textarea').count()) await fail('a right-click left a title in edit mode behind the menu');
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(300);
+    console.log(`ok proposals and pins (${secs()}s) - planned text ${ratio.toFixed(1)} to 1, words ${wordRatio.toFixed(1)} to 1, opacity ${look.opacity}, ${pins.count} pins drawn 10 px and grabbed 6 px out at zoom ${pins.zoom.toFixed(2)}, all titled, plus says "${wordShown}", menu "${items.join(', ')}", right-click ends a rename`);
+
+    // accept: a toast with the file and Undo, the new intent selected, click to drawn timed five times
+    await p.locator('[data-fold-row="concept-calculator"]').click();
+    await p.waitForTimeout(600);
+    const times = [];
+    for (let i = 0; i < ACCEPT_RUNS; i++) {
+      const title = `Readable proposal ${i + 1} for the calculator`;
+      const a = await acceptTimed(p, work, `inf-a${i}`, title);
+      if (!a.written) await fail(`accept did not write ${basename(a.file)}`);
+      if (!/Accepted/.test(a.toast) || !a.toast.includes(`${slug(title)}.md`) || !a.undo) await fail(`after accept the toast says ${JSON.stringify(a.toast)}, undo ${a.undo}`);
+      if (!a.selected) await fail(`the accepted intent ${a.id} is not selected`);
+      times.push(a.ms);
+      if (i === 0) await frame(p, 'accept-toast');
+      await p.keyboard.press('Escape');
+      await p.waitForTimeout(200);
+    }
+    if (Math.max(...times) >= ACCEPT_LIMIT_MS) await fail(`accept to drawn took ${times.join(', ')} ms on the example, want under ${ACCEPT_LIMIT_MS}`);
+    await p.close();
+    console.log(`ok accept (${secs()}s) - toast names the file with Undo, the new intent is selected, click to drawn ${times.join(', ')} ms`);
   }
   if (!(await stopServer(srv))) await fail('example server did not stop');
   {

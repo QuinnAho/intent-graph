@@ -48,10 +48,13 @@ export function addIntentTo(id: string): void {
 
 /** the right-click menu for a node. it opens the menu and nothing else, so the view never shifts under it. */
 export function openNodeMenu(id: string, kind: string, at: { x: number; y: number }): void {
+  // lane 17: a title left in edit mode would sit behind the menu, the menu ends it
+  useUiStore.getState().setRenameId(null);
   useUiStore.getState().openMenu({ ...at, nodeId: id, kind });
 }
 
 export function openPaneMenu(at: { x: number; y: number }): void {
+  useUiStore.getState().setRenameId(null);
   useUiStore.getState().openMenu({ ...at, nodeId: null, kind: null });
 }
 

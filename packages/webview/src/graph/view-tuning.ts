@@ -54,6 +54,14 @@ export const FIT_TUNING = {
   startInsetPx: 24,
 } as const;
 
+// proposals (lane 17): a planned one is fainter, its text still 4.5 to 1 against its box
+export const PROPOSAL_TUNING = {
+  plannedOpacity: 0.75,
+  // the words under the title are drawn this much fainter again
+  wordOpacity: 0.85,
+  minContrast: 4.5,
+} as const;
+
 // the minimap and the line that says the view holds part of the graph (lane 17)
 export const OVERVIEW_TUNING = {
   // no minimap in a window narrower than this, px

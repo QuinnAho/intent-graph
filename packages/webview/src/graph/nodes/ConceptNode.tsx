@@ -31,9 +31,12 @@ const ADD_BUTTON = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: '24px',
+  minWidth: '24px',
   height: '24px',
   padding: 0,
+  gap: '3px',
+  fontSize: '12px',
+  fontWeight: 600,
   borderRadius: '999px',
   border: '1px solid rgba(120, 169, 255, 0.7)',
   background: 'var(--ig-node)',
@@ -67,6 +70,7 @@ export function ConceptNode(props: NodeProps): JSX.Element {
   const plus = canWrite ? (
     <button type="button" className="ig-add-intent nodrag nopan" style={ADD_BUTTON} data-add-intent={props.id} aria-label="Add intent" title="Add intent" onClick={() => addIntentTo(props.id)}>
       <Plus size={14} aria-hidden />
+      <span className="ig-add-word" data-add-word="">intent</span>
     </button>
   ) : null;
   const fold = foldOf(props);

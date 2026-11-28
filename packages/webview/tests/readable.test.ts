@@ -140,3 +140,28 @@ describe('readFolder', () => {
     expect(readFolder(null)).toBeNull();
   });
 });
+
+// part c: a planned proposal is readable
+import { blend, contrastAtOpacity, contrastRatio, hexRgb } from '../src/graph/contrast.js';
+import { PROPOSAL_TUNING } from '../src/graph/view-tuning.js';
+
+describe('planned proposal contrast', () => {
+  // the default tokens: text, node surface, canvas (tokens.css), and the proposal header tint
+  const text = hexRgb('#d4d4d4');
+  const node = hexRgb('#252526');
+  const canvas = hexRgb('#1e1e1e');
+  const header = blend([167, 139, 250], node, 0.08);
+  it('keeps 4.5 to 1 for the title and the words, on the box and on its header', () => {
+    for (const box of [node, header]) {
+      expect(contrastAtOpacity(text, box, canvas, PROPOSAL_TUNING.plannedOpacity)).toBeGreaterThanOrEqual(PROPOSAL_TUNING.minContrast);
+      expect(contrastAtOpacity(text, box, canvas, PROPOSAL_TUNING.plannedOpacity * PROPOSAL_TUNING.wordOpacity)).toBeGreaterThanOrEqual(PROPOSAL_TUNING.minContrast);
+    }
+  });
+  it('is still fainter than a proposal whose code works', () => {
+    expect(PROPOSAL_TUNING.plannedOpacity).toBeLessThan(1);
+  });
+  it('the old 0.55 failed it, so the measure means something', () => {
+    expect(contrastAtOpacity(text, node, canvas, 0.55)).toBeLessThan(4.5);
+    expect(contrastRatio([0, 0, 0], [255, 255, 255])).toBeCloseTo(21, 5);
+  });
+});

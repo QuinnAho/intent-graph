@@ -18,7 +18,7 @@ import { RenameField } from './RenameField.js';
 import { PinContext } from '../../edges/wire-context.js';
 import { pinLabel, type PinSide } from '../../edges/wire-plan.js';
 import { wireStyle } from '../../edges/WireEdge.js';
-import { HEADER_COLORS, WIRE_TUNING } from '../../view-tuning.js';
+import { HEADER_COLORS, PROPOSAL_TUNING, WIRE_TUNING } from '../../view-tuning.js';
 import { chipHidden } from '../../nest-model.js';
 
 export type NodeHealth = 'green' | 'yellow' | 'red';
@@ -201,8 +201,9 @@ export function WarningMark(props: { warnings: ReadonlyArray<string> }): JSX.Ele
 // an inferred node: dashed, with the word and its confidence, so it never reads by colour alone
 const INFERRED_BORDER = 'rgba(167, 139, 250, 0.8)';
 const INFERRED_HEADER = 'rgba(167, 139, 250, 0.08)';
-// a planned proposal cites only placeholder code, so it is drawn fainter than one whose code works
-const PLANNED_OPACITY = 0.55;
+// a planned proposal cites only placeholder code, so it is drawn fainter than one whose code works.
+// lane 17: faint enough to tell apart, its text keeps 4.5 to 1 or better (view-tuning, tested)
+const PLANNED_OPACITY = PROPOSAL_TUNING.plannedOpacity;
 
 const PILL: CSSProperties = {
   display: 'inline-flex',
@@ -220,7 +221,7 @@ const PILL: CSSProperties = {
 const WORD_TITLES: Record<string, string> = {
   'confidence inferred': 'Confidence inferred: the model read it from the code it cites',
   'confidence semantic': 'Confidence semantic: the model read it from what the code seems to mean',
-  planned: 'Planned: it cites only placeholder code, so it is drawn fainter',
+  planned: 'Planned: the code it cites is only a placeholder, the real code is not written yet',
 };
 
 /** the dashed pill with the robot that every proposal carries */
@@ -242,7 +243,7 @@ function InferredRow(props: { info: InferredInfo }): JSX.Element {
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', overflow: 'hidden' }}>
         <InferredPill word={words[0] ?? 'inferred'} />
         {words.slice(1).map((w) => (
-          <span key={w} data-inferred-word={w} title={WORD_TITLES[w] ?? w} style={{ ...PILL, fontWeight: 500, opacity: 0.85 }}>
+          <span key={w} data-inferred-word={w} title={WORD_TITLES[w] ?? w} style={{ ...PILL, fontWeight: 500, opacity: PROPOSAL_TUNING.wordOpacity }}>
             {w}
           </span>
         ))}
@@ -332,7 +333,11 @@ export function PinCount(props: { side: 'in' | 'out'; label: string }): JSX.Elem
 
 // one input pin west, one output pin east. on a spec node a wire starts at the output pin and ends
 // at an input pin, and only when the canvas takes connections (writes on). code pins never connect.
-function Pins(props: { spec: boolean; ownsCode: boolean }): JSX.Element {
+// lane 17: every pin says what dragging it does, the ones that take no wire say why
+const CODE_PIN_TITLE = 'Wires to and from code are drawn from the spec, a code pin takes no drag';
+const PROPOSAL_PIN_TITLE = 'A proposal is not a file yet, so its pins take no wire. Accept it first';
+
+function Pins(props: { spec: boolean; ownsCode: boolean; proposal: boolean }): JSX.Element {
   const id = useNodeId();
   const info = useContext(PinContext).get(id ?? '');
   const inSide = info?.in ?? EMPTY_SIDE;
@@ -343,13 +348,13 @@ function Pins(props: { spec: boolean; ownsCode: boolean }): JSX.Element {
     <>
       {props.spec ? (
         <>
-          <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} style={{ ...pinStyle(inSide), pointerEvents: 'auto' }} title="Drop a wire here to hang it under this node" />
-          <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} style={{ ...pinStyle(outSide), pointerEvents: 'auto' }} title="Drag from here to hang this node under another" />
+          <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} style={{ ...pinStyle(inSide), pointerEvents: 'auto' }} title="In pin: drop a wire from another node here to hang that node under this one" />
+          <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} style={{ ...pinStyle(outSide), pointerEvents: 'auto' }} title="Out pin: drag from here onto a concept to hang this node under it" />
         </>
       ) : (
         <>
-          <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={pinStyle(inSide)} />
-          <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={pinStyle(outSide)} />
+          <Handle id="in" type="target" position={Position.Left} isConnectable={false} style={{ ...pinStyle(inSide), pointerEvents: 'auto' }} title={props.proposal ? PROPOSAL_PIN_TITLE : CODE_PIN_TITLE} />
+          <Handle id="out" type="source" position={Position.Right} isConnectable={false} style={{ ...pinStyle(outSide), pointerEvents: 'auto' }} title={props.proposal ? PROPOSAL_PIN_TITLE : CODE_PIN_TITLE} />
         </>
       )}
       {inLabel ? <PinCount side="in" label={inLabel} /> : null}
@@ -400,7 +405,7 @@ export function NodeChrome(props: { data: NodeChromeData; headerAction?: ReactNo
       }}
     >
       {/* a proposal is not a file yet, so its pins take no wire */}
-      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind) && !inferred} ownsCode={data.ownsCodeCount === true} /> : null}
+      {showHandles ? <Pins spec={SPEC_KINDS.has(data.kind) && !inferred} ownsCode={data.ownsCodeCount === true} proposal={inferred !== undefined} /> : null}
       <div
         className="ig-node-body"
         {...(inferred ? { 'data-inferred': inferred.proposal_id, 'data-inferred-planned': inferred.planned ? 'true' : 'false' } : {})}

@@ -25,6 +25,9 @@
   stroke-dasharray: 7 5;
 }
 .react-flow__connection.valid .react-flow__connection-path { stroke: rgb(86, 211, 100); stroke-dasharray: none; }
+/* lane 17: a pin is drawn 10 px and grabbed in 20 px, the ring around it takes the pointer */
+.react-flow__handle { z-index: 1; }
+.react-flow__handle::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
 /* a pin that starts a wire says so under the pointer */
 .react-flow__handle.connectablestart { cursor: crosshair; }
 .react-flow__handle.connectablestart:hover { transform: translate(50%, -50%) scale(1.5); }
@@ -38,4 +41,4 @@
 /* a node that was lit goes back at once, a fade would leave an outline behind a refused drop */
 .react-flow__node > div > .ig-node-body { transition: opacity 180ms ease !important; }
 /* no input-looking highlight on a title right after a drop */
-body.ig-after-drop [data-node-title][data-renamable]:hover { background-color: transparent; box-shadow: none; }
+body.ig-after-drop [data-node-title][data-renamable]:hover > span { text-decoration: none; }
