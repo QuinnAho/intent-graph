@@ -12,18 +12,33 @@
   },
   "categories": ["Other", "Visualization", "Programming Languages"],
   "main": "./dist/extension.js",
-  "activationEvents": ["onCommand:intentgraph.openGraph"],
+  "activationEvents": ["onCommand:intentgraph.openGraph", "onCommand:intentgraph.reveal", "onStartupFinished"],
   "contributes": {
     "commands": [
       {
         "command": "intentgraph.openGraph",
         "title": "IntentGraph: Open Graph",
         "category": "IntentGraph"
+      },
+      {
+        "command": "intentgraph.reveal",
+        "title": "IntentGraph: Reveal Node in Graph",
+        "category": "IntentGraph"
       }
     ],
     "configuration": {
       "title": "IntentGraph",
       "properties": {
+        "intentgraph.openOnStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open the graph panel when the window is ready."
+        },
+        "intentgraph.write": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start the live server with editing on, so the page can save to spec/."
+        },
         "intentgraph.skill.path": {
           "type": "string",
           "default": "",

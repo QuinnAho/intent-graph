@@ -8,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pageIsStale } from './vscode-launch.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -26,8 +27,8 @@ function fail(message) {
   process.exit(1);
 }
 
-// the page, built once when it is missing
-if (!flag('--no-build') && !existsSync(join(webDir, 'index.html'))) {
+// the page, built when it is missing or older than its sources
+if (!flag('--no-build') && pageIsStale(repo)) {
   console.log('building the page, this takes a minute the first time');
   const b = spawnSync('pnpm --filter @intentgraph/webview build', { cwd: repo, shell: true, stdio: 'inherit' });
   if (b.status !== 0) fail('the page build failed, see the lines above');
