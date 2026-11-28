@@ -8,7 +8,7 @@
 // store shape is unchanged; only the producer differs.
 
 import { applyNodeChanges, type Node, type NodeChange, type NodeSelectionChange } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { GraphCanvas } from '../graph/GraphCanvas.js';
 import { openDetails, openNodeMenu, openPaneMenu, renameNode } from './direct-edit-actions.js';
@@ -198,8 +198,8 @@ const SHELL_STYLE: CSSProperties = {
   flexDirection: 'column',
 };
 
-// the state bar sits above this row and the legend beside the canvas, each in its own room
-const MIDDLE_STYLE: CSSProperties = { display: 'flex', flex: '1 1 auto', minHeight: 0 };
+// the state bar sits above this row and the legend lies over its right side, so the canvas keeps its size
+const MIDDLE_STYLE: CSSProperties = { position: 'relative', overflow: 'hidden', display: 'flex', flex: '1 1 auto', minHeight: 0 };
 const CANVAS_AREA_STYLE: CSSProperties = { position: 'relative', flex: '1 1 auto', minHeight: 0, minWidth: 0 };
 
 const ERROR_STYLE: CSSProperties = {
@@ -229,6 +229,7 @@ export function App(): JSX.Element {
   const editNodeId = useSettledId(useGraphStore((s) => pickEditNode(s.nodes)?.id ?? null));
   // picked once, when the first laid-out graph arrives. later updates never refit.
   const [fitNodeIds, setFitNodeIds] = useState<string[] | null | undefined>(undefined);
+  const focusSelected = useRef(false);
 
   useEffect(() => {
     if (status === 'idle') {
@@ -237,7 +238,14 @@ export function App(): JSX.Element {
   }, [status, live, focus]);
 
   useEffect(() => {
-    if (layoutReady && fitNodeIds === undefined) setFitNodeIds(firstFit(nodes, focus));
+    if (layoutReady && fitNodeIds === undefined) {
+      setFitNodeIds(firstFit(nodes, focus));
+      // ?focus= also selects the node, so "reveal in graph" shows it picked
+      // once only: a store update can render again before the state above lands
+      const picked = focus !== null && !focusSelected.current ? selectOnly(nodes as Node[], focus) : null;
+      focusSelected.current = true;
+      if (picked) useGraphStore.getState().setGraph(picked, useGraphStore.getState().edges);
+    }
   }, [layoutReady, fitNodeIds, nodes, focus]);
 
   useEffect(() => {

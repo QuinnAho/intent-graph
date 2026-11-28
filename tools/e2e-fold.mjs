@@ -185,8 +185,8 @@ const frame = async (p, name, opts = {}) => {
   await p.screenshot({ path: join(runDir, `${name}.jpg`), type: 'jpeg', quality: 85, ...opts });
   if (wantFrames) await p.screenshot({ path: join(framesDir, `${name}.jpg`), type: 'jpeg', quality: 85, ...opts });
 };
-// the legend opens on a first visit and closes on the first click outside it, which changes the
-// canvas size and fits again. close it first so a step measures only what it does.
+// the legend opens on a first visit in a wide window and lies over the canvas, so it changes nothing.
+// close it first anyway, so a step measures only what it does.
 const closeLegend = async (p) => {
   if (await p.locator('[data-legend]').count()) {
     await p.locator('[data-legend-button]').click();
@@ -427,6 +427,97 @@ try {
   if (fitN.outside.length || fitN.docWidth > fitN.winWidth) await fail(`a first load at 480 cuts off ${fitN.outside.join(', ')} or scrolls sideways ${fitN.docWidth}`);
   console.log(`ok narrow (${secs()}s) - a first load at 480 fits ${fitN.nodes} nodes, no sideways scroll`);
   await pn.close();
+  // lane 12 fixes: the legend lies over the canvas, narrow windows, ?focus selects
+  // a click on a fold row with the legend open: the header moves 40 px at most and the legend stays
+  const pl = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  watch(pl, 'legend-fold');
+  await pl.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await pl.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 30000 });
+  await pl.locator('[data-legend]').waitFor({ timeout: 3000 }).catch(() => fail('the legend did not open on a first visit at 1440'));
+  await pl.waitForTimeout(800);
+  const canvasBefore = await pl.evaluate(() => { const r = document.querySelector('.react-flow').getBoundingClientRect(); return [r.width, r.height]; });
+  const lh0 = await headerAt(pl, CONCEPT);
+  await pl.locator(`[data-fold-row="${CONCEPT}"]`).click();
+  await pl.waitForFunction((k) => document.querySelector(`[data-fold-row="${k}"]`)?.getAttribute('data-fold-open') === 'true', CONCEPT, { timeout: SHOW_LIMIT_MS });
+  await pl.waitForTimeout(800);
+  const lh1 = await headerAt(pl, CONCEPT);
+  const lmoved = Math.hypot(lh1.x - lh0.x, lh1.y - lh0.y);
+  const canvasAfter = await pl.evaluate(() => { const r = document.querySelector('.react-flow').getBoundingClientRect(); return [r.width, r.height]; });
+  if (lmoved > ANCHOR_PX) await fail(`with the legend open the concept's header moved ${Math.round(lmoved)} px on unfold`);
+  if ((await pl.locator('[data-legend]').count()) !== 1) await fail('a click on a fold row closed the legend');
+  if (canvasBefore.join() !== canvasAfter.join()) await fail(`the legend changed the canvas size ${canvasBefore} to ${canvasAfter}`);
+  await pl.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } });
+  await pl.waitForTimeout(300);
+  if ((await pl.locator('[data-legend]').count()) !== 1) await fail('a click on the canvas closed the legend');
+  console.log(`ok legend over canvas (${secs()}s) - legend open, a click on a fold row moved the header ${Math.round(lmoved)} px, a click on the canvas left it open, canvas stays ${canvasAfter.map(Math.round).join('x')}`);
+  await pl.close();
+
+  // narrow windows: no legend by itself under 700, one at 1280, and the legend opened from "?" fits
+  const firstVisit = async (w) => {
+    const p = await browser.newPage({ viewport: { width: w, height: 800 } });
+    watch(p, `first-${w}`);
+    await p.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await p.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 30000 });
+    await p.waitForTimeout(800);
+    return p;
+  };
+  const p480 = await firstVisit(480);
+  if ((await p480.locator('[data-legend]').count()) !== 0) await fail('the legend opened by itself at 480');
+  const p1280 = await firstVisit(1280);
+  if ((await p1280.locator('[data-legend]').count()) !== 1) await fail('the legend did not open by itself at 1280');
+  await p1280.close();
+  const legendFit = () => {
+    const l = document.querySelector('[data-legend]');
+    const r = l.getBoundingClientRect();
+    const bar = document.querySelector('[data-state-bar]').getBoundingClientRect();
+    const ctx = document.createElement('canvas').getContext('2d');
+    const short = [];
+    for (const rowEl of l.querySelectorAll(':scope > div')) {
+      const cells = rowEl.children;
+      if (cells.length !== 2) continue;
+      const text = cells[1];
+      const cs = getComputedStyle(text);
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const longest = Math.max(...text.textContent.split(/\s+/).map((w) => ctx.measureText(w).width));
+      if (text.getBoundingClientRect().width < longest - 0.5) short.push(text.textContent.slice(0, 30));
+    }
+    return { left: r.left, right: r.right, top: r.top, barBottom: bar.bottom, win: innerWidth, short, sideways: document.documentElement.scrollWidth > innerWidth, scrolls: l.scrollHeight > l.clientHeight };
+  };
+  for (const w of [480, 280]) {
+    const p = w === 480 ? p480 : await browser.newPage({ viewport: { width: w, height: 800 } });
+    if (w !== 480) {
+      watch(p, `legend-${w}`);
+      await p.goto(srv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await p.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 30000 });
+    }
+    await p.locator('[data-legend-button]').click();
+    await p.locator('[data-legend]').waitFor({ timeout: 3000 });
+    await p.waitForTimeout(400);
+    const lf = await p.evaluate(legendFit);
+    if (lf.left < -0.5 || lf.right > lf.win + 0.5 || lf.sideways) await fail(`at ${w} px the legend spans ${lf.left} to ${lf.right}, sideways scroll ${lf.sideways}`);
+    if (lf.top < lf.barBottom - 0.5) await fail(`at ${w} px the legend starts at ${lf.top}, above the bar's end ${lf.barBottom}`);
+    if (lf.short.length) await fail(`at ${w} px these legend rows are narrower than their longest word: ${lf.short.slice(0, 3).join(' | ')}`);
+    if (!lf.scrolls) await fail(`at ${w} px the legend does not scroll inside itself`);
+    await frame(p, `legend-${w}`);
+    if (wantFrames) await p.screenshot({ path: join(framesDir, `legend-${w}.jpg`), type: 'jpeg', quality: 85 });
+    await p.close();
+  }
+  console.log(`ok narrow legend (${secs()}s) - no legend by itself at 480, open at 1280, opened from "?" at 480 and 280 it stays inside the window, scrolls, no row narrower than its longest word`);
+
+  // ?focus selects the node, a declared one and a folded proposal
+  for (const id of ['intent-adds-numbers', 'inferred:inf-c07']) {
+    const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    watch(p, 'focus-select');
+    await p.goto(`${srv.url}?focus=${encodeURIComponent(id)}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await p.locator(node(id)).waitFor({ timeout: 30000 });
+    await p.waitForTimeout(800);
+    const sel = await p.evaluate((nid) => document.querySelector(`.react-flow__node[data-id="${nid}"]`)?.classList.contains('selected') === true, id);
+    const only = await p.evaluate(() => document.querySelectorAll('.react-flow__node.selected').length);
+    if (!sel || only !== 1) await fail(`?focus=${id} selected: ${sel}, ${only} selected in all`);
+    await p.close();
+  }
+  console.log(`ok focus selects (${secs()}s) - ?focus selected a declared node and a folded proposal, one at a time`);
+  await p480.close();
   if (!(await stopServer(srv))) await fail('fixture server did not stop');
 
   // 2 this repo with the real report from the main checkout, when there is one
@@ -474,7 +565,22 @@ try {
     if (wantFrames) await rp.screenshot({ path: join(framesDir, 'repo-folded-1440x900.jpg'), type: 'jpeg', quality: 85 });
     // one concept unfolded
     const biggest = rf.rows.filter((r) => r.key !== ROOT_BOX).sort((a, b) => b.count - a.count)[0];
-    await rp.locator(`[data-fold-row="${biggest.key}"]`).click();
+    // lane 12: the unfold time of the biggest concept, 5 runs, printed, not a gate.
+    const rowSel = `[data-fold-row="${biggest.key}"]`;
+    const unfoldRuns = [];
+    for (let i = 0; i < 5; i++) {
+      const t = Date.now();
+      await rp.locator(rowSel).click();
+      await rp.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-fold-open') === 'true', rowSel, { timeout: STOP_LIMIT_MS });
+      const total = Date.now() - t;
+      unfoldRuns.push(total);
+      if (i < 4) {
+        await rp.locator(rowSel).click();
+        await rp.waitForFunction((sel) => document.querySelector(sel)?.getAttribute('data-fold-open') === 'false', rowSel, { timeout: STOP_LIMIT_MS });
+        await rp.waitForTimeout(300);
+      }
+    }
+    console.log(`unfold ${biggest.key} (${biggest.count}) ms from click to open, 5 runs: ${unfoldRuns.join(', ')}`);
     await rp.waitForFunction(() => document.querySelectorAll('[data-inferred]').length > 0, null, { timeout: SHOW_LIMIT_MS }).catch(() => {});
     await rp.waitForTimeout(600);
     const rcOpen = await rp.evaluate(readCrossing, { parents: shape.parents, ends: shape.ends, samples: SAMPLES });
@@ -495,7 +601,10 @@ try {
     await r480.waitForFunction(() => document.querySelectorAll('[data-fold-row]').length > 0, null, { timeout: 60000 });
     await r480.waitForTimeout(800);
     const fit480r = await r480.evaluate(readFit);
-    if (fit480r.outside.length || fit480r.docWidth > fit480r.winWidth) await fail(`repo at 480 cuts off ${fit480r.outside.slice(0, 4).join(', ')} or scrolls sideways ${fit480r.docWidth}`);
+    if (wantFrames) await r480.screenshot({ path: join(framesDir, 'repo-480.jpg'), type: 'jpeg', quality: 85 });
+    // new in lane 12 and only held before because the legend shrank the canvas: the first fit shows the declared nodes, code files may lie outside at 480
+    const cut480 = fit480r.outside.filter((id) => !id.startsWith('code_'));
+    if (cut480.length || fit480r.docWidth > fit480r.winWidth) await fail(`repo at 480 cuts off ${cut480.slice(0, 4).join(', ')} or scrolls sideways ${fit480r.docWidth}`);
     if (wantFrames) await r480.screenshot({ path: join(framesDir, 'repo-480.jpg'), type: 'jpeg', quality: 85 });
     await r480.close();
     if (!(await stopServer(rsrv))) await fail('repo server did not stop');

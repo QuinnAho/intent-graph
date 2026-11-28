@@ -1,11 +1,12 @@
 // the legend (lane 11): what each node kind, mark, pin and key means. it draws the real marks
 // and icons from the node chrome, so it cannot drift from what the canvas shows. it takes its
-// own room right of the canvas, so it never sits on a node. it opens by itself on the first
-// visit, a click elsewhere or Esc closes it, and focus goes back to the "?" in the bar.
+// layer at the right, under the bar, so the canvas never changes size and nothing refits. it opens
+// by itself on the first visit in a wide window. only its X, Esc and the "?" close it, and focus
+// goes back to the "?" in the bar.
 
 import { X } from 'lucide-react';
 import type { Node } from '@xyflow/react';
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 import { getNodeIcon, type NodeKind } from '../graph/nodes/nodeIcons.js';
 import { DriftMark, EMPTY_SIDE, InferredPill, PinCount, RobotIcon, StatusMark, WarningMark, pinStyle, type DriftInfo } from '../graph/nodes/shared/nodeChrome.js';
@@ -42,12 +43,15 @@ const sample = (verdict: DriftInfo['verdict'], over: Partial<DriftInfo> = {}): D
 });
 
 const ASIDE: CSSProperties = {
-  // never wider than most of a narrow window, never taller than its row, so it scrolls inside itself
-  flex: `0 0 min(${GLANCE_TUNING.legendWidth}px, 70vw)`,
-  width: `min(${GLANCE_TUNING.legendWidth}px, 70vw)`,
+  // a layer over the canvas, right side, under the bar. never taller than its row, so it scrolls inside itself
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 20,
+  width: `min(${GLANCE_TUNING.legendWidth}px, 100%)`,
+  maxWidth: '100%',
   minHeight: 0,
-  maxHeight: '100%',
-  alignSelf: 'stretch',
   boxSizing: 'border-box',
   overflowY: 'auto',
   padding: '12px 14px 16px',
@@ -61,15 +65,31 @@ const ASIDE: CSSProperties = {
 const H2: CSSProperties = { fontSize: '13px', fontWeight: 700, margin: 0 };
 const H3: CSSProperties = { fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.7, margin: '14px 0 6px' };
 const ROW: CSSProperties = { display: 'grid', gridTemplateColumns: '112px 1fr', alignItems: 'center', gap: '8px', padding: '3px 0' };
+// narrow: the words go under the label, so nothing breaks to one word a line
+const ROW_NARROW: CSSProperties = { ...ROW, gridTemplateColumns: 'minmax(0, 1fr)', gap: '2px', padding: '5px 0' };
+const NarrowContext = createContext(false);
+
+const isNarrow = (): boolean => window.innerWidth < GLANCE_TUNING.narrowPx;
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(isNarrow);
+  useEffect(() => {
+    const on = (): void => setNarrow(isNarrow());
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return narrow;
+}
 const MUTED: CSSProperties = { opacity: 0.8 };
 const KBD: CSSProperties = { fontFamily: 'var(--ig-font-mono, monospace)', fontSize: '11px', padding: '1px 5px', border: '1px solid var(--ig-edge)', borderRadius: '4px', whiteSpace: 'nowrap' };
 const BOX: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600 };
 
 function Row(props: { mark: ReactNode; children: ReactNode }): JSX.Element {
+  const narrow = useContext(NarrowContext);
   return (
-    <div style={ROW}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>{props.mark}</div>
-      <div style={MUTED}>{props.children}</div>
+    <div style={narrow ? ROW_NARROW : ROW}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, flexWrap: 'wrap' }}>{props.mark}</div>
+      <div style={{ ...MUTED, minWidth: 0, overflowWrap: 'break-word' }}>{props.children}</div>
     </div>
   );
 }
@@ -94,6 +114,15 @@ export function useLegendFirstVisit(): void {
     } catch {
       seen = false;
     }
+    // a narrow window starts with the graph. the flag stays unset so a wide window still opens it once.
+    if (!seen && isNarrow()) {
+      try {
+        window.localStorage.removeItem(GLANCE_TUNING.legendSeenKey);
+      } catch {
+        // storage missing, nothing to undo
+      }
+      return;
+    }
     if (!seen) useUiStore.getState().setLegendOpen(true);
   }, []);
 }
@@ -101,17 +130,13 @@ export function useLegendFirstVisit(): void {
 export function Legend(): JSX.Element | null {
   const open = useUiStore((s) => s.legendOpen);
   const ref = useRef<HTMLElement>(null);
+  const narrow = useNarrow();
   const nodes = useGraphStore((s) => s.nodes);
   const kinds = useMemo(() => new Set(legendKinds(KINDS.map((k) => k.kind), nodes as Node[])), [nodes]);
   useEffect(() => {
     if (!open) return undefined;
     // opened from the "?": the focus moves in, so the keyboard can read it
     if (document.activeElement === legendButton()) ref.current?.focus();
-    const onDown = (e: PointerEvent): void => {
-      const t = e.target instanceof Element ? e.target : null;
-      if (t?.closest('[data-legend], [data-legend-button]')) return;
-      closeLegend();
-    };
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       const inside = document.activeElement?.closest('[data-legend], [data-legend-button]') != null;
@@ -122,16 +147,15 @@ export function Legend(): JSX.Element | null {
       }
       closeLegend();
     };
-    window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('keydown', onKey, true);
     return () => {
-      window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
   if (!open) return null;
   return (
-    <aside ref={ref} id="ig-legend" data-legend="" aria-label="Legend" tabIndex={-1} style={ASIDE} className="nowheel">
+    <NarrowContext.Provider value={narrow}>
+    <aside ref={ref} id="ig-legend" data-legend="" aria-label="Legend" tabIndex={-1} style={narrow ? { ...ASIDE, width: '100%', borderLeft: 'none' } : ASIDE} className="nowheel">
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <h2 style={H2}>How to read the graph</h2>
         <button type="button" aria-label="Close legend" title="Close (Esc)" onClick={closeLegend} style={{ marginLeft: 'auto', display: 'inline-flex', padding: '3px', border: '1px solid transparent', borderRadius: '6px', background: 'transparent', color: 'inherit', cursor: 'pointer' }}>
@@ -179,5 +203,6 @@ export function Legend(): JSX.Element | null {
         <Row key={keys} mark={<kbd style={KBD}>{keys}</kbd>}>{what}</Row>
       ))}
     </aside>
+    </NarrowContext.Provider>
   );
 }
