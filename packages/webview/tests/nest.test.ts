@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { LayoutCache, layoutKey } from '../src/graph/layout/layout-cache.js';
 import { layoutNested } from '../src/graph/layout/nested.js';
 import { applyNest, chipHidden, codeOf, codeRowText, codeRowTitle, nestCountLabel, nestFootPx, nestKey, nestMenuItem, nestOf, nestShape, nestToggleTitle, type CodeRef } from '../src/graph/nest-model.js';
-import { NEST_TUNING } from '../src/graph/view-tuning.js';
+import { NEST_TUNING, TITLE_TUNING } from '../src/graph/view-tuning.js';
 import { menuItems } from '../src/app/direct-edit-model.js';
 
 const SYM = 'code_symbol:src/math.ts#add#0123456789ab';
@@ -84,6 +84,10 @@ describe('rows', () => {
 
   it('labels the count', () => {
     expect(nestCountLabel(2)).toBe('2 code');
+    expect(nestCountLabel(2, false)).toBe('2 code');
+    // open, the count says what a click does, as the fold row does
+    expect(nestCountLabel(2, true)).toBe('hide 2 code');
+    expect(nestCountLabel(1, true)).toBe('hide 1 code');
   });
 
   it('keeps one count per node: the pin chip drops its code part, the wires go into the count title', () => {
@@ -171,6 +175,18 @@ describe('layout sizes', () => {
     expect(nestFootPx(by.get('i3')!)).toBe(0);
     expect(NEST_TUNING.rowPx).toBeGreaterThanOrEqual(24);
     expect(NEST_TUNING.rowPx).toBeLessThanOrEqual(28);
+  });
+
+  it('reserves room for what an open node really holds, the node itself is as tall as that', () => {
+    // the tallest one line header measured in the page, px. the open node is as tall as its content, so the
+    // room reserved here only has to cover it, and no spare room shows at the foot
+    const headerPx = 47;
+    const rowsTopPx = 2;
+    for (const rows of [1, 2, 3, 7]) {
+      const content = headerPx + NEST_TUNING.togglePx + rowsTopPx + rows * NEST_TUNING.rowPx + NEST_TUNING.padPx;
+      const open = applyNest([withCode('i', Array.from({ length: rows }, () => refs[0]!))], new Set(['i']))[0]!;
+      expect(TITLE_TUNING.baseHeight + nestFootPx(open)).toBeGreaterThanOrEqual(content);
+    }
   });
 
   it('gives the layout a taller box for an open intent, so nothing overlaps it', async () => {

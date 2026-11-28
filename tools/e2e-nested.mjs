@@ -5,7 +5,8 @@
 //   checks the server's list, the count, the rows' order and words, open and close by click, O and the menu,
 //   the title stays put, a row selects its code in a browser tab, open survives a rename, a move with undo
 //   and a live update, every intent open with no overlap, every intent closed puts every node back within 1 px,
-//   the menu near the right edge with the panel open, and 480 px.
+//   the menu near the right edge with the panel open, and 480 px. the count reads "2 code" closed, "hide 2 code" open.
+//   1b the foot of an open node: 1, 2, 3 and 7 rows, with and without a chip, a title on two lines, 6 to 16 px each.
 // 2 the same copy on a server without --write: open, close and a row click send only GET.
 // 3 when the main checkout holds a real inference report: a temp copy of this repo with that report, one
 //   proposal accepted and opened. click to settled layout, median of 5, under the lane's limit.
@@ -310,6 +311,8 @@ try {
   let h1 = await headerAt(page, TWO);
   nest = await page.evaluate(readNest);
   const rows = nest[TWO].rows;
+  // open, the count reads as the way to close
+  if (nest[TWO].text !== 'hide 2 code') await fail(`the open count of ${TWO} reads "${nest[TWO].text}", want "hide 2 code"`);
   if (rows.map((r) => r.text).join(' / ') !== 'add | src/math.ts / src/greet.ts') await fail(`rows of ${TWO}: ${rows.map((r) => r.text).join(' / ')}`);
   if (rows.some((r) => r.pins !== 0 || !r.inNode || r.border !== 'none' || Math.abs(r.height - 26) > 2)) await fail(`a row looks like a node: ${JSON.stringify(rows)}`);
   if (rows.some((r) => !r.title)) await fail('a row has no title');
@@ -322,6 +325,7 @@ try {
   if (wantFrames) await page.screenshot({ path: join(framesDir, 'n2-open-node-close.jpg'), type: 'jpeg', quality: 92, clip: { x: Math.max(0, closeUp.x - 12), y: Math.max(0, closeUp.y - 12), width: closeUp.width + 24, height: closeUp.height + 24 } });
   await toggleClick(page, TWO, false);
   let h2 = await headerAt(page, TWO);
+  if ((await page.evaluate(readNest))[TWO].text !== '2 code') await fail('the closed count did not go back to "2 code"');
   let back = placesDiff(places0, await page.evaluate(readPlaces));
   if (back.worst > BACK_PX) await fail(`close by click left a node ${back.worst} px off: ${back.what}`);
   console.log(`ok click (${secs()}s) - rows "${rows.map((r) => r.text).join('" then "')}", 26 px, no border, no pins, title moved ${Math.round(moved(h0, h1))} and ${Math.round(moved(h0, h2))} px, no overlap, closed back within ${back.worst} px`);
@@ -370,6 +374,9 @@ try {
   await settled(page);
   console.log(`ok keys (${secs()}s) - O opens and closes with the focus kept on the node, O on no code does nothing, Tab reaches ${tabbed.length} rows with a ring, Enter on a row selects its code`);
 
+  // the row click centred the code node, so fit again: the intent may be outside the view and not drawn
+  await page.keyboard.press('f');
+  await settled(page);
   // a rename field takes the letter, nothing toggles
   await page.locator(`${node(TWO)} [data-node-title]`).click();
   await page.keyboard.press('F2');
@@ -574,6 +581,99 @@ try {
   await page.close();
   if (!(await stopServer(srv))) await fail('fixture server did not stop');
 
+  // 1b the foot of an open node: from the bottom of the last row to the bottom edge, with 1, 2, 3 and 7 rows,
+  // with and without a chip, and a title on two lines. same on every node, and the count says "hide" when open.
+  const GAP_MIN = 6;
+  const GAP_MAX = 16;
+  const GAP_SAME = 2;
+  const footWork = mkdtempSync(join(tmpdir(), 'ig-nestedfix-foot-'));
+  works.push(footWork);
+  cpSync(fixture, footWork, { recursive: true });
+  const FOOT_ANCHORS = ['src/math.ts#add', 'src/greet.ts', 'src/math.ts', 'src/greet.ts', 'src/math.ts#add', 'src/greet.ts', 'src/math.ts'];
+  const footIntent = (id, title, anchors, verified) => writeFileSync(join(footWork, 'spec', 'intents', `${id.replace('intent-', '')}.md`), ['---', `id: ${id}`, `title: ${title}`, `parent: ${CONCEPT}`, 'confidence: asserted', 'target_kinds:', '  - function', 'realized_by:', ...anchors.map((a) => `  - ${a}`), ...(verified ? ['verified_by:', '  - tests/math.test.ts#adds two numbers'] : []), '---', '', `# ${title}`, '', 'A node for measuring the foot of an open node.', ''].join('\n'));
+  const footCases = [];
+  for (const n of [1, 2, 3, 7]) {
+    footIntent(`intent-foot-plain-${n}`, `Plain with ${n} rows`, FOOT_ANCHORS.slice(0, n), false);
+    footIntent(`intent-foot-verified-${n}`, `Verified with ${n} rows`, FOOT_ANCHORS.slice(0, n), true);
+    // an anchor to a file that is not there gives the node a warning chip
+    footIntent(`intent-foot-warned-${n}`, `Warned with ${n} rows`, [...FOOT_ANCHORS.slice(0, n - 1), 'src/gone.ts#nope'], false);
+    footCases.push([`intent-foot-plain-${n}`, n, 'no chip'], [`intent-foot-verified-${n}`, n, 'verified chip'], [`intent-foot-warned-${n}`, n, 'warning chip']);
+  }
+  const LONG = 'intent-foot-long';
+  footIntent(LONG, 'A title that is long enough to wrap onto a second line inside the node', FOOT_ANCHORS, false);
+  footCases.push([LONG, 7, 'title on two lines']);
+  const footSrv = await startServer('server-foot', footWork, false);
+  const footPage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  watch(footPage, 'foot');
+  await footPage.goto(footSrv.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await footPage.waitForFunction((n) => document.querySelectorAll('[data-nest-toggle]').length >= n, 5, { timeout: 30000 });
+  await footPage.waitForTimeout(600);
+  await closeLegend(footPage);
+  await settled(footPage);
+  const footShape = await graphShape(footSrv.url);
+  const footClosed = await footPage.evaluate(readPlaces);
+  for (const [id] of footCases) {
+    await footPage.keyboard.press('f');
+    await settled(footPage);
+    await toggleClick(footPage, id, true);
+  }
+  await footPage.keyboard.press('f');
+  await settled(footPage);
+  const footOver = await footPage.evaluate(readOverlaps, footShape.parents);
+  if (footOver.length) await fail(`the foot cases, every node open, overlap: ${footOver.join(', ')}`);
+  const readFoot = (id) => footPage.evaluate((nid) => {
+    const el = document.querySelector(`.react-flow__node[data-id="${nid}"]`);
+    if (!el) return { missing: true };
+    const body = el.querySelector('.ig-node-body');
+    const rows = [...el.querySelectorAll('[data-code-row]')];
+    const zoom = body.getBoundingClientRect().height / body.offsetHeight;
+    const gap = rows.length ? (body.getBoundingClientRect().bottom - rows[rows.length - 1].getBoundingClientRect().bottom) / zoom : NaN;
+    const title = el.querySelector('[data-node-title]');
+    return { rows: rows.length, gap: Math.round(gap * 10) / 10, titleLines: Math.round(title.getBoundingClientRect().height / zoom / 18), text: el.querySelector('[data-nest-toggle]')?.textContent.trim() ?? '' };
+  }, id);
+  const foot = [];
+  for (const [id, n, what] of footCases) {
+    await footPage.keyboard.press('f');
+    await settled(footPage);
+    const m = await readFoot(id);
+    if (m.missing) await fail(`foot case ${id} is not drawn`);
+    if (m.rows !== n) await fail(`foot case ${id} shows ${m.rows} rows, want ${n}`);
+    if (!(m.gap >= GAP_MIN && m.gap <= GAP_MAX)) await fail(`the foot of ${id} (${n} rows, ${what}) is ${m.gap} px, want ${GAP_MIN} to ${GAP_MAX}`);
+    if (m.text !== `hide ${n} code`) await fail(`the count of the open ${id} reads "${m.text}", want "hide ${n} code"`);
+    foot.push({ id, n, what, ...m });
+  }
+  const gaps = foot.map((f) => f.gap);
+  if (Math.max(...gaps) - Math.min(...gaps) > GAP_SAME) await fail(`the foot differs by more than ${GAP_SAME} px: ${foot.map((f) => `${f.id} ${f.gap}`).join(', ')}`);
+  const longRow = foot.find((f) => f.id === LONG);
+  if (longRow.titleLines < 2) await fail(`the long title did not wrap, ${longRow.titleLines} line`);
+  // the chips are really drawn on those nodes
+  const chipCount = await footPage.evaluate(() => ({ verified: document.querySelectorAll('[data-check-status="verified"]').length, warned: document.querySelectorAll('[data-warnings]').length }));
+  if (chipCount.verified < 4 || chipCount.warned < 4) await fail(`chips not drawn: ${JSON.stringify(chipCount)}`);
+  if (wantFrames) {
+    // up close: the 7 row node with the wrapped title, and an open count that says hide
+    const clipOf = async (id, name) => {
+      await footPage.keyboard.press('f');
+      await settled(footPage);
+      const b = await footPage.locator(node(id)).boundingBox();
+      await footPage.screenshot({ path: join(framesDir, name), type: 'jpeg', quality: 92, clip: { x: Math.max(0, b.x - 14), y: Math.max(0, b.y - 14), width: b.width + 28, height: b.height + 28 } });
+    };
+    await clipOf(LONG, 'n8-foot-gap-fixed.jpg');
+    await clipOf('intent-foot-verified-2', 'n9-hide-word.jpg');
+  }
+  // closing everything puts every node back within 1 px
+  for (const [id] of footCases) {
+    await footPage.keyboard.press('f');
+    await settled(footPage);
+    await toggleClick(footPage, id, false);
+  }
+  await footPage.keyboard.press('f');
+  await settled(footPage);
+  const footBack = placesDiff(footClosed, await footPage.evaluate(readPlaces));
+  if (footBack.worst > BACK_PX) await fail(`closing the foot cases left a node ${footBack.worst} px off: ${footBack.what}`);
+  await footPage.close();
+  if (!(await stopServer(footSrv))) await fail('foot server did not stop');
+  console.log(`ok foot (${secs()}s) - ${foot.length} open nodes, gap ${Math.min(...gaps)} to ${Math.max(...gaps)} px (limit ${GAP_MIN} to ${GAP_MAX}, same within ${GAP_SAME}), rows 1/2/3/7, chips verified and warning, title on ${longRow.titleLines} lines, "hide N code" when open, no overlap, closed back within ${footBack.worst} px`);
+
   // 2 the same copy on a server without --write: open, close, a key, the menu and a row click send only GET
   const ro = await startServer('server-read-only', work, false);
   const rp = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -669,5 +769,7 @@ try {
   if (errors.length) await fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
   await finish(true, 'all steps passed');
 } catch (err) {
+  // a picture of every open page, so a crash can be read
+  for (const [i, pg] of (browser ? browser.contexts().flatMap((c) => c.pages()) : []).entries()) await pg.screenshot({ path: join(runDir, `crash-${i}.jpg`), type: 'jpeg', quality: 70, timeout: 5000 }).catch(() => {});
   await fail(`crashed: ${err && err.stack ? err.stack.split('\n').slice(0, 3).join(' ') : err}`);
 }

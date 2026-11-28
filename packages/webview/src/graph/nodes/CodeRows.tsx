@@ -64,9 +64,9 @@ function NestToggle(props: { id: string; nest: NestInfo }): JSX.Element {
   };
   const Chevron = nest.open ? ChevronDown : ChevronRight;
   return (
-    <button type="button" className="ig-nest-toggle nodrag nopan" data-nest-toggle={id} data-nest-count={nest.count} data-nest-open={nest.open ? 'true' : 'false'} aria-expanded={nest.open} aria-label={`${nestCountLabel(nest.count)}, ${nest.open ? 'open' : 'closed'}`} title={title} style={TOGGLE} onClick={onClick} onKeyDown={keep}>
+    <button type="button" className="ig-nest-toggle nodrag nopan" data-nest-toggle={id} data-nest-count={nest.count} data-nest-open={nest.open ? 'true' : 'false'} aria-expanded={nest.open} aria-label={`${nestCountLabel(nest.count, nest.open)}, ${nest.open ? 'open' : 'closed'}`} title={title} style={TOGGLE} onClick={onClick} onKeyDown={keep}>
       <Chevron size={13} aria-hidden />
-      {nestCountLabel(nest.count)}
+      {nestCountLabel(nest.count, nest.open)}
     </button>
   );
 }
@@ -124,7 +124,7 @@ export function CodeRows(props: { id: string; nest: NestInfo | null; code: Reado
         <NestToggle id={id} nest={nest} />
       </div>
       {nest.open ? (
-        <div data-code-rows={id} role="list" style={{ display: 'flex', flexDirection: 'column', paddingTop: '2px' }}>
+        <div data-code-rows={id} role="list" style={{ display: 'flex', flexDirection: 'column', paddingTop: '2px', paddingBottom: `${NEST_TUNING.padPx}px` }}>
           {code.map((r, i) => (
             <div role="listitem" key={`${i}:${r.raw}`}>
               <CodeRow refx={r} index={i} editor={editor} />
